@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAP Analytics - Supabase Server-Side</title>
+    
+    <!-- Favicon Atualizado -->
+    <link rel="icon" type="image/png" href="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js"></script>
+    
+    <!-- Prop-Types -->
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    
+    <!-- Recharts -->
+    <script src="https://unpkg.com/recharts@2.10.3/umd/Recharts.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- SheetJS -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        body { background-color: #f8fafc; font-family: 'Inter', sans-serif; }
+        .loader { border-top-color: #3b82f6; -webkit-animation: spinner 1.5s linear infinite; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .glass-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+            border-radius: 0.75rem;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        }
+        .recharts-brush-slide { fill: #e2e8f0; fill-opacity: 0.5; }
+        .recharts-brush-traveller { fill: #fff; stroke: #3b82f6; }
+        
+        .report-section { margin-bottom: 2rem; page-break-inside: avoid; }
+        .report-title { font-size: 1.25rem; font-weight: 800; color: #1e293b; margin-bottom: 1rem; border-left: 4px solid #8b5cf6; padding-left: 0.75rem; }
+        .report-text { font-size: 0.9rem; color: #475569; line-height: 1.6; margin-bottom: 1rem; text-align: justify; }
+        .report-highlight { font-weight: 600; color: #0f172a; }
+        
+        .input-label { display: block; font-size: 0.75rem; font-weight: 700; color: #334155; text-transform: uppercase; margin-bottom: 0.25rem; }
+        .interactive-row:hover { background-color: #f1f5f9; cursor: pointer; transition: background-color 0.2s; }
+
+        /* Animações Personalizadas */
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.8) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .animate-enter {
+            animation: fadeInScale 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .logo-interactive img {
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.3s ease;
+            transform-origin: center;
+        }
+        
+        .logo-interactive:hover img {
+            transform: scale(1.1) rotate(-2deg);
+            filter: drop-shadow(0 10px 15px rgba(59, 130, 246, 0.2));
+        }
+
+        /* Transições de Largura */
+        .sidebar-transition {
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .content-transition {
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .fade-enter {
+            opacity: 0;
+            transform: translateX(-10px);
+            animation: fadeInSlide 0.3s forwards;
+        }
+        @keyframes fadeInSlide {
+            to { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        const { 
+            LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Area, Brush, ReferenceLine 
+        } = window.Recharts || {};
+        const { createClient } = window.supabase || {};
+        const XLSX = window.XLSX;
+
+        // --- Error Boundary Component ---
+        class ErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false, error: null, errorInfo: null };
+            }
+
+            static getDerivedStateFromError(error) {
+                return { hasError: true, error };
+            }
+
+            componentDidCatch(error, errorInfo) {
+                console.error("Erro capturado pelo Boundary:", error, errorInfo);
+                this.setState({ errorInfo });
+            }
+
+            render() {
+                if (this.state.hasError) {
+                    return (
+                        <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+                            <div className="bg-white p-8 rounded-xl shadow-2xl max-w-3xl w-full border-l-8 border-red-500">
+                                <h1 className="text-2xl font-bold text-red-600 mb-4">Ocorreu um erro na aplicação</h1>
+                                <div className="bg-red-50 p-4 rounded border border-red-100 mb-6 overflow-auto max-h-60">
+                                    <p className="font-mono text-sm text-red-800 font-bold mb-2">
+                                        {this.state.error && this.state.error.toString()}
+                                    </p>
+                                    <pre className="text-xs text-red-600 whitespace-pre-wrap">
+                                        {this.state.errorInfo && this.state.errorInfo.componentStack}
+                                    </pre>
+                                </div>
+                                <div className="flex gap-4">
+                                    <button onClick={() => window.location.reload()} className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold">Recarregar Página</button>
+                                    <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="px-6 py-2 bg-slate-200 text-slate-700 rounded hover:bg-slate-300 font-bold">Limpar Cache e Recarregar</button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+                return this.props.children; 
+            }
+        }
+
+        const COLORS = {
+            primary: '#0f172a', secondary: '#3b82f6', accent: '#f59e0b', success: '#10b981',
+            grid: '#f1f5f9', text: '#64748b', bomba: '#f97316', betoneira: '#3b82f6', gray: '#94a3b8',
+            controladoria: '#8b5cf6', controladoria_dark: '#6d28d9', danger: '#ef4444'
+        };
+
+        const Icons = {
+            Database: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 2.68-9 2.68S3 13.66 3 12"/><path d="M3 5v14c0 1.66 4 2.68 9 2.68s9-1.02 9-2.68V5"/></svg>,
+            LayoutDashboard: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>,
+            Table: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7m0-18H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7m0-18v18"/></svg>,
+            Upload: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+            Filter: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>,
+            ListFilter: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>,
+            LogOut: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+            DollarSign: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+            Truck: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
+            Droplet: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2.69l5.74 5.74c.84.84 1.5 2.12 1.5 3.57v4.5c0 1.66-1.34 3-3 3H7.76c-1.66 0-3-1.34-3-3v-4.5c0-1.45.66-2.73 1.5-3.57L12 2.69z"/></svg>,
+            FileText: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>,
+            CheckCircle: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+            RefreshCw: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>,
+            Info: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></svg>,
+            Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+            ChevronLeft: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>,
+            ChevronRight: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>,
+            Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+            Ban: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>,
+            Briefcase: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
+            Lock: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+            User: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+            BarChart2: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+            FileText2: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>,
+            Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+            Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+            Trash2: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>,
+            Target: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
+            ArrowLeft: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
+            Menu: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
+            ChevronDown: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>,
+            ChevronRightSmall: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+        };
+
+        const normalizeKey = (key) => key ? key.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "") : '';
+        const cleanStr = (str) => str ? str.toString().trim().toUpperCase() : '';
+
+        const checkPermission = (role, required) => {
+            if (!role) return false;
+            const r = role.toLowerCase();
+            if (r === 'admin' || r === 'administrador') return true;
+            if (required === 'terceirizacao') return r === 'terceirizacao' || r === 'terceirização';
+            if (required === 'controladoria') return r === 'controladoria';
+            return false;
+        };
+
+        const normalizeClass = (str) => str ? str.toString().trim().toUpperCase().replace(/\s+/g, ' ') : '';
+        
+        const roundCurrency = (val) => {
+            const v = typeof val === 'string' ? parseFloat(val) : val;
+            return parseFloat((v || 0).toFixed(2));
+        };
+
+        const roundVolume = (val) => {
+            const v = typeof val === 'string' ? parseFloat(val) : val;
+            return Math.round((v || 0) * 2) / 2;
+        };
+
+        const parseBrlNumber = (val) => { 
+            if (!val) return 0; 
+            if(typeof val === 'number') return val; 
+            let str = String(val).replace('R$', '').trim(); 
+            if(str.includes(',') && !str.includes('e')) str = str.replace(/\./g, '').replace(',', '.'); 
+            return parseFloat(str) || 0; 
+        };
+        
+        const parseDate = (val) => { 
+            if(!val) return null; 
+            if(val instanceof Date) return val.toISOString().split('T')[0]; 
+            const str=String(val).trim(); 
+            if(str.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)){ const p=str.split('/');return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`; } 
+            if(!isNaN(str)&&parseFloat(str)>30000){ const d=new Date((parseFloat(str)-25569)*86400*1000);return d.toISOString().split('T')[0]; } 
+            if(str.match(/^\d{4}-\d{2}-\d{2}$/))return str; 
+            return null; 
+        };
+
+        const isProduction = (type) => ['1', '10'].includes(String(type));
+
+        const CustomTooltip = ({ active, payload, label }) => {
+            if (active && payload && payload.length) {
+                return (
+                    <div className="bg-white p-3 border border-slate-200 shadow-xl rounded-lg text-sm z-50">
+                        <p className="font-bold text-slate-800 mb-2 border-b pb-1">{label}</p>
+                        {payload.map((entry, index) => (
+                            <div key={index} className="flex items-center justify-between gap-4 mb-1 last:mb-0">
+                                <div className="flex items-center gap-2" style={{ color: entry.color }}>
+                                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></span>
+                                    <span className="font-medium text-slate-600 truncate max-w-[200px]">{entry.name}:</span>
+                                </div>
+                                <div className="flex gap-2 text-right">
+                                    <span className="font-bold text-slate-700">{typeof entry.value === 'number' ? entry.value.toLocaleString('pt-BR', {maximumFractionDigits: 2}) : entry.value}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                );
+            }
+            return null;
+        };
+
+        const StatusLog = ({ logs, clearLogs }) => {
+            if (logs.length === 0) return null;
+            return (
+                <div className="fixed bottom-4 right-4 z-50 bg-white border border-slate-200 p-4 rounded-lg shadow-xl w-80 max-h-60 overflow-y-auto">
+                    <div className="flex justify-between mb-2 border-b pb-1">
+                        <span className="font-bold text-xs text-slate-700">Notificações</span>
+                        <button onClick={clearLogs} className="text-xs text-blue-500 hover:underline">Limpar</button>
+                    </div>
+                    {logs.map((l, i) => (
+                        <div key={i} className={`text-xs p-2 mb-1 rounded border-l-2 ${l.type === 'error' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-blue-50 border-blue-500 text-slate-700'}`}>{l.msg}</div>
+                    ))}
+                </div>
+            );
+        };
+
+        const Card = ({ title, value, subtext, iconName, color = "blue" }) => {
+            const Icon = { database: Icons.Database, dollar: Icons.DollarSign, alert: Icons.AlertCircle, truck: Icons.Truck, upload: Icons.Upload, fileText: Icons.FileText, droplet: Icons.Droplet, ban: Icons.Ban, info: Icons.Info, barChart: Icons.BarChart2, target: Icons.Target }[iconName] || Icons.Database;
+            const colorClasses = { blue: "bg-blue-50 text-blue-600", emerald: "bg-emerald-50 text-emerald-600", sky: "bg-sky-50 text-sky-600", orange: "bg-orange-50 text-orange-600", purple: "bg-purple-50 text-purple-600", gray: "bg-slate-100 text-slate-500" };
+            return (
+                <div className="glass-card p-6 flex justify-between items-start hover:shadow-md transition-shadow">
+                    <div><p className="text-slate-500 text-xs font-medium uppercase tracking-wide">{title}</p><h3 className="text-2xl font-bold mt-1 text-slate-800">{value}</h3>{subtext && <p className="text-xs text-slate-400 mt-1">{subtext}</p>}</div>
+                    <div className={`p-3 rounded-xl ${colorClasses[color] || colorClasses.blue}`}><Icon /></div>
+                </div>
+            );
+        };
+
+        // --- TELA DE LOGIN COM LAYOUT SPLIT SCREEN ---
+        const LoginScreen = ({ onLogin, loading }) => {
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onLogin(email, password);
+            };
+
+            return (
+                <div className="min-h-screen flex bg-slate-50 font-sans">
+                    {/* Lado Esquerdo - Imagem de Fundo */}
+                    <div 
+                        className="hidden md:block md:w-1/2 bg-cover bg-center relative" 
+                        style={{ backgroundImage: "url('https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Loginpage.jpg')" }}
+                    >
+                        {/* Overlay Opcional */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-transparent"></div>
+                    </div>
+
+                    {/* Lado Direito - Formulário */}
+                    <div className="w-full md:w-1/2 flex items-center justify-center p-8 md:p-12 bg-white">
+                        <div className="w-full max-w-md space-y-8">
+                            <div className="text-center">
+                                <div className="inline-block p-6 rounded-2xl bg-slate-50 mb-6 shadow-sm logo-interactive animate-enter cursor-pointer">
+                                    <img 
+                                        src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_com_texto-removebg-preview.png" 
+                                        alt="SAP Analytics Logo" 
+                                        className="h-40 mx-auto object-contain" 
+                                    />
+                                </div>
+                                <h2 className="text-3xl font-bold tracking-tight text-slate-900">Bem-vindo de volta</h2>
+                                <p className="mt-2 text-sm text-slate-600">Acesse sua conta para gerenciar os dados</p>
+                            </div>
+
+                            <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Email Corporativo</label>
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                                <Icons.User />
+                                            </div>
+                                            <input 
+                                                type="email" 
+                                                required 
+                                                className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none" 
+                                                placeholder="seu@email.com" 
+                                                value={email} 
+                                                onChange={e => setEmail(e.target.value)} 
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Senha</label>
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                                <Icons.Lock />
+                                            </div>
+                                            <input 
+                                                type="password" 
+                                                required 
+                                                className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none" 
+                                                placeholder="••••••••" 
+                                                value={password} 
+                                                onChange={e => setPassword(e.target.value)} 
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <button 
+                                        type="submit" 
+                                        disabled={loading} 
+                                        className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-blue-200"
+                                    >
+                                        {loading ? <span className="loader h-5 w-5 border-2 border-white rounded-full border-t-transparent"></span> : 'Entrar na Plataforma'}
+                                    </button>
+                                </div>
+                            </form>
+                            
+                            <div className="mt-6 text-center">
+                                <p className="text-xs text-slate-400">
+                                    &copy; {new Date().getFullYear()} SAP Analytics. Todos os direitos reservados.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const UploadCard = ({ type, iconName, onAnalyze, isAnalyzing, progress }) => {
+            const Icon = { fileText: Icons.FileText, dollar: Icons.DollarSign, truck: Icons.Truck }[iconName];
+            return (
+                <div className="glass-card p-6 text-center relative group hover:border-blue-300 transition-all duration-300">
+                    <div className="mb-4 text-slate-400 p-4 bg-slate-50 rounded-full inline-block group-hover:text-blue-500 group-hover:bg-blue-50 transition-colors"><Icon /></div>
+                    <h3 className="font-bold capitalize mb-2 text-slate-700">{type}</h3>
+                    <input type="file" className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" onChange={e => e.target.files && onAnalyze(e.target.files[0], type)} disabled={isAnalyzing} />
+                    {progress > 0 && (<div className="w-full bg-slate-100 h-1.5 mt-4 rounded-full overflow-hidden"><div className="bg-blue-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div></div>)}
+                </div>
+            );
+        };
+
+        const DataTable = ({ data, onNotify }) => {
+            const [currentPage, setCurrentPage] = useState(1);
+            const rowsPerPage = 20;
+            const headers = data.length > 0 ? Object.keys(data[0]) : [];
+            const totalPages = Math.ceil(data.length / rowsPerPage);
+            const currentRows = data.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+            const goToPage = (p) => setCurrentPage(Math.min(Math.max(1, p), totalPages));
+            const exportToExcel = () => {
+                if (data.length === 0) { if (onNotify) onNotify("Sem dados para exportar.", "error"); return; }
+                const ws = XLSX.utils.json_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Dados");
+                XLSX.writeFile(wb, "Exportacao_Controladoria.xlsx");
+            };
+            if(data.length === 0) return <div className="p-8 text-center text-slate-400">Sem dados para exibir.</div>;
+            return (
+                <div className="glass-card overflow-hidden">
+                    <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50"><h3 className="font-bold text-slate-700 flex items-center gap-2 text-sm"><Icons.Table /> Registros ({data.length})</h3><div className="flex gap-2"><button onClick={exportToExcel} className="text-green-600 hover:bg-green-50 border border-green-200 px-3 py-1.5 rounded text-xs flex items-center gap-1 transition-colors font-medium"><Icons.Download /> Exportar Excel</button><div className="border-l border-slate-300 mx-2 h-6"></div><span className="text-xs text-slate-400 self-center">Página {currentPage} de {totalPages}</span><button onClick={() => goToPage(currentPage-1)} disabled={currentPage===1} className="p-1 border rounded hover:bg-white disabled:opacity-30"><Icons.ChevronLeft /></button><button onClick={() => goToPage(currentPage+1)} disabled={currentPage===totalPages} className="p-1 border rounded hover:bg-white disabled:opacity-30"><Icons.ChevronRight /></button></div></div>
+                    <div className="overflow-x-auto custom-scrollbar"><table className="w-full text-xs text-left text-slate-600"><thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr>{headers.map(h => <th key={h} className="px-4 py-3 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{currentRows.map((row, i) => (<tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">{headers.map(h => { const val = row[h]; const displayVal = typeof val === 'number' ? val.toLocaleString('pt-BR', {minimumFractionDigits: 2}) : val; return <td key={h} className="px-4 py-2.5 whitespace-nowrap">{displayVal}</td> })}</tr>))}</tbody></table></div>
+                </div>
+            );
+        };
+        
+        const ControladoriaDePara = ({ supabaseClient, onNotify }) => {
+            const [mappings, setMappings] = useState([]);
+            const [availableAccounts, setAvailableAccounts] = useState([]);
+            const [showModal, setShowModal] = useState(false);
+            const [loading, setLoading] = useState(false);
+            const [formData, setFormData] = useState({ id: null, original_name: '', friendly_name: '', tipo: 'Despesa' });
+
+            const fetchMappings = async () => { try { const { data, error } = await supabaseClient.from('controladoria_de_para').select('*').order('friendly_name'); if (error) throw error; setMappings(data || []); } catch (e) { onNotify("Erro De/Para: " + e.message, "error"); } };
+            const fetchAvailableAccounts = async () => { try { const { data, error } = await supabaseClient.rpc('get_controladoria_contas'); if (error) throw error; setAvailableAccounts(data.map(d => d.conta)); } catch (e) { onNotify("Erro contas: " + e.message, "error"); } };
+
+            useEffect(() => { fetchMappings(); fetchAvailableAccounts(); }, []);
+
+            const handleDelete = async (id) => { if (!confirm("Excluir mapeamento?")) return; try { const { error } = await supabaseClient.from('controladoria_de_para').delete().eq('id', id); if (error) throw error; onNotify("Excluído!", "success"); fetchMappings(); } catch (e) { onNotify("Erro: " + e.message, "error"); } };
+            const handleSave = async (e) => { e.preventDefault(); setLoading(true); try { const payload = { original_name: formData.original_name, friendly_name: formData.friendly_name, tipo: formData.tipo }; const { error } = formData.id ? await supabaseClient.from('controladoria_de_para').update(payload).eq('id', formData.id) : await supabaseClient.from('controladoria_de_para').insert(payload); if (error) throw error; onNotify("Salvo!", "success"); setShowModal(false); fetchMappings(); } catch (e) { onNotify("Erro: " + e.message, "error"); } finally { setLoading(false); } };
+            const openNew = () => { setFormData({ id: null, original_name: '', friendly_name: '', tipo: 'Despesa' }); setShowModal(true); };
+            const openEdit = (item) => { setFormData({ ...item }); setShowModal(true); };
+
+            return (
+                <div className="max-w-5xl mx-auto space-y-6">
+                    <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Icons.Settings /> Configuração De/Para</h2><button onClick={openNew} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"><Icons.Plus /> Novo De/Para</button></div>
+                    <div className="glass-card overflow-hidden"><table className="w-full text-sm text-left text-slate-600"><thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th className="px-6 py-3">Original</th><th className="px-6 py-3">Amigável</th><th className="px-6 py-3">Tipo</th><th className="px-6 py-3 text-right">Ações</th></tr></thead><tbody>{mappings.map((item) => (<tr key={item.id} className="border-b border-slate-50 hover:bg-slate-50"><td className="px-6 py-3 font-mono text-slate-500">{item.original_name}</td><td className="px-6 py-3 font-bold text-slate-800">{item.friendly_name}</td><td className="px-6 py-3"><span className={`px-2 py-1 rounded text-xs font-bold ${item.tipo === 'Receita' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{item.tipo}</span></td><td className="px-6 py-3 text-right flex justify-end gap-2"><button onClick={() => openEdit(item)} className="text-blue-600 font-medium text-xs">Editar</button><button onClick={() => handleDelete(item.id)} className="text-red-500"><Icons.Trash2 /></button></td></tr>))}</tbody></table></div>
+                    {showModal && (<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"><div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6"><h3 className="text-lg font-bold text-slate-800 mb-4 border-b pb-2">{formData.id ? 'Editar' : 'Novo'} Mapeamento</h3><form onSubmit={handleSave} className="space-y-4"><div><label className="input-label">Original</label><select className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={formData.original_name} onChange={e => setFormData({...formData, original_name: e.target.value})} required disabled={!!formData.id}><option value="">Selecione...</option>{availableAccounts.map(acc => (<option key={acc} value={acc}>{acc}</option>))}</select></div><div><label className="input-label">Nome Amigável</label><input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={formData.friendly_name} onChange={e => setFormData({...formData, friendly_name: e.target.value})} required /></div><div><label className="input-label">Tipo</label><select className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value})} required><option value="Despesa">Despesa</option><option value="Receita">Receita</option></select></div><div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100"><button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg text-sm">Cancelar</button><button type="submit" disabled={loading} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold">{loading ? '...' : 'Salvar'}</button></div></form></div></div>)}
+                </div>
+            );
+        };
+
+        const ControladoriaDashboardAnalitico = ({ stats, loading, tipo, setTipo, onDrillDown, periodo }) => {
+            const isReceita = tipo === 'Receita';
+            const getVariationColor = (val) => val === 0 ? 'bg-slate-100 text-slate-600' : (isReceita ? (val > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') : (val > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'));
+            const getArrow = (val) => val > 0 ? '▲' : (val < 0 ? '▼' : '-');
+
+            const safeStats = (stats || []).map(row => ({
+                ...row,
+                valor_atual: parseFloat(row.valor_atual) || 0,
+                rs_m3: parseFloat(row.rs_m3) || 0,
+                perc_receita: parseFloat(row.perc_receita) || 0,
+                variacao_perc: parseFloat(row.variacao_perc) || 0
+            }));
+
+            if (safeStats.length === 0) return (
+                <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+                    <Icons.Info />
+                    <p className="mt-2 font-bold">Sem dados para exibir.</p>
+                    <p className="text-sm mt-1 max-w-md text-center">
+                        Isso pode acontecer se não houver importações para o período <strong>{periodo}</strong> 
+                        OU se não houver contas cadastradas no <strong>De/Para</strong> com o tipo <strong>"{tipo}"</strong>.
+                    </p>
+                    <div className="flex gap-4 mt-4">
+                        <button onClick={() => window.location.reload()} className="text-blue-600 text-xs hover:underline">Recarregar</button>
+                    </div>
+                </div>
+            );
+
+            const refData = safeStats[0] || { vol_ref: 0, rec_ref: 0, vol_var_perc: 0, rec_var_perc: 0 };
+            const volRef = parseFloat(refData.vol_ref) || 0;
+            const recRef = parseFloat(refData.rec_ref) || 0;
+            const volVar = parseFloat(refData.vol_var_perc) || 0;
+            const recVar = parseFloat(refData.rec_var_perc) || 0;
+
+            const topVariacoes = [...safeStats].filter(i => isReceita ? (i.variacao_perc < 0 && Math.abs(i.valor_atual) > 1000) : (i.variacao_perc > 0 && i.valor_atual > 1000)).sort((a,b) => isReceita ? a.variacao_perc - b.variacao_perc : b.variacao_perc - a.variacao_perc).slice(0, 3);
+
+            return (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="glass-card p-4 flex justify-between items-center border-l-4 border-blue-500"><div><div className="flex items-center gap-2 mb-1"><p className="text-xs font-bold text-slate-500 uppercase">Prod: Qtd. Transp.</p><span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${volVar >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{getArrow(volVar)} {Math.abs(volVar).toFixed(1)}% vs Trim.</span></div><p className="text-xl font-bold text-slate-800">{roundVolume(volRef).toLocaleString('pt-BR')} m³</p></div><div className="text-blue-200"><Icons.Truck /></div></div>
+                        <div className="glass-card p-4 flex justify-between items-center border-l-4 border-emerald-500"><div><div className="flex items-center gap-2 mb-1"><p className="text-xs font-bold text-slate-500 uppercase">* Prod: Rec. Liq. Ger.</p><span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${recVar >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{getArrow(recVar)} {Math.abs(recVar).toFixed(1)}% vs Trim.</span></div><p className="text-xl font-bold text-slate-800">{roundCurrency(recRef).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</p></div><div className="text-emerald-200"><Icons.DollarSign /></div></div>
+                    </div>
+                    <div className="flex justify-center mb-2"><div className="bg-slate-200 p-1 rounded-lg flex shadow-inner"><button onClick={() => setTipo('Despesa')} className={`px-6 py-2 rounded-md text-sm font-bold transition-all ${!isReceita ? 'bg-white text-slate-800 shadow' : 'text-slate-500'}`}>Despesas</button><button onClick={() => setTipo('Receita')} className={`px-6 py-2 rounded-md text-sm font-bold transition-all ${isReceita ? 'bg-white text-emerald-600 shadow' : 'text-slate-500'}`}>Receitas</button></div></div>
+                    <div className="flex gap-6 items-start">
+                        <div className="flex-1 glass-card overflow-hidden"><div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center"><h3 className={`font-bold text-sm ${isReceita ? 'text-emerald-700' : 'text-slate-700'}`}>{isReceita ? 'Detalhamento de Receitas' : 'Detalhamento de Despesas'}</h3></div><div className="overflow-x-auto"><table className="w-full text-sm text-left text-slate-600"><thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th className="px-6 py-3">Conta</th><th className="px-6 py-3 text-right">Valor Total</th><th className="px-6 py-3 text-right">R$ / m³</th><th className="px-6 py-3 text-right">% Receita</th><th className="px-6 py-3 text-right">Var. Trimestre</th></tr></thead><tbody>{safeStats.map((row, i) => (<tr key={i} onClick={() => onDrillDown(row.conta)} className="border-b border-slate-50 interactive-row transition-colors"><td className="px-6 py-3 font-medium text-slate-800">{row.conta}</td><td className="px-6 py-3 text-right">{row.valor_atual.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td><td className="px-6 py-3 text-right font-mono text-slate-600">{row.rs_m3.toLocaleString('pt-BR', {minimumFractionDigits: 2, style:'currency', currency:'BRL'})}</td><td className="px-6 py-3 text-right"><div className="flex items-center justify-end gap-2"><span className="text-xs font-bold text-slate-700">{row.perc_receita.toFixed(2)}%</span><div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className={`h-full ${isReceita ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(row.perc_receita, 100)}%` }}></div></div></div></td><td className="px-6 py-3 text-right"><span className={`px-2 py-1 rounded text-xs font-bold ${getVariationColor(row.variacao_perc)}`}>{getArrow(row.variacao_perc)} {Math.abs(row.variacao_perc).toFixed(1)}%</span></td></tr>))}</tbody></table></div></div>
+                        <div className="w-80 space-y-4"><div className={`glass-card p-5 border-t-4 ${isReceita ? 'border-orange-500' : 'border-red-500'}`}><h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><span className={isReceita ? 'text-orange-500' : 'text-red-500'}><Icons.BarChart2 /></span> {isReceita ? 'Quedas de Receita' : 'Aumentos de Custo'}</h4><p className="text-xs text-slate-500 mb-4">{isReceita ? 'Contas com maior queda vs média trimestral.' : 'Contas com maior aumento vs média trimestral.'}</p>{topVariacoes.length > 0 ? (<div className="space-y-3">{topVariacoes.map((item, idx) => (<div key={idx} onClick={() => onDrillDown(item.conta)} className={`p-3 rounded-lg border interactive-row ${isReceita ? 'bg-orange-50 border-orange-100' : 'bg-red-50 border-red-100'}`}><p className="text-xs font-bold text-slate-700 mb-1">{item.conta}</p><div className="flex justify-between items-end"><span className={`${isReceita ? 'text-orange-600' : 'text-red-600'} font-bold text-sm`}>{isReceita ? '▼' : '▲'} {Math.abs(item.variacao_perc).toFixed(1)}%</span><span className="text-xs text-slate-400">R$ {item.valor_atual.toLocaleString('pt-BR', {notation: 'compact'})}</span></div></div>))}</div>) : (<div className="text-center py-4 text-slate-400 text-xs">Nenhuma variação crítica.</div>)}</div></div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ControladoriaDashboardCentroCusto = ({ supabaseClient, periodo, contas, onNotify, initialConta, onBack }) => {
+            const [selectedConta, setSelectedConta] = useState(initialConta || (contas.length > 0 ? contas[0] : ''));
+            const [data, setData] = useState({ ranking: [], evolucao: [] });
+            const [loading, setLoading] = useState(false);
+
+            useEffect(() => { if(contas.length > 0 && !selectedConta) setSelectedConta(contas[0]); }, [contas]);
+
+            const fetchData = async () => {
+                if (!selectedConta || !periodo) return;
+                setLoading(true);
+                try {
+                    const { data: ranking, error: errRank } = await supabaseClient.rpc('get_controladoria_detalhe_conta', { p_periodo: periodo, p_conta: selectedConta });
+                    if (errRank) throw errRank;
+
+                    const { data: evolucao, error: errEvo } = await supabaseClient.rpc('get_controladoria_evolucao_conta', { p_conta: selectedConta, p_periodo_fim: periodo });
+                    if (errEvo) throw errEvo;
+
+                    const evolucaoSorted = (evolucao || []).sort((a,b) => a.periodo.localeCompare(b.periodo));
+
+                    const safeRanking = (ranking || []).map(r => ({
+                        ...r,
+                        valor_atual: parseFloat(r.valor_atual) || 0,
+                        vol_atual: parseFloat(r.vol_atual) || 0,
+                        rs_m3_atual: parseFloat(r.rs_m3_atual) || 0,
+                        media_12m: parseFloat(r.media_12m) || 0,
+                        variacao_12m_perc: parseFloat(r.variacao_12m_perc) || 0
+                    }));
+                    
+                    const safeEvolucao = evolucaoSorted.map(e => ({
+                        ...e,
+                        valor_total: parseFloat(e.valor_total) || 0,
+                        rs_m3_medio: parseFloat(e.rs_m3_medio) || 0
+                    }));
+
+                    setData({ ranking: safeRanking, evolucao: safeEvolucao });
+                } catch (e) {
+                    onNotify("Erro ao buscar detalhe: " + e.message, "error");
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => { fetchData(); }, [selectedConta, periodo]);
+
+            const totalGasto = data.ranking.reduce((acc, curr) => acc + curr.valor_atual, 0);
+            const totalVol = data.ranking.reduce((acc, curr) => acc + curr.vol_atual, 0);
+            const mediaRsM3 = totalVol > 0 ? totalGasto / totalVol : 0;
+            
+            const trend = data.evolucao.length >= 2 
+                ? ((data.evolucao[data.evolucao.length-1].valor_total - data.evolucao[0].valor_total) / data.evolucao[0].valor_total) * 100 
+                : 0;
+            const safeTrend = isNaN(trend) || !isFinite(trend) ? 0 : trend;
+
+            return (
+                <div className="space-y-6">
+                    <div className="flex items-center gap-4 mb-4">
+                        <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-purple-600 transition-colors font-medium text-sm bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm"><Icons.ArrowLeft /> Voltar para Visão Geral</button>
+                        <h2 className="text-xl font-bold text-slate-800">Detalhamento: <span className="text-purple-600">{selectedConta}</span></h2>
+                    </div>
+
+                    <div className="glass-card p-4 flex items-center gap-4">
+                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600"><Icons.Filter className="w-4 h-4" /> Alternar Centro de Custo:</div>
+                        <select className="border border-slate-300 rounded px-3 py-2 text-sm w-96 focus:ring-2 focus:ring-purple-500 outline-none" value={selectedConta} onChange={e => setSelectedConta(e.target.value)}>
+                            {contas.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <button onClick={fetchData} className="text-purple-600 hover:text-purple-800"><Icons.RefreshCw className="w-4 h-4" /></button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <Card title="Gasto Total (Mês)" value={roundCurrency(totalGasto).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})} iconName="dollar" color="purple" />
+                        <Card title="Custo Unitário Médio" value={`R$ ${roundCurrency(mediaRsM3).toLocaleString('pt-BR')}/m³`} iconName="target" color="blue" subtext="Média de todas as usinas" />
+                        <Card title="Volatilidade (Tendência)" value={`${safeTrend > 0 ? '+' : ''}${safeTrend.toFixed(1)}%`} iconName="barChart" color={safeTrend > 0 ? "orange" : "emerald"} subtext="vs 12 meses atrás" />
+                        <Card title="Volume Afetado" value={`${roundVolume(totalVol).toLocaleString('pt-BR')} m³`} iconName="truck" color="gray" />
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="glass-card p-6 h-[400px] flex flex-col">
+                            <h3 className="font-bold text-slate-800 mb-4">Top 10 Usinas - Maior Custo por m³</h3>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart layout="vertical" data={data.ranking.sort((a,b) => b.rs_m3_atual - a.rs_m3_atual).slice(0,10)} margin={{top: 5, right: 30, left: 40, bottom: 5}}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={COLORS.grid} />
+                                    <XAxis type="number" tickFormatter={(val) => `R$ ${val}`} />
+                                    <YAxis dataKey="usina" type="category" width={50} tick={{fontSize: 11, fontWeight: 'bold'}} />
+                                    <Tooltip formatter={(value) => roundCurrency(value).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})} />
+                                    <Bar dataKey="rs_m3_atual" fill={COLORS.controladoria} radius={[0, 4, 4, 0]} name="R$/m³" barSize={20}>
+                                         {data.ranking.slice(0,10).map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.rs_m3_atual > mediaRsM3 ? COLORS.danger : COLORS.success} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="glass-card p-6 h-[400px] flex flex-col">
+                            <h3 className="font-bold text-slate-800 mb-4">Evolução Histórica (12 Meses)</h3>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <ComposedChart data={data.evolucao} margin={{top: 10, right: 10, left: 0, bottom: 0}}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={COLORS.grid} />
+                                    <XAxis dataKey="periodo" tick={{fontSize: 10}} />
+                                    <YAxis yAxisId="left" orientation="left" tickFormatter={(val) => `R$ ${val/1000}k`} />
+                                    <YAxis yAxisId="right" orientation="right" tickFormatter={(val) => `R$ ${val}`} />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Bar yAxisId="left" dataKey="valor_total" name="Valor Total" fill={COLORS.controladoria_dark} barSize={30} fillOpacity={0.6} />
+                                    <Line yAxisId="right" type="monotone" dataKey="rs_m3_medio" name="R$/m³ Médio" stroke={COLORS.accent} strokeWidth={3} dot={{r:4}} />
+                                </ComposedChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    <div className="glass-card overflow-hidden">
+                        <div className="p-4 bg-slate-50 border-b border-slate-100"><h3 className="font-bold text-slate-700 text-sm">Detalhamento Completo por Usina</h3></div>
+                        <div className="overflow-x-auto max-h-96 custom-scrollbar">
+                            <table className="w-full text-sm text-left text-slate-600">
+                                <thead className="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0">
+                                    <tr>
+                                        <th className="px-6 py-3">Usina</th>
+                                        <th className="px-6 py-3 text-right">Valor Atual</th>
+                                        <th className="px-6 py-3 text-right">R$/m³ Atual</th>
+                                        <th className="px-6 py-3 text-right">Média 12m</th>
+                                        <th className="px-6 py-3 text-right">Var. 12m</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.ranking.map((row, i) => (
+                                        <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
+                                            <td className="px-6 py-3 font-bold">{row.usina}</td>
+                                            <td className="px-6 py-3 text-right">{row.valor_atual.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
+                                            <td className="px-6 py-3 text-right font-mono text-slate-800">{row.rs_m3_atual.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
+                                            <td className="px-6 py-3 text-right text-slate-400">{row.media_12m.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
+                                            <td className="px-6 py-3 text-right">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${row.variacao_12m_perc > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                                    {row.variacao_12m_perc > 0 ? '+' : ''}{row.variacao_12m_perc.toFixed(1)}%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ControladoriaImport = ({ onImport, loading }) => {
+            const [date, setDate] = useState('');
+            return (
+                <div className="max-w-2xl mx-auto glass-card p-8">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Icons.Upload /> Importação Controladoria</h3>
+                    <p className="text-sm text-slate-500 mb-6">Selecione o período de referência e o arquivo Excel (.xlsx ou .csv). O sistema identificará automaticamente as colunas de Centro de Custo.</p>
+                    <div className="space-y-4">
+                        <div><label className="block text-xs font-bold text-slate-700 uppercase mb-1">Período de Referência</label><input type="month" className="w-full border border-slate-300 rounded p-2 text-sm" value={date} onChange={e => setDate(e.target.value)} /></div>
+                        <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:bg-slate-50 transition-colors"><input type="file" accept=".xlsx, .csv" className="hidden" id="fileInput" disabled={loading || !date} onChange={(e) => { if(e.target.files[0]) onImport(e.target.files[0], date); e.target.value = null; }} /><label htmlFor="fileInput" className={`cursor-pointer flex flex-col items-center ${!date ? 'opacity-50 cursor-not-allowed' : ''}`}><div className="bg-purple-100 text-purple-600 p-4 rounded-full mb-3"><Icons.FileText /></div><span className="font-bold text-slate-700">Clique para selecionar o arquivo</span><span className="text-xs text-slate-400 mt-1">Excel ou CSV</span></label></div>
+                        {loading && <div className="text-center text-xs text-blue-600 font-medium">Processando arquivo, aguarde...</div>}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- App Principal ---
+        const App = () => {
+            const [supabaseClient, setSupabaseClient] = useState(null);
+            const [config, setConfig] = useState({ url: 'https://jsmnykikflkjceiqfmne.supabase.co', key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbW55a2lrZmxramNlaXFmbW5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTI5NzYsImV4cCI6MjA3OTU4ODk3Nn0.1EtrQTvZERRe8igl0PYnGH8H9SXuOg7mq4PVZVwRJVA' });
+            
+            const [session, setSession] = useState(null);
+            const [userRole, setUserRole] = useState(null);
+            const [loadingAuth, setLoadingAuth] = useState(false);
+            const [view, setView] = useState('dashboard');
+            
+            const [controladoriaView, setControladoriaView] = useState('dash');
+            const [loading, setLoading] = useState(false);
+            const [logs, setLogs] = useState([]);
+            
+            const [drillDownConta, setDrillDownConta] = useState(null);
+            const [dashboardData, setDashboardData] = useState({ kpis: { total_vol: 0, total_val: 0, vol_bomba: 0, vol_transp: 0 }, chart_class: [], chart_plate: [], chart_evo: [], chart_branch: [] });
+            const [controladoriaAnalise, setControladoriaAnalise] = useState([]); 
+            const [controladoriaContas, setControladoriaContas] = useState([]); 
+            const [controladoriaRaw, setControladoriaRaw] = useState([]);
+            const [controladoriaFiliais, setControladoriaFiliais] = useState([]); 
+            const [resumoData, setResumoData] = useState([]);
+
+            const [filterMonth, setFilterMonth] = useState('Todos');
+            const [filterFilial, setFilterFilial] = useState('Todas');
+            const [rankingFilter, setRankingFilter] = useState('top10');
+            const [ctrlFilterPeriodo, setCtrlFilterPeriodo] = useState('');
+            const [ctrlFilterUsina, setCtrlFilterUsina] = useState('Todas'); 
+            const [ctrlAnaliseTipo, setCtrlAnaliseTipo] = useState('Despesa'); 
+
+            const [uploadProgress, setUploadProgress] = useState({});
+            const [confirmData, setConfirmData] = useState(null);
+            const [dbRowCount, setDbRowCount] = useState(0);
+
+            const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+            const [expandedModules, setExpandedModules] = useState({ terceirizacao: true, controladoria: true });
+
+            const addLog = (msg, type='info') => setLogs(p => [{msg, type}, ...p]);
+            
+            const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+            const toggleModule = (mod) => setExpandedModules(p => ({ ...p, [mod]: !p[mod] }));
+
+            useEffect(() => { try { setSupabaseClient(createClient(config.url, config.key)); } catch(e){} }, []);
+
+            useEffect(() => {
+                const loadLatest = async () => {
+                    if (!supabaseClient) return;
+                    const { data, error } = await supabaseClient
+                        .from('controladoria_importacoes')
+                        .select('periodo')
+                        .order('periodo', { ascending: false })
+                        .limit(1);
+                    if (data && data.length > 0) {
+                        setCtrlFilterPeriodo(data[0].periodo);
+                    } else {
+                        const today = new Date();
+                        const m = today.getMonth() + 1; 
+                        const y = today.getFullYear();
+                        setCtrlFilterPeriodo(`${y}-${m.toString().padStart(2, '0')}`);
+                    }
+                };
+                loadLatest();
+            }, [supabaseClient]);
+
+            useEffect(() => {
+                if(supabaseClient) {
+                    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                        if(session) { setSession(session); checkUserRole(session.user.id, session.user.email); }
+                    });
+                    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+                        setSession(session);
+                        if(session) checkUserRole(session.user.id, session.user.email);
+                        else setUserRole(null);
+                    });
+                    return () => subscription.unsubscribe();
+                }
+            }, [supabaseClient]);
+
+            const checkUserRole = async (userId, email) => {
+                if(!supabaseClient) return;
+                const { data } = await supabaseClient.from('user_roles').select('role').eq('user_id', userId).single();
+                if (data && data.role) setUserRole(data.role);
+                else setUserRole(email.includes('admin') ? 'admin' : 'terceirizacao');
+            };
+
+            const handleLogin = async (email, password) => {
+                setLoadingAuth(true);
+                try {
+                    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                } catch (error) { addLog('Erro no login: ' + error.message, 'error'); } 
+                finally { setLoadingAuth(false); }
+            };
+
+            const handleLogout = async () => { await supabaseClient.auth.signOut(); setView('dashboard'); };
+
+            const fetchDashboard = async () => {
+                if(!supabaseClient || !session) return;
+                setLoading(true);
+                try {
+                    const { data, error } = await supabaseClient.rpc('get_dashboard_stats', { selected_month: filterMonth, selected_branch: filterFilial });
+                    if(error) throw error;
+                    if(data) setDashboardData(data);
+                    const { count } = await supabaseClient.from('apuracao').select('*', { count: 'exact', head: true });
+                    setDbRowCount(count || 0);
+                } catch(e) { console.error(e); }
+                setLoading(false);
+            };
+
+            const fetchReport = async () => {
+                if(!supabaseClient || view !== 'reports' || !session) return;
+                const { data } = await supabaseClient.from('resumo_mensal').select('*').limit(5000);
+                if(data) setResumoData(data);
+            };
+            
+            const fetchControladoriaAnalitico = async () => {
+                if(!supabaseClient || !session || !ctrlFilterPeriodo) return;
+                setLoading(true);
+                try {
+                    const { data, error } = await supabaseClient.rpc('get_controladoria_analise_contas', { 
+                        p_periodo: ctrlFilterPeriodo,
+                        p_tipo: ctrlAnaliseTipo,
+                        p_usina: ctrlFilterUsina === 'Todas' ? null : ctrlFilterUsina
+                    });
+                    if(error) throw error;
+                    setControladoriaAnalise(data || []);
+                } catch(e) { addLog("Erro Controladoria Analítico: "+e.message, 'error'); }
+                setLoading(false);
+            };
+
+            const fetchControladoriaFiliais = async () => {
+                if(!supabaseClient || !session) return;
+                try {
+                    const { data } = await supabaseClient.from('controladoria_importacoes').select('usina');
+                    const unique = [...new Set((data||[]).map(d => d.usina))].sort();
+                    setControladoriaFiliais(unique);
+                } catch(e) {}
+            };
+
+            const fetchControladoriaContasAmigaveis = async () => {
+                if(!supabaseClient || !session) return;
+                try {
+                    const { data, error } = await supabaseClient.from('controladoria_de_para').select('friendly_name').eq('tipo', 'Despesa').order('friendly_name');
+                    if (error) throw error;
+                    setControladoriaContas(data.map(d => d.friendly_name));
+                } catch(e) { console.error("Erro lista contas amigaveis", e); }
+            };
+
+            const fetchControladoriaRaw = async () => {
+                if(!supabaseClient || !session) return;
+                setLoading(true);
+                try {
+                    let query = supabaseClient.from('controladoria_importacoes').select('*');
+                    if(ctrlFilterPeriodo) query = query.eq('periodo', ctrlFilterPeriodo);
+                    
+                    const { data, error } = await query.limit(2000).order('usina');
+                    if(error) throw error;
+                    
+                    const flatData = (data || []).map(row => ({
+                        periodo: row.periodo,
+                        usina: row.usina,
+                        custo_total: parseFloat(row.custo_total) || 0,
+                        volume_total: parseFloat(row.volume_total) || 0,
+                        ...row.detalhes
+                    }));
+                    setControladoriaRaw(flatData);
+                } catch(e) { addLog("Erro Controladoria Report: "+e.message, 'error'); }
+                setLoading(false);
+            };
+
+            useEffect(() => { 
+                if(supabaseClient && session) {
+                    if (view === 'controladoria') {
+                        if (controladoriaView === 'dash') {
+                            fetchControladoriaAnalitico();
+                            fetchControladoriaFiliais();
+                        }
+                        if (controladoriaView === 'centro_custo') {
+                            fetchControladoriaContasAmigaveis();
+                        }
+                        if (controladoriaView === 'report') fetchControladoriaRaw();
+                    } else {
+                        fetchDashboard(); 
+                        if(view === 'reports') fetchReport();
+                    }
+                } 
+            }, [supabaseClient, session, view, controladoriaView, ctrlFilterPeriodo, ctrlFilterUsina, ctrlAnaliseTipo]);
+
+            const processControladoriaFile = (file, periodDate) => {
+                setLoading(true);
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+                        const sheet = wb.Sheets[wb.SheetNames[0]];
+                        const rawData = XLSX.utils.sheet_to_json(sheet, {header: 1}); 
+
+                        if (rawData.length < 4) throw new Error("Arquivo muito curto ou formato inválido.");
+
+                        const headers = rawData[0]; 
+                        const batch = [];
+                        
+                        for (let i = 3; i < rawData.length; i++) {
+                            const row = rawData[i];
+                            const rawUsina = row[0];
+
+                            if (rawUsina && typeof rawUsina === 'string') {
+                                const usinaCode = rawUsina.substring(0, 4).toUpperCase();
+                                let custoTotal = 0;
+                                let volTotal = 0;
+                                const detalhes = {};
+
+                                headers.forEach((h, colIdx) => {
+                                    if(!h || colIdx === 0) return;
+                                    const val = parseFloat(row[colIdx]) || 0;
+                                    const hStr = h.toString().trim();
+                                    detalhes[hStr] = val; 
+
+                                    if (hStr.toLowerCase().includes('tot. custos')) {
+                                        custoTotal = val;
+                                    } else if (hStr.toLowerCase().includes('qtd.transp') || hStr.toLowerCase().includes('qtd.bomb')) {
+                                        volTotal += val;
+                                    }
+                                });
+
+                                batch.push({
+                                    periodo: periodDate,
+                                    usina: usinaCode,
+                                    custo_total: custoTotal,
+                                    volume_total: volTotal,
+                                    detalhes: detalhes
+                                });
+                            }
+                        }
+                        
+                        const { error: errDel } = await supabaseClient.rpc('limpar_periodo_controladoria', { p_periodo: periodDate });
+                        if(errDel) throw errDel;
+
+                        const chunkSize = 100;
+                        for (let i = 0; i < batch.length; i += chunkSize) {
+                            const chunk = batch.slice(i, i + chunkSize);
+                            const { error: errIns } = await supabaseClient.from('controladoria_importacoes').insert(chunk);
+                            if(errIns) throw errIns;
+                        }
+
+                        addLog(`Sucesso! ${batch.length} registros importados para ${periodDate}.`, "success");
+                        setControladoriaView('dash');
+                        setCtrlFilterPeriodo(periodDate);
+                    } catch (err) {
+                        addLog("Erro na importação: " + err.message, "error");
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            };
+
+            const handleUploadTerceirizacao = (file, type) => {
+                const r = new FileReader();
+                r.onload = (e) => {
+                    const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+                    const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:""});
+                    setConfirmData({type, count: json.length, data: json});
+                };
+                r.readAsArrayBuffer(file);
+            };
+
+            const confirmImportTerceirizacao = async () => {
+                if(!confirmData) return;
+                const { type, data } = confirmData; setConfirmData(null);
+                const mapRow = (row) => {
+                    const get = (k) => { const key = Object.keys(row).find(x => normalizeKey(x) === normalizeKey(k)); return key ? row[key] : ""; };
+                    if(type==='apuracao') return { filial_prod: get('Filial Prod.'), n_viagem: get('N° Viagem'), terceiro: get('Terceiro'), placa: get('Placa'), valor_base: parseBrlNumber(get('Valor Base')), volume: parseBrlNumber(get('Volume')), total: parseBrlNumber(get('Total')), classe: normalizeClass(get('Classe')), dt_viagem: parseDate(get('Dt. Viagem')), tipo_lancamento: get('Tipo Lancamento') };
+                    if(type==='pagamentos') return { n_documento: get('Nº documento'), montante: parseBrlNumber(get('Montante em moeda interna')), fornecedor: get('Fornecedor'), data_documento: parseDate(get('Data do documento')) };
+                    if(type==='concessao') return { equipamento: get('Equipamento'), valor_base: parseBrlNumber(get('Valor Base')), data_inicial: parseDate(get('Data Inicial')) };
+                    return null;
+                };
+                try {
+                    const batch = data.map(mapRow).filter(Boolean);
+                    for(let i=0; i<batch.length; i+=100) await supabaseClient.from(type).insert(batch.slice(i, i+100));
+                    addLog("Importado!", "success");
+                } catch(e) { addLog("Erro DB: "+e.message, 'error'); }
+            };
+
+            if (!supabaseClient) return <div className="flex h-screen items-center justify-center bg-slate-50"><div className="loader h-8 w-8 border-4 rounded-full"></div></div>;
+
+            if (!session) return <div className="font-sans"><StatusLog logs={logs} clearLogs={() => setLogs([])} /><LoginScreen onLogin={handleLogin} loading={loadingAuth} /></div>;
+
+            return (
+                <div className="min-h-screen flex bg-slate-100 font-sans text-slate-800 overflow-hidden">
+                    <StatusLog logs={logs} clearLogs={() => setLogs([])} />
+                    {confirmData && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"><div className="glass-card p-6 w-96"><h3 className="font-bold mb-2 text-lg text-slate-800">Confirmar Upload</h3><p className="text-sm text-slate-500 mb-4">Deseja importar <strong>{confirmData.count}</strong> registros?</p><div className="flex gap-2"><button onClick={()=>setConfirmData(null)} className="flex-1 border border-slate-300 p-2 rounded hover:bg-slate-50 text-sm font-medium">Cancelar</button><button onClick={confirmImportTerceirizacao} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm font-medium">Confirmar</button></div></div></div>}
+
+                    {/* Sidebar */}
+                    <div className={`bg-slate-900 text-slate-300 flex flex-col fixed h-full shadow-2xl z-20 sidebar-transition ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
+                        <div className="p-4 border-b border-slate-800 flex items-center justify-between relative">
+                            <div className={`flex items-center gap-3 overflow-hidden ${!isSidebarOpen && 'justify-center w-full'}`}>
+                                <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-8 w-8 flex-shrink-0" />
+                                {isSidebarOpen && (
+                                    <div className="fade-enter whitespace-nowrap">
+                                        <span className="font-bold text-white text-lg block leading-tight">SAP</span>
+                                        <span className="text-[10px] font-medium text-slate-400 tracking-widest uppercase">Analytics</span>
+                                    </div>
+                                )}
+                            </div>
+                            {/* Botão Toggle (só aparece no hover ou mobile) */}
+                            <button 
+                                onClick={toggleSidebar} 
+                                className="absolute -right-3 top-6 bg-slate-800 text-slate-400 hover:text-white p-1 rounded-full border border-slate-700 shadow-lg z-30 hover:scale-110 transition-transform"
+                                title={isSidebarOpen ? "Recolher Menu" : "Expandir Menu"}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transform transition-transform ${!isSidebarOpen ? 'rotate-180' : ''}`}><polyline points="15 18 9 12 15 6"/></svg>
+                            </button>
+                        </div>
+
+                        <nav className="flex-1 p-2 space-y-2 overflow-y-auto custom-scrollbar">
+                            {/* Módulo Terceirização */}
+                            {checkPermission(userRole, 'terceirizacao') && (
+                                <div className="group">
+                                    <button 
+                                        onClick={() => isSidebarOpen && toggleModule('terceirizacao')} 
+                                        className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}
+                                        title={!isSidebarOpen ? "Terceirização" : ""}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Icons.Briefcase />
+                                            {isSidebarOpen && <span className="font-semibold text-sm fade-enter">Terceirização</span>}
+                                        </div>
+                                        {isSidebarOpen && (
+                                            <span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.terceirizacao ? 'rotate-180' : ''}`}>
+                                                <Icons.ChevronDown />
+                                            </span>
+                                        )}
+                                    </button>
+                                    
+                                    {/* Submenu Terceirização */}
+                                    {isSidebarOpen && expandedModules.terceirizacao && (
+                                        <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-800 pl-3 fade-enter">
+                                            <button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'dashboard' ? 'text-blue-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Visão Geral</button>
+                                            <button onClick={() => setView('reports')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'reports' ? 'text-emerald-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Relatórios</button>
+                                            <button onClick={() => setView('upload')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'upload' ? 'text-purple-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Importação</button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Módulo Controladoria */}
+                            {checkPermission(userRole, 'controladoria') && (
+                                <div className="group mt-2">
+                                    <button 
+                                        onClick={() => isSidebarOpen && toggleModule('controladoria')} 
+                                        className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}
+                                        title={!isSidebarOpen ? "Controladoria" : ""}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Icons.BarChart2 />
+                                            {isSidebarOpen && <span className="font-semibold text-sm fade-enter">Controladoria</span>}
+                                        </div>
+                                        {isSidebarOpen && (
+                                            <span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.controladoria ? 'rotate-180' : ''}`}>
+                                                <Icons.ChevronDown />
+                                            </span>
+                                        )}
+                                    </button>
+                                    
+                                    {/* Submenu Controladoria */}
+                                    {isSidebarOpen && expandedModules.controladoria && (
+                                        <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-800 pl-3 fade-enter">
+                                            <button onClick={() => { setView('controladoria'); setControladoriaView('dash'); }} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'controladoria' && (controladoriaView === 'dash' || controladoriaView === 'centro_custo') ? 'text-purple-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Visão Geral</button>
+                                            <button onClick={() => { setView('controladoria'); setControladoriaView('report'); }} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'controladoria' && controladoriaView === 'report' ? 'text-purple-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Tabela de Dados</button>
+                                            <button onClick={() => { setView('controladoria'); setControladoriaView('depara'); }} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'controladoria' && controladoriaView === 'depara' ? 'text-purple-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Configuração</button>
+                                            <button onClick={() => { setView('controladoria'); setControladoriaView('import'); }} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'controladoria' && controladoriaView === 'import' ? 'text-purple-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Importação</button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {checkPermission(userRole, 'admin') && (
+                                <div className={`mt-4 opacity-50 pointer-events-none filter grayscale flex items-center ${!isSidebarOpen ? 'justify-center' : 'px-3 py-3 gap-3'}`}>
+                                    <Icons.DollarSign />
+                                    {isSidebarOpen && <span className="font-semibold text-sm text-slate-400 fade-enter">Financeiro</span>}
+                                </div>
+                            )}
+                        </nav>
+
+                        <div className="p-4 border-t border-slate-800">
+                            <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
+                                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                                    {session.user.email.substring(0,2).toUpperCase()}
+                                </div>
+                                {isSidebarOpen && (
+                                    <div className="overflow-hidden flex-1 fade-enter">
+                                        <p className="text-white text-xs font-medium truncate">{session.user.email.split('@')[0]}</p>
+                                        <p className="text-[10px] text-slate-500 truncate capitalize">{userRole}</p>
+                                    </div>
+                                )}
+                                {isSidebarOpen && (
+                                    <button onClick={handleLogout} className="text-slate-400 hover:text-white transition-colors" title="Sair">
+                                        <Icons.LogOut />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={`flex-1 content-transition ${isSidebarOpen ? 'ml-64' : 'ml-20'} overflow-y-auto h-screen`}>
+                        <header className="bg-white/80 backdrop-blur-md h-16 border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-20 no-print">
+                            <h1 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                                {view === 'controladoria' ? (
+                                    <><span className="text-slate-400 font-normal flex items-center gap-2"><Icons.BarChart2 className="w-4 h-4" /> Controladoria <span className="text-slate-300">/</span></span><span className="text-purple-600">{controladoriaView === 'dash' ? 'Visão Geral (Variações)' : (controladoriaView === 'centro_custo' ? 'Visão Geral (Centro de Custo)' : (controladoriaView === 'report_exec' ? 'Relatório Executivo' : (controladoriaView === 'report' ? 'Dados Detalhados' : (controladoriaView === 'depara' ? 'Configuração De/Para' : 'Importação'))))}</span></>
+                                ) : (
+                                    <><span className="text-slate-400 font-normal flex items-center gap-2"><Icons.Briefcase className="w-4 h-4" /> Terceirização <span className="text-slate-300">/</span></span><span className={view==='dashboard'?'text-blue-600':(view==='reports'?'text-emerald-600':'text-purple-600')}>{view==='dashboard'?'Visão Geral':(view==='reports'?'Relatórios':'Importação')}</span></>
+                                )}
+                            </h1>
+                            {loading && <div className="flex items-center gap-2 text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full"><div className="loader h-3 w-3 border-2 rounded-full"></div> Atualizando...</div>}
+                        </header>
+
+                        <main className="p-8 max-w-[1600px] mx-auto print-container pb-20">
+                            <ErrorBoundary>
+                                {view === 'controladoria' && controladoriaView !== 'import' && controladoriaView !== 'report_exec' && controladoriaView !== 'depara' && controladoriaView !== 'centro_custo' && controladoriaView !== 'dash' && (
+                                    <div className="glass-card p-4 mb-6 flex items-center gap-6">
+                                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600"><div className="p-1.5 bg-slate-100 rounded text-slate-500"><Icons.Filter /></div> Filtros:</div>
+                                        <div className="flex items-center gap-2"><span className="text-xs text-slate-400">Período:</span><input type="month" className="border border-slate-200 rounded px-2 py-1 text-sm bg-slate-50" value={ctrlFilterPeriodo} onChange={e => setCtrlFilterPeriodo(e.target.value)} /></div>
+                                        {controladoriaView === 'dash' && (<div className="flex items-center gap-2"><span className="text-xs text-slate-400">Usina:</span><select className="border border-slate-200 rounded px-2 py-1 text-sm bg-slate-50 w-32" value={ctrlFilterUsina} onChange={e => setCtrlFilterUsina(e.target.value)}><option value="Todas">Todas</option>{controladoriaFiliais.map(u => <option key={u} value={u}>{u}</option>)}</select></div>)}
+                                        {(ctrlFilterPeriodo) && <button onClick={() => {setCtrlFilterPeriodo('');}} className="text-xs text-blue-600 underline">Limpar Filtros</button>}
+                                    </div>
+                                )}
+                                {view === 'controladoria' && controladoriaView === 'centro_custo' && (
+                                    <div className="glass-card p-4 mb-6 flex items-center gap-6">
+                                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600"><div className="p-1.5 bg-slate-100 rounded text-slate-500"><Icons.Filter /></div> Filtros:</div>
+                                        <div className="flex items-center gap-2"><span className="text-xs text-slate-400">Período:</span><input type="month" className="border border-slate-200 rounded px-2 py-1 text-sm" value={ctrlFilterPeriodo} onChange={e => setCtrlFilterPeriodo(e.target.value)} /></div>
+                                    </div>
+                                )}
+                                {view === 'controladoria' && (
+                                    <>
+                                        {controladoriaView === 'dash' && <ControladoriaDashboardAnalitico stats={controladoriaAnalise} loading={loading} tipo={ctrlAnaliseTipo} setTipo={setCtrlAnaliseTipo} onDrillDown={(conta) => { setDrillDownConta(conta); setControladoriaView('centro_custo'); }} periodo={ctrlFilterPeriodo} />}
+                                        {controladoriaView === 'centro_custo' && <ControladoriaDashboardCentroCusto supabaseClient={supabaseClient} periodo={ctrlFilterPeriodo} contas={controladoriaContas} onNotify={addLog} initialConta={drillDownConta} onBack={() => setControladoriaView('dash')} />}
+                                        {controladoriaView === 'report' && <DataTable data={controladoriaRaw} onNotify={addLog} />}
+                                        {controladoriaView === 'depara' && <ControladoriaDePara supabaseClient={supabaseClient} onNotify={addLog} />}
+                                        {controladoriaView === 'import' && <ControladoriaImport onImport={processControladoriaFile} loading={loading} />}
+                                    </>
+                                )}
+                                {view === 'dashboard' && (
+                                    <div className="space-y-8">
+                                        <div className="glass-card p-4 mb-8 flex items-center gap-6"><div className="flex items-center gap-2 text-sm font-medium text-slate-600"><div className="p-1.5 bg-slate-100 rounded text-slate-500"><Icons.Filter /></div> Filtros:</div><select className="bg-transparent text-sm font-medium text-slate-700 focus:outline-none cursor-pointer hover:text-blue-600" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}><option value="Todos">📅 Todos os Meses</option>{dashboardData.meses && dashboardData.meses.map(m => <option key={m} value={m}>{m}</option>)}</select><select className="bg-transparent text-sm font-medium text-slate-700 focus:outline-none cursor-pointer hover:text-blue-600" value={filterFilial} onChange={e => setFilterFilial(e.target.value)}><option value="Todas">🏭 Todas as Filiais</option>{dashboardData.filiais && dashboardData.filiais.map(f => <option key={f} value={f}>{f}</option>)}</select></div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                                            <Card title="Volume Total" value={roundVolume(dashboardData.kpis.total_vol).toLocaleString('pt-BR', {minimumFractionDigits: 1}) + " m³"} iconName="Database" color="blue" />
+                                            <Card title="Vol. Bombeado" value={roundVolume(dashboardData.kpis.vol_bomba).toLocaleString('pt-BR', {minimumFractionDigits: 1}) + " m³"} iconName="Droplet" color="sky" />
+                                            <Card title="Vol. Transp" value={roundVolume(dashboardData.kpis.vol_transp).toLocaleString('pt-BR', {minimumFractionDigits: 1}) + " m³"} iconName="Truck" color="orange" />
+                                            <Card title="Custo Médio" value={roundCurrency(dashboardData.kpis.total_vol > 0 ? dashboardData.kpis.total_val / dashboardData.kpis.total_vol : 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) + " /m³"} iconName="DollarSign" color="emerald" />
+                                            <div className={`glass-card p-6 flex justify-between items-start`}><div><p className="text-slate-500 text-xs font-medium uppercase tracking-wide">Valor Total</p><h3 className="text-2xl font-bold mt-1 text-slate-400">{roundCurrency(dashboardData.kpis.total_val).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</h3></div></div>
+                                        </div>
+                                        <div className="glass-card p-6 h-[450px] flex flex-col"><div className="flex justify-between items-center mb-6"><div><h3 className="font-bold text-slate-800 text-lg">Custo Médio por m³ por Usina</h3></div><div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200"><Icons.ListFilter className="text-slate-400 ml-2 w-4 h-4" /><select className="bg-transparent text-xs font-medium text-slate-600 p-1 focus:outline-none" value={rankingFilter} onChange={(e) => setRankingFilter(e.target.value)}><option value="top10">10 Maiores</option><option value="bottom10">10 Menores</option></select></div></div><ResponsiveContainer width="100%" height="100%"><BarChart data={dashboardData.chart_branch || []} margin={{top: 10, right: 10, left: 0, bottom: 20}} onClick={(data) => { if (data && data.activeLabel) { setFilterFilial(prev => prev === data.activeLabel ? 'Todas' : data.activeLabel); }}} style={{ cursor: 'pointer' }}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke={COLORS.grid} /><XAxis dataKey="name" tick={{fontSize: 11, fill: COLORS.text}} interval={0} angle={-15} textAnchor="end" height={60} axisLine={false} tickLine={false} /><YAxis tick={{fontSize: 11, fill: COLORS.text}} axisLine={false} tickLine={false} tickFormatter={(val) => `R$ ${val}`} /><Tooltip content={<CustomTooltip />} cursor={{fill: '#f8fafc'}} /><Legend wrapperStyle={{paddingTop: '20px'}} iconType="circle" /><Bar dataKey="val_betoneira" stackId="a" fill={COLORS.betoneira} name="Transporte" radius={[0, 0, 4, 4]} /><Bar dataKey="val_bomba" stackId="a" fill={COLORS.bomba} name="Bombeamento" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></div>
+                                    </div>
+                                )}
+                                {view === 'reports' && <DataTable data={resumoData} onNotify={addLog} />}
+                                {view === 'upload' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <UploadCard type="apuracao" iconName="fileText" onAnalyze={handleUploadTerceirizacao} isAnalyzing={loading} progress={0} />
+                                        <UploadCard type="pagamentos" iconName="dollar" onAnalyze={handleUploadTerceirizacao} isAnalyzing={loading} progress={0} />
+                                        <UploadCard type="concessao" iconName="truck" onAnalyze={handleUploadTerceirizacao} isAnalyzing={loading} progress={0} />
+                                    </div>
+                                )}
+                            </ErrorBoundary>
+                        </main>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(
+            <ErrorBoundary>
+                <App />
+            </ErrorBoundary>
+        );
+    </script>
+</body>
+</html>
