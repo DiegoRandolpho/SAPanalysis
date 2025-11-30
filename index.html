@@ -1040,9 +1040,8 @@
                         const jsonData = XLSX.utils.sheet_to_json(sheet); 
 
                         const batch = jsonData.map(row => {
-                            // Função auxiliar para pegar valor numérico da coluna exata
+                            // Função auxiliar para pegar valor numérico da coluna (normalizando espaços)
                             const getVal = (colName) => {
-                                // Procura a chave que contém o nome (flexível para espaços)
                                 const key = Object.keys(row).find(k => k.toLowerCase().trim() === colName.toLowerCase().trim());
                                 return key ? row[key] : 0;
                             };
@@ -1053,38 +1052,32 @@
                                 return key ? String(row[key]) : '';
                             }
 
-                            const ajusteVol = parseBrlNumber(getVal('Ajuste de Volume'));
-                            const custoMedio = parseBrlNumber(getVal('Valor Médio'));
-
-                            // Cálculo do impacto financeiro do ajuste (já que não tem coluna explicita)
-                            const ajusteVlrCalculado = ajusteVol * custoMedio;
-
                             return {
                                 periodo: periodDate,
                                 usina: getStr('Centro') || 'ND',
+                                
+                                // Volumes
                                 vol_inicial: parseBrlNumber(getVal('Estoque inicial')),
                                 entradas: parseBrlNumber(getVal('Totais qtds.entrada')),
                                 saidas: parseBrlNumber(getVal('Totais qtds.saída')),
-                                
-                                // Mapeando 'SAP' como o Volume Final do sistema
-                                vol_final: parseBrlNumber(getVal('SAP')), 
+                                vol_final: parseBrlNumber(getVal('SAP')), // SAP como Volume Final
                                 
                                 // Ajustes
-                                ajuste_vol: ajusteVol,
-                                ajuste_vlr: ajusteVlrCalculado, // Calculado
+                                ajuste_vol: parseBrlNumber(getVal('Ajuste de Volume')),
+                                ajuste_vlr: parseBrlNumber(getVal('Valor Total de Ajuste')), // Coluna nova
                                 
-                                // Valores Financeiros
-                                custo_medio: custoMedio,
-                                vlr_final: parseBrlNumber(getVal('Valor Total')),
+                                // Financeiro
+                                custo_medio: parseBrlNumber(getVal('Valor Médio')),
+                                vlr_final: parseBrlNumber(getVal('Valor Total Estoque Final')), // Coluna nova
                                 
-                                // Campos que não vieram na planilha (preenchidos com 0 para não dar erro)
-                                vlr_inicial: 0,
+                                // Campos zerados pois não existem neste layout (mas o banco pede)
+                                vlr_inicial: 0, 
                                 vlr_entrada: 0,
                                 vlr_saida: 0,
                                 
                                 motivo_ajuste: getStr('Motivo')
                             };
-                        }).filter(i => i.usina !== 'ND' && i.usina !== 'Total' && i.usina !== '');
+                        }).filter(i => i.usina !== 'ND' && i.usina !== 'Total' && i.usina !== '' && i.usina !== 'Centro');
 
                         if (batch.length === 0) {
                             throw new Error("Nenhum registro encontrado. Verifique se as colunas estão idênticas ao modelo.");
@@ -1380,4 +1373,5 @@
     </script>
 </body>
 </html>
+
 
