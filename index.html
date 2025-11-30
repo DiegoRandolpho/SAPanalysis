@@ -1042,8 +1042,6 @@
                         <div className="p-4 border-t border-slate-800">
                             <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
                                 <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                                    {session.user.email.substring(0,2).toUpperCase()}
-                                </div>
                                 {isSidebarOpen && (
                                     <div className="overflow-hidden flex-1 fade-enter">
                                         <p className="text-white text-xs font-medium truncate">{session.user.email.split('@')[0]}</p>
@@ -1133,4 +1131,5 @@
     </script>
 </body>
 </html>
+
 
