@@ -1040,33 +1040,55 @@
                         const jsonData = XLSX.utils.sheet_to_json(sheet); 
 
                         const batch = jsonData.map(row => {
-                            const getVal = (keyPart) => {
-                                const key = Object.keys(row).find(k => k.toLowerCase().includes(keyPart.toLowerCase()));
+                            // Função auxiliar para pegar valor numérico da coluna exata
+                            const getVal = (colName) => {
+                                // Procura a chave que contém o nome (flexível para espaços)
+                                const key = Object.keys(row).find(k => k.toLowerCase().trim() === colName.toLowerCase().trim());
                                 return key ? row[key] : 0;
                             };
                             
-                            const getStr = (keyPart) => {
-                                const key = Object.keys(row).find(k => k.toLowerCase().includes(keyPart.toLowerCase()));
+                            // Função para texto
+                            const getStr = (colName) => {
+                                const key = Object.keys(row).find(k => k.toLowerCase().trim() === colName.toLowerCase().trim());
                                 return key ? String(row[key]) : '';
                             }
 
+                            const ajusteVol = parseBrlNumber(getVal('Ajuste de Volume'));
+                            const custoMedio = parseBrlNumber(getVal('Valor Médio'));
+
+                            // Cálculo do impacto financeiro do ajuste (já que não tem coluna explicita)
+                            const ajusteVlrCalculado = ajusteVol * custoMedio;
+
                             return {
                                 periodo: periodDate,
-                                usina: getStr('Cent.Trab') || getStr('Usina') || 'ND',
-                                vol_inicial: parseBrlNumber(getVal('Volume Inicial')),
-                                entradas: parseBrlNumber(getVal('Entradas')),
-                                saidas: parseBrlNumber(getVal('Saídas')),
-                                ajuste_vol: parseBrlNumber(getVal('Ajuste Vol')),
-                                vol_final: parseBrlNumber(getVal('Volume Final')),
-                                vlr_inicial: parseBrlNumber(getVal('Vlr. Inicial')),
-                                vlr_entrada: parseBrlNumber(getVal('Vlr. Entrada')),
-                                vlr_saida: parseBrlNumber(getVal('Vlr. Saída')),
-                                ajuste_vlr: parseBrlNumber(getVal('Ajuste Vlr')),
-                                vlr_final: parseBrlNumber(getVal('Vlr. Final')),
-                                custo_medio: parseBrlNumber(getVal('Custo Médio')),
+                                usina: getStr('Centro') || 'ND',
+                                vol_inicial: parseBrlNumber(getVal('Estoque inicial')),
+                                entradas: parseBrlNumber(getVal('Totais qtds.entrada')),
+                                saidas: parseBrlNumber(getVal('Totais qtds.saída')),
+                                
+                                // Mapeando 'SAP' como o Volume Final do sistema
+                                vol_final: parseBrlNumber(getVal('SAP')), 
+                                
+                                // Ajustes
+                                ajuste_vol: ajusteVol,
+                                ajuste_vlr: ajusteVlrCalculado, // Calculado
+                                
+                                // Valores Financeiros
+                                custo_medio: custoMedio,
+                                vlr_final: parseBrlNumber(getVal('Valor Total')),
+                                
+                                // Campos que não vieram na planilha (preenchidos com 0 para não dar erro)
+                                vlr_inicial: 0,
+                                vlr_entrada: 0,
+                                vlr_saida: 0,
+                                
                                 motivo_ajuste: getStr('Motivo')
                             };
-                        }).filter(i => i.usina !== 'ND');
+                        }).filter(i => i.usina !== 'ND' && i.usina !== 'Total' && i.usina !== '');
+
+                        if (batch.length === 0) {
+                            throw new Error("Nenhum registro encontrado. Verifique se as colunas estão idênticas ao modelo.");
+                        }
 
                         const { error: errDel } = await supabaseClient.from('diesel_estoque').delete().eq('periodo', periodDate);
                         if(errDel) throw errDel;
@@ -1074,11 +1096,12 @@
                         const { error: errIns } = await supabaseClient.from('diesel_estoque').insert(batch);
                         if(errIns) throw errIns;
 
-                        addLog(`Diesel: ${batch.length} registros importados!`, "success");
+                        addLog(`Diesel: ${batch.length} registros importados com sucesso!`, "success");
                         setDieselView('dash');
                         setDieselFilterPeriodo(periodDate);
 
                     } catch (err) {
+                        console.error(err);
                         addLog("Erro Imp. Diesel: " + err.message, "error");
                     } finally {
                         setLoading(false);
@@ -1086,7 +1109,6 @@
                 };
                 reader.readAsArrayBuffer(file);
             };
-
             const handleUploadTerceirizacao = (file, type) => {
                 const r = new FileReader();
                 r.onload = (e) => {
@@ -1358,3 +1380,4 @@
     </script>
 </body>
 </html>
+
