@@ -5,29 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tersys - SAP Analytics</title>
     
-    <!-- Favicon Atualizado -->
     <link rel="icon" type="image/png" href="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png">
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js"></script>
     
-    <!-- Prop-Types -->
     <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
     
-    <!-- Recharts -->
     <script src="https://unpkg.com/recharts@2.10.3/umd/Recharts.js"></script>
     
-    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
     <style>
@@ -189,7 +181,8 @@
             ArrowLeft: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
             Menu: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
             ChevronDown: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>,
-            ChevronRightSmall: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+            ChevronRightSmall: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>,
+            Fuel: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="22" x2="15" y2="22"/><line x1="5" y1="17" x2="5" y2="11"/><circle cx="14" cy="10" r="7"/><path d="M8 12a7 7 0 0 1 14 0"/></svg>
         };
 
         const normalizeKey = (key) => key ? key.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "") : '';
@@ -201,6 +194,7 @@
             if (r === 'admin' || r === 'administrador') return true;
             if (required === 'terceirizacao') return r === 'terceirizacao' || r === 'terceirização';
             if (required === 'controladoria') return r === 'controladoria';
+            if (required === 'diesel') return r === 'diesel' || r === 'admin';
             return false;
         };
 
@@ -274,8 +268,8 @@
         };
 
         const Card = ({ title, value, subtext, iconName, color = "blue" }) => {
-            const Icon = { database: Icons.Database, dollar: Icons.DollarSign, alert: Icons.AlertCircle, truck: Icons.Truck, upload: Icons.Upload, fileText: Icons.FileText, droplet: Icons.Droplet, ban: Icons.Ban, info: Icons.Info, barChart: Icons.BarChart2, target: Icons.Target }[iconName] || Icons.Database;
-            const colorClasses = { blue: "bg-blue-50 text-blue-600", emerald: "bg-emerald-50 text-emerald-600", sky: "bg-sky-50 text-sky-600", orange: "bg-orange-50 text-orange-600", purple: "bg-purple-50 text-purple-600", gray: "bg-slate-100 text-slate-500" };
+            const Icon = { database: Icons.Database, dollar: Icons.DollarSign, alert: Icons.AlertCircle, truck: Icons.Truck, upload: Icons.Upload, fileText: Icons.FileText, droplet: Icons.Droplet, ban: Icons.Ban, info: Icons.Info, barChart: Icons.BarChart2, target: Icons.Target, fuel: Icons.Fuel, arrowRight: Icons.ChevronRightSmall }[iconName] || Icons.Database;
+            const colorClasses = { blue: "bg-blue-50 text-blue-600", emerald: "bg-emerald-50 text-emerald-600", sky: "bg-sky-50 text-sky-600", orange: "bg-orange-50 text-orange-600", purple: "bg-purple-50 text-purple-600", gray: "bg-slate-100 text-slate-500", green: "bg-green-50 text-green-600" };
             return (
                 <div className="glass-card p-6 flex justify-between items-start hover:shadow-md transition-shadow">
                     <div><p className="text-slate-500 text-xs font-medium uppercase tracking-wide">{title}</p><h3 className="text-2xl font-bold mt-1 text-slate-800">{value}</h3>{subtext && <p className="text-xs text-slate-400 mt-1">{subtext}</p>}</div>
@@ -284,7 +278,7 @@
             );
         };
 
-        // --- TELA DE LOGIN COM LAYOUT SPLIT SCREEN ---
+        // --- TELA DE LOGIN ---
         const LoginScreen = ({ onLogin, loading }) => {
             const [email, setEmail] = useState('');
             const [password, setPassword] = useState('');
@@ -297,11 +291,7 @@
             return (
                 <div className="min-h-screen flex bg-slate-50 font-sans">
                     {/* Lado Esquerdo - Imagem de Fundo */}
-                    <div 
-                        className="hidden md:block md:w-1/2 bg-cover bg-center relative" 
-                        style={{ backgroundImage: "url('https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Loginpage.jpg')" }}
-                    >
-                        {/* Overlay Opcional */}
+                    <div className="hidden md:block md:w-1/2 bg-cover bg-center relative" style={{ backgroundImage: "url('https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Loginpage.jpg')" }}>
                         <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-transparent"></div>
                     </div>
 
@@ -310,11 +300,7 @@
                         <div className="w-full max-w-md space-y-8">
                             <div className="text-center">
                                 <div className="inline-block p-6 rounded-2xl bg-slate-50 mb-6 shadow-sm logo-interactive animate-enter cursor-pointer">
-                                    <img 
-                                        src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_com_texto-removebg-preview.png" 
-                                        alt="SAP Analytics Logo" 
-                                        className="h-40 mx-auto object-contain" 
-                                    />
+                                    <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_com_texto-removebg-preview.png" alt="SAP Analytics Logo" className="h-40 mx-auto object-contain" />
                                 </div>
                                 <h2 className="text-3xl font-bold tracking-tight text-slate-900">Bem-vindo de volta</h2>
                                 <p className="mt-2 text-sm text-slate-600">Acesse sua conta para gerenciar os dados</p>
@@ -328,14 +314,7 @@
                                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                                                 <Icons.User />
                                             </div>
-                                            <input 
-                                                type="email" 
-                                                required 
-                                                className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none" 
-                                                placeholder="seu@email.com" 
-                                                value={email} 
-                                                onChange={e => setEmail(e.target.value)} 
-                                            />
+                                            <input type="email" required className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none" placeholder="seu@email.com" value={email} onChange={e => setEmail(e.target.value)} />
                                         </div>
                                     </div>
                                     <div>
@@ -344,33 +323,20 @@
                                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                                                 <Icons.Lock />
                                             </div>
-                                            <input 
-                                                type="password" 
-                                                required 
-                                                className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none" 
-                                                placeholder="••••••••" 
-                                                value={password} 
-                                                onChange={e => setPassword(e.target.value)} 
-                                            />
+                                            <input type="password" required className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors outline-none" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
                                         </div>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <button 
-                                        type="submit" 
-                                        disabled={loading} 
-                                        className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-blue-200"
-                                    >
+                                    <button type="submit" disabled={loading} className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-blue-200">
                                         {loading ? <span className="loader h-5 w-5 border-2 border-white rounded-full border-t-transparent"></span> : 'Entrar na Plataforma'}
                                     </button>
                                 </div>
                             </form>
                             
                             <div className="mt-6 text-center">
-                                <p className="text-xs text-slate-400">
-                                    &copy; {new Date().getFullYear()} SAP Analytics. Todos os direitos reservados.
-                                </p>
+                                <p className="text-xs text-slate-400">&copy; {new Date().getFullYear()} SAP Analytics. Todos os direitos reservados.</p>
                             </div>
                         </div>
                     </div>
@@ -402,7 +368,7 @@
                 const ws = XLSX.utils.json_to_sheet(data);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Dados");
-                XLSX.writeFile(wb, "Exportacao_Controladoria.xlsx");
+                XLSX.writeFile(wb, "Exportacao_Dados.xlsx");
             };
             if(data.length === 0) return <div className="p-8 text-center text-slate-400">Sem dados para exibir.</div>;
             return (
@@ -649,6 +615,117 @@
             );
         };
 
+        // --- COMPONENTES DO MÓDULO DIESEL ---
+
+        const DieselImport = ({ onImport, loading }) => {
+            const [date, setDate] = useState('');
+            return (
+                <div className="max-w-2xl mx-auto glass-card p-8">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Icons.Upload /> Importação de Estoque Diesel</h3>
+                    <p className="text-sm text-slate-500 mb-6">Selecione o mês de referência e a planilha de Inventário (.csv ou .xlsx). As colunas devem seguir o padrão: Cent.Trab., Entradas, Saídas, Ajustes, etc.</p>
+                    <div className="space-y-4">
+                        <div><label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mês de Referência</label><input type="month" className="w-full border border-slate-300 rounded p-2 text-sm" value={date} onChange={e => setDate(e.target.value)} /></div>
+                        <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:bg-slate-50 transition-colors">
+                            <input type="file" accept=".xlsx, .csv" className="hidden" id="fileDiesel" disabled={loading || !date} onChange={(e) => { if(e.target.files[0]) onImport(e.target.files[0], date); e.target.value = null; }} />
+                            <label htmlFor="fileDiesel" className={`cursor-pointer flex flex-col items-center ${!date ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                <div className="bg-orange-100 text-orange-600 p-4 rounded-full mb-3"><Icons.Fuel /></div>
+                                <span className="font-bold text-slate-700">Clique para selecionar o arquivo</span>
+                            </label>
+                        </div>
+                        {loading && <div className="text-center text-xs text-blue-600 font-medium"><div className="loader h-4 w-4 border-2 inline-block rounded-full border-t-transparent mr-2"></div>Processando...</div>}
+                    </div>
+                </div>
+            );
+        };
+
+        const DieselDashboard = ({ data, loading, periodo }) => {
+            if (!data || data.length === 0) return <div className="p-8 text-center text-slate-400">Sem dados para o período {periodo}.</div>;
+
+            // Cálculos de Totais
+            const totalVol = data.reduce((acc, curr) => acc + (curr.vol_final || 0), 0);
+            const totalVal = data.reduce((acc, curr) => acc + (curr.vlr_final || 0), 0);
+            const totalEntrada = data.reduce((acc, curr) => acc + (curr.entradas || 0), 0);
+            const totalSaida = data.reduce((acc, curr) => acc + (curr.saidas || 0), 0);
+
+            // Top 10 Custos Médios
+            const topCustos = [...data]
+                .sort((a, b) => b.custo_medio - a.custo_medio)
+                .slice(0, 10);
+
+            // Top 10 Ajustes (considerando valor absoluto para pegar os maiores impactos, sejam positivos ou negativos)
+            const topAjustes = [...data]
+                .filter(d => Math.abs(d.ajuste_vol) > 0)
+                .sort((a, b) => Math.abs(b.ajuste_vol) - Math.abs(a.ajuste_vol))
+                .slice(0, 10);
+
+            // Custom Tooltip para os Ajustes
+            const AjusteTooltip = ({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                        <div className="bg-white p-3 border border-slate-200 shadow-xl rounded-lg text-xs z-50 max-w-xs">
+                            <p className="font-bold text-slate-800 mb-1">{data.usina}</p>
+                            <p className="text-slate-600 mb-1">Ajuste: <strong>{data.ajuste_vol.toLocaleString('pt-BR')} L</strong></p>
+                            <p className="text-slate-600 mb-1">Impacto: <strong>{data.ajuste_vlr.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</strong></p>
+                            <div className="mt-2 pt-2 border-t border-slate-100">
+                                <span className="font-bold text-slate-500 text-[10px] uppercase">Motivo:</span>
+                                <p className="text-slate-700 italic">{data.motivo_ajuste || "Não informado"}</p>
+                            </div>
+                        </div>
+                    );
+                }
+                return null;
+            };
+
+            return (
+                <div className="space-y-6">
+                    {/* KPI Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <Card title="Estoque Atual (L)" value={roundVolume(totalVol).toLocaleString('pt-BR') + " L"} iconName="truck" color="blue" />
+                        <Card title="Valor em Estoque" value={roundCurrency(totalVal).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})} iconName="dollar" color="emerald" />
+                        <Card title="Entradas no Mês" value={roundVolume(totalEntrada).toLocaleString('pt-BR') + " L"} iconName="arrowRight" color="green" subtext="Abastecimentos recebidos" />
+                        <Card title="Saídas no Mês" value={roundVolume(totalSaida).toLocaleString('pt-BR') + " L"} iconName="fuel" color="orange" subtext="Consumo da frota" />
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Gráfico Top 10 Custos */}
+                        <div className="glass-card p-6 h-[400px] flex flex-col">
+                            <h3 className="font-bold text-slate-800 mb-4">Top 10 - Maior Custo Médio (R$/L)</h3>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart layout="vertical" data={topCustos} margin={{top: 5, right: 30, left: 40, bottom: 5}}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                                    <XAxis type="number" domain={['auto', 'auto']} tickFormatter={(val) => `R$ ${val}`} />
+                                    <YAxis dataKey="usina" type="category" width={60} tick={{fontSize: 10, fontWeight: 'bold'}} />
+                                    <Tooltip formatter={(val) => `R$ ${val.toFixed(3)}`} cursor={{fill: '#f8fafc'}} />
+                                    <Bar dataKey="custo_medio" fill="#f97316" radius={[0, 4, 4, 0]} barSize={20} name="Custo Médio" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        {/* Gráfico Top 10 Ajustes */}
+                        <div className="glass-card p-6 h-[400px] flex flex-col">
+                            <h3 className="font-bold text-slate-800 mb-4">Top 10 - Maiores Ajustes de Estoque (L)</h3>
+                            <p className="text-xs text-slate-400 mb-2">Passe o mouse para ver o motivo.</p>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={topAjustes} margin={{top: 5, right: 5, left: 0, bottom: 5}}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <XAxis dataKey="usina" tick={{fontSize: 10}} interval={0} angle={-15} textAnchor="end" height={50} />
+                                    <YAxis tickFormatter={(val) => `${val} L`} />
+                                    <Tooltip content={<AjusteTooltip />} cursor={{fill: '#f8fafc'}} />
+                                    <ReferenceLine y={0} stroke="#94a3b8" />
+                                    <Bar dataKey="ajuste_vol" name="Ajuste (L)" radius={[4, 4, 0, 0]}>
+                                        {topAjustes.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.ajuste_vol > 0 ? '#10b981' : '#ef4444'} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         // --- App Principal ---
         const App = () => {
             const [supabaseClient, setSupabaseClient] = useState(null);
@@ -663,6 +740,11 @@
             const [loading, setLoading] = useState(false);
             const [logs, setLogs] = useState([]);
             
+            // Diesel State
+            const [dieselView, setDieselView] = useState('dash');
+            const [dieselData, setDieselData] = useState([]);
+            const [dieselFilterPeriodo, setDieselFilterPeriodo] = useState('');
+
             const [drillDownConta, setDrillDownConta] = useState(null);
             const [dashboardData, setDashboardData] = useState({ kpis: { total_vol: 0, total_val: 0, vol_bomba: 0, vol_transp: 0 }, chart_class: [], chart_plate: [], chart_evo: [], chart_branch: [] });
             const [controladoriaAnalise, setControladoriaAnalise] = useState([]); 
@@ -683,7 +765,7 @@
             const [dbRowCount, setDbRowCount] = useState(0);
 
             const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-            const [expandedModules, setExpandedModules] = useState({ terceirizacao: true, controladoria: true });
+            const [expandedModules, setExpandedModules] = useState({ terceirizacao: true, controladoria: true, diesel: false });
 
             const addLog = (msg, type='info') => setLogs(p => [{msg, type}, ...p]);
             
@@ -692,7 +774,15 @@
 
             useEffect(() => { try { setSupabaseClient(createClient(config.url, config.key)); } catch(e){} }, []);
 
-            // Inicialização automática do período baseada no banco
+            // Inicialização automática do período Diesel
+            useEffect(() => {
+                const today = new Date();
+                const m = today.getMonth() + 1;
+                const y = today.getFullYear();
+                setDieselFilterPeriodo(`${y}-${m.toString().padStart(2, '0')}`);
+            }, []);
+
+            // Inicialização automática do período baseada no banco (Controladoria)
             useEffect(() => {
                 const loadLatest = async () => {
                     if (!supabaseClient) return;
@@ -735,12 +825,13 @@
                 setUserRole(role);
 
                 // Lógica de Redirecionamento Inteligente
-                // Se a role for "Controladoria", vai direto pra Controladoria
                 if (role === 'controladoria') {
                     setView('controladoria');
                     setControladoriaView('dash');
+                } else if (role === 'diesel') {
+                    setView('diesel');
+                    setDieselView('dash');
                 } else {
-                    // Padrão (Admin e Terceirização)
                     setView('dashboard'); 
                 }
             };
@@ -830,6 +921,26 @@
                 setLoading(false);
             };
 
+            // Fetch Diesel Data
+            const fetchDieselData = async () => {
+                if(!supabaseClient || !session || !dieselFilterPeriodo) return;
+                setLoading(true);
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('diesel_estoque')
+                        .select('*')
+                        .eq('periodo', dieselFilterPeriodo)
+                        .order('usina');
+                    
+                    if(error) throw error;
+                    setDieselData(data || []);
+                } catch(e) {
+                    addLog("Erro Diesel: " + e.message, 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
             useEffect(() => { 
                 if(supabaseClient && session) {
                     if (view === 'controladoria') {
@@ -841,12 +952,14 @@
                             fetchControladoriaContasAmigaveis();
                         }
                         if (controladoriaView === 'report') fetchControladoriaRaw();
+                    } else if (view === 'diesel') {
+                        if (dieselView === 'dash' || dieselView === 'report') fetchDieselData();
                     } else {
                         fetchDashboard(); 
                         if(view === 'reports') fetchReport();
                     }
                 } 
-            }, [supabaseClient, session, view, controladoriaView, ctrlFilterPeriodo, ctrlFilterUsina, ctrlAnaliseTipo]);
+            }, [supabaseClient, session, view, controladoriaView, dieselView, ctrlFilterPeriodo, ctrlFilterUsina, ctrlAnaliseTipo, dieselFilterPeriodo]);
 
             const processControladoriaFile = (file, periodDate) => {
                 setLoading(true);
@@ -910,6 +1023,63 @@
                         setCtrlFilterPeriodo(periodDate);
                     } catch (err) {
                         addLog("Erro na importação: " + err.message, "error");
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            };
+
+            const processDieselFile = (file, periodDate) => {
+                setLoading(true);
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+                        const sheet = wb.Sheets[wb.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(sheet); 
+
+                        const batch = jsonData.map(row => {
+                            const getVal = (keyPart) => {
+                                const key = Object.keys(row).find(k => k.toLowerCase().includes(keyPart.toLowerCase()));
+                                return key ? row[key] : 0;
+                            };
+                            
+                            const getStr = (keyPart) => {
+                                const key = Object.keys(row).find(k => k.toLowerCase().includes(keyPart.toLowerCase()));
+                                return key ? String(row[key]) : '';
+                            }
+
+                            return {
+                                periodo: periodDate,
+                                usina: getStr('Cent.Trab') || getStr('Usina') || 'ND',
+                                vol_inicial: parseBrlNumber(getVal('Volume Inicial')),
+                                entradas: parseBrlNumber(getVal('Entradas')),
+                                saidas: parseBrlNumber(getVal('Saídas')),
+                                ajuste_vol: parseBrlNumber(getVal('Ajuste Vol')),
+                                vol_final: parseBrlNumber(getVal('Volume Final')),
+                                vlr_inicial: parseBrlNumber(getVal('Vlr. Inicial')),
+                                vlr_entrada: parseBrlNumber(getVal('Vlr. Entrada')),
+                                vlr_saida: parseBrlNumber(getVal('Vlr. Saída')),
+                                ajuste_vlr: parseBrlNumber(getVal('Ajuste Vlr')),
+                                vlr_final: parseBrlNumber(getVal('Vlr. Final')),
+                                custo_medio: parseBrlNumber(getVal('Custo Médio')),
+                                motivo_ajuste: getStr('Motivo')
+                            };
+                        }).filter(i => i.usina !== 'ND');
+
+                        const { error: errDel } = await supabaseClient.from('diesel_estoque').delete().eq('periodo', periodDate);
+                        if(errDel) throw errDel;
+
+                        const { error: errIns } = await supabaseClient.from('diesel_estoque').insert(batch);
+                        if(errIns) throw errIns;
+
+                        addLog(`Diesel: ${batch.length} registros importados!`, "success");
+                        setDieselView('dash');
+                        setDieselFilterPeriodo(periodDate);
+
+                    } catch (err) {
+                        addLog("Erro Imp. Diesel: " + err.message, "error");
                     } finally {
                         setLoading(false);
                     }
@@ -1031,6 +1201,33 @@
                                 </div>
                             )}
 
+                            {checkPermission(userRole, 'diesel') && (
+                                <div className="group mt-2">
+                                    <button 
+                                        onClick={() => isSidebarOpen && toggleModule('diesel')} 
+                                        className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Icons.Fuel />
+                                            {isSidebarOpen && <span className="font-semibold text-sm fade-enter">Gestão Diesel</span>}
+                                        </div>
+                                        {isSidebarOpen && (
+                                            <span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.diesel ? 'rotate-180' : ''}`}>
+                                                <Icons.ChevronDown />
+                                            </span>
+                                        )}
+                                    </button>
+                                    
+                                    {isSidebarOpen && expandedModules.diesel && (
+                                        <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-800 pl-3 fade-enter">
+                                            <button onClick={() => { setView('diesel'); setDieselView('dash'); }} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'diesel' && dieselView === 'dash' ? 'text-orange-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Visão Geral</button>
+                                            <button onClick={() => { setView('diesel'); setDieselView('report'); }} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'diesel' && dieselView === 'report' ? 'text-orange-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Relatório</button>
+                                            <button onClick={() => { setView('diesel'); setDieselView('import'); }} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'diesel' && dieselView === 'import' ? 'text-orange-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Importação</button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {checkPermission(userRole, 'admin') && (
                                 <div className={`mt-4 opacity-50 pointer-events-none filter grayscale flex items-center ${!isSidebarOpen ? 'justify-center' : 'px-3 py-3 gap-3'}`}>
                                     <Icons.DollarSign />
@@ -1068,11 +1265,14 @@
                             </div>
                         </div>
                     </div>
+
                     <div className={`flex-1 content-transition ${isSidebarOpen ? 'ml-64' : 'ml-20'} overflow-y-auto h-screen`}>
                         <header className="bg-white/80 backdrop-blur-md h-16 border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-20 no-print">
                             <h1 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                                 {view === 'controladoria' ? (
                                     <><span className="text-slate-400 font-normal flex items-center gap-2"><Icons.BarChart2 className="w-4 h-4" /> Controladoria <span className="text-slate-300">/</span></span><span className="text-purple-600">{controladoriaView === 'dash' ? 'Visão Geral (Variações)' : (controladoriaView === 'centro_custo' ? 'Visão Geral (Centro de Custo)' : (controladoriaView === 'report_exec' ? 'Relatório Executivo' : (controladoriaView === 'report' ? 'Dados Detalhados' : (controladoriaView === 'depara' ? 'Configuração De/Para' : 'Importação'))))}</span></>
+                                ) : view === 'diesel' ? (
+                                    <><span className="text-slate-400 font-normal flex items-center gap-2"><Icons.Fuel className="w-4 h-4" /> Gestão Diesel <span className="text-slate-300">/</span></span><span className="text-orange-600">{dieselView === 'dash' ? 'Visão Geral' : (dieselView === 'report' ? 'Relatório Detalhado' : 'Importação')}</span></>
                                 ) : (
                                     <><span className="text-slate-400 font-normal flex items-center gap-2"><Icons.Briefcase className="w-4 h-4" /> Terceirização <span className="text-slate-300">/</span></span><span className={view==='dashboard'?'text-blue-600':(view==='reports'?'text-emerald-600':'text-purple-600')}>{view==='dashboard'?'Visão Geral':(view==='reports'?'Relatórios':'Importação')}</span></>
                                 )}
@@ -1105,6 +1305,22 @@
                                         {controladoriaView === 'import' && <ControladoriaImport onImport={processControladoriaFile} loading={loading} />}
                                     </>
                                 )}
+                                
+                                {view === 'diesel' && (
+                                    <>
+                                        {(dieselView === 'dash' || dieselView === 'report') && (
+                                            <div className="glass-card p-4 mb-6 flex items-center gap-6">
+                                                <div className="flex items-center gap-2 text-sm font-medium text-slate-600"><div className="p-1.5 bg-slate-100 rounded text-slate-500"><Icons.Filter /></div> Filtros:</div>
+                                                <div className="flex items-center gap-2"><span className="text-xs text-slate-400">Mês:</span><input type="month" className="border border-slate-200 rounded px-2 py-1 text-sm bg-slate-50" value={dieselFilterPeriodo} onChange={e => setDieselFilterPeriodo(e.target.value)} /></div>
+                                            </div>
+                                        )}
+
+                                        {dieselView === 'dash' && <DieselDashboard data={dieselData} loading={loading} periodo={dieselFilterPeriodo} />}
+                                        {dieselView === 'report' && <DataTable data={dieselData} onNotify={addLog} />}
+                                        {dieselView === 'import' && <DieselImport onImport={processDieselFile} loading={loading} />}
+                                    </>
+                                )}
+
                                 {view === 'dashboard' && (
                                     <div className="space-y-8">
                                         <div className="glass-card p-4 mb-8 flex items-center gap-6"><div className="flex items-center gap-2 text-sm font-medium text-slate-600"><div className="p-1.5 bg-slate-100 rounded text-slate-500"><Icons.Filter /></div> Filtros:</div><select className="bg-transparent text-sm font-medium text-slate-700 focus:outline-none cursor-pointer hover:text-blue-600" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}><option value="Todos">📅 Todos os Meses</option>{dashboardData.meses && dashboardData.meses.map(m => <option key={m} value={m}>{m}</option>)}</select><select className="bg-transparent text-sm font-medium text-slate-700 focus:outline-none cursor-pointer hover:text-blue-600" value={filterFilial} onChange={e => setFilterFilial(e.target.value)}><option value="Todas">🏭 Todas as Filiais</option>{dashboardData.filiais && dashboardData.filiais.map(f => <option key={f} value={f}>{f}</option>)}</select></div>
@@ -1142,9 +1358,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
