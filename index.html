@@ -692,6 +692,7 @@
 
             useEffect(() => { try { setSupabaseClient(createClient(config.url, config.key)); } catch(e){} }, []);
 
+            // Inicialização automática do período baseada no banco
             useEffect(() => {
                 const loadLatest = async () => {
                     if (!supabaseClient) return;
@@ -729,8 +730,19 @@
             const checkUserRole = async (userId, email) => {
                 if(!supabaseClient) return;
                 const { data } = await supabaseClient.from('user_roles').select('role').eq('user_id', userId).single();
-                if (data && data.role) setUserRole(data.role);
-                else setUserRole(email.includes('admin') ? 'admin' : 'terceirizacao');
+                
+                let role = data?.role || (email.includes('admin') ? 'admin' : 'terceirizacao');
+                setUserRole(role);
+
+                // Lógica de Redirecionamento Inteligente
+                // Se a role for "Controladoria", vai direto pra Controladoria
+                if (role === 'controladoria') {
+                    setView('controladoria');
+                    setControladoriaView('dash');
+                } else {
+                    // Padrão (Admin e Terceirização)
+                    setView('dashboard'); 
+                }
             };
 
             const handleLogin = async (email, password) => {
@@ -941,11 +953,10 @@
                     <StatusLog logs={logs} clearLogs={() => setLogs([])} />
                     {confirmData && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"><div className="glass-card p-6 w-96"><h3 className="font-bold mb-2 text-lg text-slate-800">Confirmar Upload</h3><p className="text-sm text-slate-500 mb-4">Deseja importar <strong>{confirmData.count}</strong> registros?</p><div className="flex gap-2"><button onClick={()=>setConfirmData(null)} className="flex-1 border border-slate-300 p-2 rounded hover:bg-slate-50 text-sm font-medium">Cancelar</button><button onClick={confirmImportTerceirizacao} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm font-medium">Confirmar</button></div></div></div>}
 
-                    {/* Sidebar */}
                     <div className={`bg-slate-900 text-slate-300 flex flex-col fixed h-full shadow-2xl z-20 sidebar-transition ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
                         <div className="p-4 border-b border-slate-800 flex items-center justify-between relative">
                             <div className={`flex items-center gap-3 overflow-hidden ${!isSidebarOpen && 'justify-center w-full'}`}>
-                                <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-8 w-8 flex-shrink-0" />
+                                <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-12 w-auto flex-shrink-0" />
                                 {isSidebarOpen && (
                                     <div className="fade-enter whitespace-nowrap">
                                         <span className="font-bold text-white text-lg block leading-tight">SAP</span>
@@ -953,10 +964,9 @@
                                     </div>
                                 )}
                             </div>
-                            {/* Botão Toggle (só aparece no hover ou mobile) */}
                             <button 
                                 onClick={toggleSidebar} 
-                                className="absolute -right-3 top-6 bg-slate-800 text-slate-400 hover:text-white p-1 rounded-full border border-slate-700 shadow-lg z-30 hover:scale-110 transition-transform"
+                                className="absolute -right-4 top-6 bg-slate-800 text-slate-400 hover:text-white p-1 rounded-full border border-slate-700 shadow-lg z-30 hover:scale-110 transition-transform"
                                 title={isSidebarOpen ? "Recolher Menu" : "Expandir Menu"}
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transform transition-transform ${!isSidebarOpen ? 'rotate-180' : ''}`}><polyline points="15 18 9 12 15 6"/></svg>
@@ -964,7 +974,6 @@
                         </div>
 
                         <nav className="flex-1 p-2 space-y-2 overflow-y-auto custom-scrollbar">
-                            {/* Módulo Terceirização */}
                             {checkPermission(userRole, 'terceirizacao') && (
                                 <div className="group">
                                     <button 
@@ -983,7 +992,6 @@
                                         )}
                                     </button>
                                     
-                                    {/* Submenu Terceirização */}
                                     {isSidebarOpen && expandedModules.terceirizacao && (
                                         <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-800 pl-3 fade-enter">
                                             <button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'dashboard' ? 'text-blue-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Visão Geral</button>
@@ -994,7 +1002,6 @@
                                 </div>
                             )}
 
-                            {/* Módulo Controladoria */}
                             {checkPermission(userRole, 'controladoria') && (
                                 <div className="group mt-2">
                                     <button 
@@ -1013,7 +1020,6 @@
                                         )}
                                     </button>
                                     
-                                    {/* Submenu Controladoria */}
                                     {isSidebarOpen && expandedModules.controladoria && (
                                         <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-800 pl-3 fade-enter">
                                             <button onClick={() => { setView('controladoria'); setControladoriaView('dash'); }} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'controladoria' && (controladoriaView === 'dash' || controladoriaView === 'centro_custo') ? 'text-purple-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Visão Geral</button>
@@ -1067,7 +1073,7 @@
 
                         <main className="p-8 max-w-[1600px] mx-auto print-container pb-20">
                             <ErrorBoundary>
-                                {view === 'controladoria' && controladoriaView !== 'import' && controladoriaView !== 'report_exec' && controladoriaView !== 'depara' && controladoriaView !== 'centro_custo' && controladoriaView !== 'dash' && (
+                                {view === 'controladoria' && (controladoriaView === 'dash' || controladoriaView === 'report') && (
                                     <div className="glass-card p-4 mb-6 flex items-center gap-6">
                                         <div className="flex items-center gap-2 text-sm font-medium text-slate-600"><div className="p-1.5 bg-slate-100 rounded text-slate-500"><Icons.Filter /></div> Filtros:</div>
                                         <div className="flex items-center gap-2"><span className="text-xs text-slate-400">Período:</span><input type="month" className="border border-slate-200 rounded px-2 py-1 text-sm bg-slate-50" value={ctrlFilterPeriodo} onChange={e => setCtrlFilterPeriodo(e.target.value)} /></div>
