@@ -725,7 +725,7 @@
                 .sort((a, b) => b.custo_medio - a.custo_medio)
                 .slice(0, 10);
 
-            // Top 10 Ajustes (considerando valor absoluto para pegar os maiores impactos, sejam positivos ou negativos)
+            // Top 10 Ajustes (considerando valor absoluto para pegar os maiores impactos)
             const topAjustes = [...data]
                 .filter(d => Math.abs(d.ajuste_vol) > 0)
                 .sort((a, b) => Math.abs(b.ajuste_vol) - Math.abs(a.ajuste_vol))
@@ -752,15 +752,16 @@
 
             return (
                 <div className="space-y-6">
-                    {/* KPI Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {/* KPI Cards com Animação Inicial */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-slide-up">
                         <Card title="Estoque Atual (L)" value={roundVolume(totalVol).toLocaleString('pt-BR') + " L"} iconName="truck" color="blue" />
                         <Card title="Valor em Estoque" value={roundCurrency(totalVal).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})} iconName="dollar" color="emerald" />
                         <Card title="Entradas no Mês" value={roundVolume(totalEntrada).toLocaleString('pt-BR') + " L"} iconName="arrowRight" color="green" subtext="Abastecimentos recebidos" />
                         <Card title="Saídas no Mês" value={roundVolume(totalSaida).toLocaleString('pt-BR') + " L"} iconName="fuel" color="orange" subtext="Consumo da frota" />
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Gráficos com Delay na Animação */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-slide-up delay-200">
                         {/* Gráfico Top 10 Custos */}
                         <div className="glass-card p-6 h-[400px] flex flex-col">
                             <h3 className="font-bold text-slate-800 mb-4">Top 10 - Maior Custo Médio (R$/L)</h3>
@@ -775,12 +776,22 @@
                             </ResponsiveContainer>
                         </div>
 
-                        {/* Gráfico Top 10 Ajustes */}
+                        {/* Gráfico Top 10 Ajustes com Gradientes */}
                         <div className="glass-card p-6 h-[400px] flex flex-col">
                             <h3 className="font-bold text-slate-800 mb-4">Top 10 - Maiores Ajustes de Estoque (L)</h3>
                             <p className="text-xs text-slate-400 mb-2">Passe o mouse para ver o motivo.</p>
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={topAjustes} margin={{top: 5, right: 5, left: 0, bottom: 5}}>
+                                    <defs>
+                                        <linearGradient id="colorAjustePos" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.9}/>
+                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0.4}/>
+                                        </linearGradient>
+                                        <linearGradient id="colorAjusteNeg" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.9}/>
+                                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0.4}/>
+                                        </linearGradient>
+                                    </defs>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                     <XAxis dataKey="usina" tick={{fontSize: 10}} interval={0} angle={-15} textAnchor="end" height={50} />
                                     <YAxis tickFormatter={(val) => `${val} L`} />
@@ -788,7 +799,7 @@
                                     <ReferenceLine y={0} stroke="#94a3b8" />
                                     <Bar dataKey="ajuste_vol" name="Ajuste (L)" radius={[4, 4, 0, 0]}>
                                         {topAjustes.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.ajuste_vol > 0 ? '#10b981' : '#ef4444'} />
+                                            <Cell key={`cell-${index}`} fill={entry.ajuste_vol > 0 ? "url(#colorAjustePos)" : "url(#colorAjusteNeg)"} />
                                         ))}
                                     </Bar>
                                 </BarChart>
@@ -1377,6 +1388,7 @@
     </script>
 </body>
 </html>
+
 
 
 
