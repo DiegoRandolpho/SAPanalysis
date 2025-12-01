@@ -356,25 +356,64 @@
             );
         };
 
-        const DataTable = ({ data, onNotify }) => {
+        const DataTable = ({ data, onNotify, onExportAll }) => { // <--- Adicionado prop onExportAll
             const [currentPage, setCurrentPage] = useState(1);
             const rowsPerPage = 20;
             const headers = data.length > 0 ? Object.keys(data[0]) : [];
             const totalPages = Math.ceil(data.length / rowsPerPage);
             const currentRows = data.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
             const goToPage = (p) => setCurrentPage(Math.min(Math.max(1, p), totalPages));
-            const exportToExcel = () => {
+            
+            // Exportação Local (Backup)
+            const exportLocal = () => {
                 if (data.length === 0) { if (onNotify) onNotify("Sem dados para exportar.", "error"); return; }
                 const ws = XLSX.utils.json_to_sheet(data);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Dados");
-                XLSX.writeFile(wb, "Exportacao_Dados.xlsx");
+                XLSX.writeFile(wb, "Exportacao_Parcial.xlsx");
             };
+
             if(data.length === 0) return <div className="p-8 text-center text-slate-400">Sem dados para exibir.</div>;
+            
             return (
                 <div className="glass-card overflow-hidden">
-                    <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50"><h3 className="font-bold text-slate-700 flex items-center gap-2 text-sm"><Icons.Table /> Registros ({data.length})</h3><div className="flex gap-2"><button onClick={exportToExcel} className="text-green-600 hover:bg-green-50 border border-green-200 px-3 py-1.5 rounded text-xs flex items-center gap-1 transition-colors font-medium"><Icons.Download /> Exportar Excel</button><div className="border-l border-slate-300 mx-2 h-6"></div><span className="text-xs text-slate-400 self-center">Página {currentPage} de {totalPages}</span><button onClick={() => goToPage(currentPage-1)} disabled={currentPage===1} className="p-1 border rounded hover:bg-white disabled:opacity-30"><Icons.ChevronLeft /></button><button onClick={() => goToPage(currentPage+1)} disabled={currentPage===totalPages} className="p-1 border rounded hover:bg-white disabled:opacity-30"><Icons.ChevronRight /></button></div></div>
-                    <div className="overflow-x-auto custom-scrollbar"><table className="w-full text-xs text-left text-slate-600"><thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr>{headers.map(h => <th key={h} className="px-4 py-3 font-semibold whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{currentRows.map((row, i) => (<tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">{headers.map(h => { const val = row[h]; const displayVal = typeof val === 'number' ? val.toLocaleString('pt-BR', {minimumFractionDigits: 2}) : val; return <td key={h} className="px-4 py-2.5 whitespace-nowrap">{displayVal}</td> })}</tr>))}</tbody></table></div>
+                    <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <h3 className="font-bold text-slate-700 flex items-center gap-2 text-sm">
+                            <Icons.Table /> Visualizando {data.length} registros
+                        </h3>
+                        <div className="flex gap-2">
+                            {/* Botão de Exportar Inteligente */}
+                            <button 
+                                onClick={onExportAll || exportLocal} 
+                                className="text-green-600 hover:bg-green-50 border border-green-200 px-3 py-1.5 rounded text-xs flex items-center gap-1 transition-colors font-bold"
+                            >
+                                <Icons.Download /> {onExportAll ? 'Baixar TUDO (Excel)' : 'Exportar Visualização'}
+                            </button>
+                            
+                            <div className="border-l border-slate-300 mx-2 h-6"></div>
+                            <span className="text-xs text-slate-400 self-center">Página {currentPage} de {totalPages}</span>
+                            <button onClick={() => goToPage(currentPage-1)} disabled={currentPage===1} className="p-1 border rounded hover:bg-white disabled:opacity-30"><Icons.ChevronLeft /></button>
+                            <button onClick={() => goToPage(currentPage+1)} disabled={currentPage===totalPages} className="p-1 border rounded hover:bg-white disabled:opacity-30"><Icons.ChevronRight /></button>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-xs text-left text-slate-600">
+                            <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
+                                <tr>{headers.map(h => <th key={h} className="px-4 py-3 font-semibold whitespace-nowrap">{h}</th>)}</tr>
+                            </thead>
+                            <tbody>
+                                {currentRows.map((row, i) => (
+                                    <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                                        {headers.map(h => { 
+                                            const val = row[h]; 
+                                            const displayVal = typeof val === 'number' ? val.toLocaleString('pt-BR', {minimumFractionDigits: 2}) : val; 
+                                            return <td key={h} className="px-4 py-2.5 whitespace-nowrap">{displayVal}</td> 
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             );
         };
@@ -725,7 +764,35 @@
                 </div>
             );
         };
-
+// --- Componente de Overlay de Exportação ---
+        const ExportOverlay = ({ isExporting, progress, totalRows }) => {
+            if (!isExporting) return null;
+            return (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center">
+                    <div className="bg-white p-8 rounded-2xl shadow-2xl w-96 text-center animate-enter">
+                        <div className="mb-4 text-blue-600 bg-blue-50 p-4 rounded-full inline-block">
+                            <Icons.Download />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-800 mb-2">Gerando Excel Completo</h3>
+                        <p className="text-sm text-slate-500 mb-6">Baixando registros do servidor...</p>
+                        
+                        <div className="w-full bg-slate-100 rounded-full h-4 mb-2 overflow-hidden">
+                            <div 
+                                className="bg-blue-600 h-4 rounded-full transition-all duration-300 ease-out flex items-center justify-center" 
+                                style={{ width: `${progress}%` }}
+                            >
+                                <div className="w-full h-full bg-white/20 animate-[pulse_1s_infinite]"></div>
+                            </div>
+                        </div>
+                        <div className="flex justify-between text-xs font-bold text-slate-600">
+                            <span>{Math.round(progress)}%</span>
+                            <span>{totalRows > 0 ? `${Math.round((progress/100)*totalRows)} / ${totalRows}` : 'Calculando...'}</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        // --- App Principal ---
         // --- App Principal ---
         const App = () => {
             const [supabaseClient, setSupabaseClient] = useState(null);
@@ -736,73 +803,70 @@
             const [loadingAuth, setLoadingAuth] = useState(false);
             const [view, setView] = useState('dashboard');
             
-            const [controladoriaView, setControladoriaView] = useState('dash');
+            // Estados Gerais
             const [loading, setLoading] = useState(false);
             const [logs, setLogs] = useState([]);
-            
-            // Diesel State
-            const [dieselView, setDieselView] = useState('dash');
-            const [dieselData, setDieselData] = useState([]);
-            const [dieselFilterPeriodo, setDieselFilterPeriodo] = useState('');
+            const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+            const [expandedModules, setExpandedModules] = useState({ terceirizacao: true, controladoria: true, diesel: false });
 
+            // Estados de Exportação (Barra de Progresso)
+            const [isExporting, setIsExporting] = useState(false);
+            const [exportProgress, setExportProgress] = useState(0);
+            const [exportTotalRows, setExportTotalRows] = useState(0);
+            
+            // Estados Controladoria
+            const [controladoriaView, setControladoriaView] = useState('dash');
             const [drillDownConta, setDrillDownConta] = useState(null);
-            const [dashboardData, setDashboardData] = useState({ kpis: { total_vol: 0, total_val: 0, vol_bomba: 0, vol_transp: 0 }, chart_class: [], chart_plate: [], chart_evo: [], chart_branch: [] });
             const [controladoriaAnalise, setControladoriaAnalise] = useState([]); 
             const [controladoriaContas, setControladoriaContas] = useState([]); 
             const [controladoriaRaw, setControladoriaRaw] = useState([]);
             const [controladoriaFiliais, setControladoriaFiliais] = useState([]); 
-            const [resumoData, setResumoData] = useState([]);
-
-            const [filterMonth, setFilterMonth] = useState('Todos');
-            const [filterFilial, setFilterFilial] = useState('Todas');
-            const [rankingFilter, setRankingFilter] = useState('top10');
             const [ctrlFilterPeriodo, setCtrlFilterPeriodo] = useState('');
             const [ctrlFilterUsina, setCtrlFilterUsina] = useState('Todas'); 
             const [ctrlAnaliseTipo, setCtrlAnaliseTipo] = useState('Despesa'); 
 
-            const [uploadProgress, setUploadProgress] = useState({});
+            // Estados Dashboard Geral / Terceirização
+            const [dashboardData, setDashboardData] = useState({ kpis: { total_vol: 0, total_val: 0, vol_bomba: 0, vol_transp: 0 }, chart_class: [], chart_plate: [], chart_evo: [], chart_branch: [] });
+            const [resumoData, setResumoData] = useState([]);
+            const [filterMonth, setFilterMonth] = useState('Todos');
+            const [filterFilial, setFilterFilial] = useState('Todas');
+            const [rankingFilter, setRankingFilter] = useState('top10');
             const [confirmData, setConfirmData] = useState(null);
             const [dbRowCount, setDbRowCount] = useState(0);
 
-            const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-            const [expandedModules, setExpandedModules] = useState({ terceirizacao: true, controladoria: true, diesel: false });
+            // Estados Diesel
+            const [dieselView, setDieselView] = useState('dash');
+            const [dieselData, setDieselData] = useState([]);
+            const [dieselFilterPeriodo, setDieselFilterPeriodo] = useState('');
 
             const addLog = (msg, type='info') => setLogs(p => [{msg, type}, ...p]);
-            
             const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
             const toggleModule = (mod) => setExpandedModules(p => ({ ...p, [mod]: !p[mod] }));
 
+            // Inicialização Supabase
             useEffect(() => { try { setSupabaseClient(createClient(config.url, config.key)); } catch(e){} }, []);
 
-            // Inicialização automática do período Diesel
+            // Inicialização Datas (Diesel e Controladoria)
             useEffect(() => {
                 const today = new Date();
                 const m = today.getMonth() + 1;
                 const y = today.getFullYear();
-                setDieselFilterPeriodo(`${y}-${m.toString().padStart(2, '0')}`);
-            }, []);
+                const defaultPeriod = `${y}-${m.toString().padStart(2, '0')}`;
+                
+                // Diesel default
+                setDieselFilterPeriodo(defaultPeriod);
 
-            // Inicialização automática do período baseada no banco (Controladoria)
-            useEffect(() => {
-                const loadLatest = async () => {
+                // Controladoria default (tenta pegar do banco, senão usa atual)
+                const loadLatestCtrl = async () => {
                     if (!supabaseClient) return;
-                    const { data, error } = await supabaseClient
-                        .from('controladoria_importacoes')
-                        .select('periodo')
-                        .order('periodo', { ascending: false })
-                        .limit(1);
-                    if (data && data.length > 0) {
-                        setCtrlFilterPeriodo(data[0].periodo);
-                    } else {
-                        const today = new Date();
-                        const m = today.getMonth() + 1; 
-                        const y = today.getFullYear();
-                        setCtrlFilterPeriodo(`${y}-${m.toString().padStart(2, '0')}`);
-                    }
+                    const { data } = await supabaseClient.from('controladoria_importacoes').select('periodo').order('periodo', { ascending: false }).limit(1);
+                    if (data && data.length > 0) setCtrlFilterPeriodo(data[0].periodo);
+                    else setCtrlFilterPeriodo(defaultPeriod);
                 };
-                loadLatest();
+                loadLatestCtrl();
             }, [supabaseClient]);
 
+            // Auth Listener
             useEffect(() => {
                 if(supabaseClient) {
                     supabaseClient.auth.getSession().then(({ data: { session } }) => {
@@ -820,11 +884,9 @@
             const checkUserRole = async (userId, email) => {
                 if(!supabaseClient) return;
                 const { data } = await supabaseClient.from('user_roles').select('role').eq('user_id', userId).single();
-                
                 let role = data?.role || (email.includes('admin') ? 'admin' : 'terceirizacao');
                 setUserRole(role);
 
-                // Lógica de Redirecionamento Inteligente
                 if (role === 'controladoria') {
                     setView('controladoria');
                     setControladoriaView('dash');
@@ -847,6 +909,61 @@
 
             const handleLogout = async () => { await supabaseClient.auth.signOut(); setView('dashboard'); };
 
+            // --- FUNÇÃO DE EXPORTAÇÃO EM LOTE (PROGRESS BAR) ---
+            const batchExport = async (tableName, fileName, customQuery = null, transformFn = null) => {
+                if (!supabaseClient) return;
+                setIsExporting(true);
+                setExportProgress(0);
+                
+                try {
+                    // 1. Contar linhas
+                    let countQuery = supabaseClient.from(tableName).select('*', { count: 'exact', head: true });
+                    if (customQuery) countQuery = customQuery(countQuery);
+                    
+                    const { count, error: errCount } = await countQuery;
+                    if (errCount) throw errCount;
+                    setExportTotalRows(count);
+                    
+                    if (count === 0) { addLog("Nada para exportar.", "info"); setIsExporting(false); return; }
+
+                    // 2. Loop de busca
+                    let allData = [];
+                    const pageSize = 1000;
+                    let hasMore = true;
+                    let page = 0;
+
+                    while (hasMore) {
+                        let dataQuery = supabaseClient.from(tableName).select('*');
+                        if (customQuery) dataQuery = customQuery(dataQuery);
+                        const { data, error } = await dataQuery.range(page * pageSize, (page + 1) * pageSize - 1);
+                        if (error) throw error;
+
+                        const processedData = transformFn ? data.map(transformFn) : data;
+                        allData = [...allData, ...processedData];
+
+                        setExportProgress(Math.min(((allData.length / count) * 100), 100));
+
+                        if (data.length < pageSize || allData.length >= count) hasMore = false;
+                        page++;
+                        await new Promise(r => setTimeout(r, 10)); // UI Refresh
+                    }
+
+                    // 3. Gerar Excel
+                    const ws = XLSX.utils.json_to_sheet(allData);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Dados Completos");
+                    XLSX.writeFile(wb, `${fileName}.xlsx`);
+                    addLog(`Download concluído! ${allData.length} linhas.`, "success");
+
+                } catch (e) {
+                    console.error(e);
+                    addLog("Erro exportação: " + e.message, "error");
+                } finally {
+                    setIsExporting(false);
+                }
+            };
+
+            // --- FETCHERS ---
             const fetchDashboard = async () => {
                 if(!supabaseClient || !session) return;
                 setLoading(true);
@@ -854,49 +971,25 @@
                     const { data, error } = await supabaseClient.rpc('get_dashboard_stats', { selected_month: filterMonth, selected_branch: filterFilial });
                     if(error) throw error;
                     if(data) setDashboardData(data);
-                    const { count } = await supabaseClient.from('apuracao').select('*', { count: 'exact', head: true });
-                    setDbRowCount(count || 0);
                 } catch(e) { console.error(e); }
                 setLoading(false);
             };
 
             const fetchReport = async () => {
                 if(!supabaseClient || view !== 'reports' || !session) return;
-                const { data } = await supabaseClient.from('resumo_mensal').select('*').limit(5000);
+                const { data } = await supabaseClient.from('resumo_mensal').select('*').limit(5000); // Preview inicial
                 if(data) setResumoData(data);
             };
-            
+
             const fetchControladoriaAnalitico = async () => {
                 if(!supabaseClient || !session || !ctrlFilterPeriodo) return;
                 setLoading(true);
                 try {
-                    const { data, error } = await supabaseClient.rpc('get_controladoria_analise_contas', { 
-                        p_periodo: ctrlFilterPeriodo,
-                        p_tipo: ctrlAnaliseTipo,
-                        p_usina: ctrlFilterUsina === 'Todas' ? null : ctrlFilterUsina
-                    });
+                    const { data, error } = await supabaseClient.rpc('get_controladoria_analise_contas', { p_periodo: ctrlFilterPeriodo, p_tipo: ctrlAnaliseTipo, p_usina: ctrlFilterUsina === 'Todas' ? null : ctrlFilterUsina });
                     if(error) throw error;
                     setControladoriaAnalise(data || []);
-                } catch(e) { addLog("Erro Controladoria Analítico: "+e.message, 'error'); }
+                } catch(e) { addLog("Erro Controladoria: "+e.message, 'error'); }
                 setLoading(false);
-            };
-
-            const fetchControladoriaFiliais = async () => {
-                if(!supabaseClient || !session) return;
-                try {
-                    const { data } = await supabaseClient.from('controladoria_importacoes').select('usina');
-                    const unique = [...new Set((data||[]).map(d => d.usina))].sort();
-                    setControladoriaFiliais(unique);
-                } catch(e) {}
-            };
-
-            const fetchControladoriaContasAmigaveis = async () => {
-                if(!supabaseClient || !session) return;
-                try {
-                    const { data, error } = await supabaseClient.from('controladoria_de_para').select('friendly_name').eq('tipo', 'Despesa').order('friendly_name');
-                    if (error) throw error;
-                    setControladoriaContas(data.map(d => d.friendly_name));
-                } catch(e) { console.error("Erro lista contas amigaveis", e); }
             };
 
             const fetchControladoriaRaw = async () => {
@@ -905,52 +998,46 @@
                 try {
                     let query = supabaseClient.from('controladoria_importacoes').select('*');
                     if(ctrlFilterPeriodo) query = query.eq('periodo', ctrlFilterPeriodo);
-                    
-                    const { data, error } = await query.limit(2000).order('usina');
+                    const { data, error } = await query.limit(2000).order('usina'); // Preview
                     if(error) throw error;
-                    
-                    const flatData = (data || []).map(row => ({
-                        periodo: row.periodo,
-                        usina: row.usina,
-                        custo_total: parseFloat(row.custo_total) || 0,
-                        volume_total: parseFloat(row.volume_total) || 0,
-                        ...row.detalhes
-                    }));
+                    const flatData = (data || []).map(row => ({ periodo: row.periodo, usina: row.usina, custo_total: parseFloat(row.custo_total)||0, volume_total: parseFloat(row.volume_total)||0, ...row.detalhes }));
                     setControladoriaRaw(flatData);
-                } catch(e) { addLog("Erro Controladoria Report: "+e.message, 'error'); }
+                } catch(e) { addLog("Erro Report: "+e.message, 'error'); }
                 setLoading(false);
             };
+            
+            const fetchControladoriaFiliais = async () => {
+                 try {
+                    const { data } = await supabaseClient.from('controladoria_importacoes').select('usina');
+                    const unique = [...new Set((data||[]).map(d => d.usina))].sort();
+                    setControladoriaFiliais(unique);
+                } catch(e) {}
+            };
 
-            // Fetch Diesel Data
+            const fetchControladoriaContasAmigaveis = async () => {
+                try {
+                    const { data } = await supabaseClient.from('controladoria_de_para').select('friendly_name').eq('tipo', 'Despesa').order('friendly_name');
+                    setControladoriaContas(data.map(d => d.friendly_name));
+                } catch(e) {}
+            };
+
             const fetchDieselData = async () => {
                 if(!supabaseClient || !session || !dieselFilterPeriodo) return;
                 setLoading(true);
                 try {
-                    const { data, error } = await supabaseClient
-                        .from('diesel_estoque')
-                        .select('*')
-                        .eq('periodo', dieselFilterPeriodo)
-                        .order('usina');
-                    
+                    const { data, error } = await supabaseClient.from('diesel_estoque').select('*').eq('periodo', dieselFilterPeriodo).order('usina');
                     if(error) throw error;
                     setDieselData(data || []);
-                } catch(e) {
-                    addLog("Erro Diesel: " + e.message, 'error');
-                } finally {
-                    setLoading(false);
-                }
+                } catch(e) { addLog("Erro Diesel: " + e.message, 'error'); } 
+                finally { setLoading(false); }
             };
 
+            // Router Effect
             useEffect(() => { 
                 if(supabaseClient && session) {
                     if (view === 'controladoria') {
-                        if (controladoriaView === 'dash') {
-                            fetchControladoriaAnalitico();
-                            fetchControladoriaFiliais();
-                        }
-                        if (controladoriaView === 'centro_custo') {
-                            fetchControladoriaContasAmigaveis();
-                        }
+                        if (controladoriaView === 'dash') { fetchControladoriaAnalitico(); fetchControladoriaFiliais(); }
+                        if (controladoriaView === 'centro_custo') fetchControladoriaContasAmigaveis();
                         if (controladoriaView === 'report') fetchControladoriaRaw();
                     } else if (view === 'diesel') {
                         if (dieselView === 'dash' || dieselView === 'report') fetchDieselData();
@@ -961,75 +1048,7 @@
                 } 
             }, [supabaseClient, session, view, controladoriaView, dieselView, ctrlFilterPeriodo, ctrlFilterUsina, ctrlAnaliseTipo, dieselFilterPeriodo]);
 
-            const processControladoriaFile = (file, periodDate) => {
-                setLoading(true);
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    try {
-                        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
-                        const sheet = wb.Sheets[wb.SheetNames[0]];
-                        const rawData = XLSX.utils.sheet_to_json(sheet, {header: 1}); 
-
-                        if (rawData.length < 4) throw new Error("Arquivo muito curto ou formato inválido.");
-
-                        const headers = rawData[0]; 
-                        const batch = [];
-                        
-                        for (let i = 3; i < rawData.length; i++) {
-                            const row = rawData[i];
-                            const rawUsina = row[0];
-
-                            if (rawUsina && typeof rawUsina === 'string') {
-                                const usinaCode = rawUsina.substring(0, 4).toUpperCase();
-                                let custoTotal = 0;
-                                let volTotal = 0;
-                                const detalhes = {};
-
-                                headers.forEach((h, colIdx) => {
-                                    if(!h || colIdx === 0) return;
-                                    const val = parseFloat(row[colIdx]) || 0;
-                                    const hStr = h.toString().trim();
-                                    detalhes[hStr] = val; 
-
-                                    if (hStr.toLowerCase().includes('tot. custos')) {
-                                        custoTotal = val;
-                                    } else if (hStr.toLowerCase().includes('qtd.transp') || hStr.toLowerCase().includes('qtd.bomb')) {
-                                        volTotal += val;
-                                    }
-                                });
-
-                                batch.push({
-                                    periodo: periodDate,
-                                    usina: usinaCode,
-                                    custo_total: custoTotal,
-                                    volume_total: volTotal,
-                                    detalhes: detalhes
-                                });
-                            }
-                        }
-                        
-                        const { error: errDel } = await supabaseClient.rpc('limpar_periodo_controladoria', { p_periodo: periodDate });
-                        if(errDel) throw errDel;
-
-                        const chunkSize = 100;
-                        for (let i = 0; i < batch.length; i += chunkSize) {
-                            const chunk = batch.slice(i, i + chunkSize);
-                            const { error: errIns } = await supabaseClient.from('controladoria_importacoes').insert(chunk);
-                            if(errIns) throw errIns;
-                        }
-
-                        addLog(`Sucesso! ${batch.length} registros importados para ${periodDate}.`, "success");
-                        setControladoriaView('dash');
-                        setCtrlFilterPeriodo(periodDate);
-                    } catch (err) {
-                        addLog("Erro na importação: " + err.message, "error");
-                    } finally {
-                        setLoading(false);
-                    }
-                };
-                reader.readAsArrayBuffer(file);
-            };
-
+            // --- IMPORTAÇÕES ---
             const processDieselFile = (file, periodDate) => {
                 setLoading(true);
                 const reader = new FileReader();
@@ -1040,68 +1059,87 @@
                         const jsonData = XLSX.utils.sheet_to_json(sheet); 
 
                         const batch = jsonData.map(row => {
-                            // Função auxiliar para pegar valor numérico da coluna (normalizando espaços)
                             const getVal = (colName) => {
                                 const key = Object.keys(row).find(k => k.toLowerCase().trim() === colName.toLowerCase().trim());
                                 return key ? row[key] : 0;
                             };
-                            
-                            // Função para texto
                             const getStr = (colName) => {
                                 const key = Object.keys(row).find(k => k.toLowerCase().trim() === colName.toLowerCase().trim());
                                 return key ? String(row[key]) : '';
                             }
-
                             return {
                                 periodo: periodDate,
                                 usina: getStr('Centro') || 'ND',
-                                
-                                // Volumes
                                 vol_inicial: parseBrlNumber(getVal('Estoque inicial')),
                                 entradas: parseBrlNumber(getVal('Totais qtds.entrada')),
                                 saidas: parseBrlNumber(getVal('Totais qtds.saída')),
-                                vol_final: parseBrlNumber(getVal('SAP')), // SAP como Volume Final
-                                
-                                // Ajustes
+                                vol_final: parseBrlNumber(getVal('SAP')),
                                 ajuste_vol: parseBrlNumber(getVal('Ajuste de Volume')),
-                                ajuste_vlr: parseBrlNumber(getVal('Valor Total de Ajuste')), // Coluna nova
-                                
-                                // Financeiro
+                                ajuste_vlr: parseBrlNumber(getVal('Valor Total de Ajuste')),
                                 custo_medio: parseBrlNumber(getVal('Valor Médio')),
-                                vlr_final: parseBrlNumber(getVal('Valor Total Estoque Final')), // Coluna nova
-                                
-                                // Campos zerados pois não existem neste layout (mas o banco pede)
-                                vlr_inicial: 0, 
-                                vlr_entrada: 0,
-                                vlr_saida: 0,
-                                
+                                vlr_final: parseBrlNumber(getVal('Valor Total Estoque Final')),
+                                vlr_inicial: 0, vlr_entrada: 0, vlr_saida: 0,
                                 motivo_ajuste: getStr('Motivo')
                             };
                         }).filter(i => i.usina !== 'ND' && i.usina !== 'Total' && i.usina !== '' && i.usina !== 'Centro');
 
-                        if (batch.length === 0) {
-                            throw new Error("Nenhum registro encontrado. Verifique se as colunas estão idênticas ao modelo.");
-                        }
+                        if (batch.length === 0) throw new Error("Nenhum registro encontrado. Verifique o layout.");
 
                         const { error: errDel } = await supabaseClient.from('diesel_estoque').delete().eq('periodo', periodDate);
                         if(errDel) throw errDel;
-
                         const { error: errIns } = await supabaseClient.from('diesel_estoque').insert(batch);
                         if(errIns) throw errIns;
 
-                        addLog(`Diesel: ${batch.length} registros importados com sucesso!`, "success");
+                        addLog(`Diesel: ${batch.length} registros importados!`, "success");
                         setDieselView('dash');
                         setDieselFilterPeriodo(periodDate);
-
-                    } catch (err) {
-                        console.error(err);
-                        addLog("Erro Imp. Diesel: " + err.message, "error");
-                    } finally {
-                        setLoading(false);
-                    }
+                    } catch (err) { console.error(err); addLog("Erro Imp. Diesel: " + err.message, "error"); } 
+                    finally { setLoading(false); }
                 };
                 reader.readAsArrayBuffer(file);
             };
+
+            const processControladoriaFile = (file, periodDate) => {
+                setLoading(true);
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+                        const sheet = wb.Sheets[wb.SheetNames[0]];
+                        const rawData = XLSX.utils.sheet_to_json(sheet, {header: 1}); 
+                        if (rawData.length < 4) throw new Error("Arquivo inválido.");
+                        const headers = rawData[0]; const batch = [];
+                        for (let i = 3; i < rawData.length; i++) {
+                            const row = rawData[i]; const rawUsina = row[0];
+                            if (rawUsina && typeof rawUsina === 'string') {
+                                const usinaCode = rawUsina.substring(0, 4).toUpperCase();
+                                let custoTotal = 0; let volTotal = 0; const detalhes = {};
+                                headers.forEach((h, colIdx) => {
+                                    if(!h || colIdx === 0) return;
+                                    const val = parseFloat(row[colIdx]) || 0; const hStr = h.toString().trim();
+                                    detalhes[hStr] = val; 
+                                    if (hStr.toLowerCase().includes('tot. custos')) custoTotal = val;
+                                    else if (hStr.toLowerCase().includes('qtd.transp') || hStr.toLowerCase().includes('qtd.bomb')) volTotal += val;
+                                });
+                                batch.push({ periodo: periodDate, usina: usinaCode, custo_total: custoTotal, volume_total: volTotal, detalhes: detalhes });
+                            }
+                        }
+                        const { error: errDel } = await supabaseClient.rpc('limpar_periodo_controladoria', { p_periodo: periodDate });
+                        if(errDel) throw errDel;
+                        for (let i = 0; i < batch.length; i += 100) {
+                            const chunk = batch.slice(i, i + 100);
+                            const { error: errIns } = await supabaseClient.from('controladoria_importacoes').insert(chunk);
+                            if(errIns) throw errIns;
+                        }
+                        addLog(`Sucesso! ${batch.length} registros importados.`, "success");
+                        setControladoriaView('dash');
+                        setCtrlFilterPeriodo(periodDate);
+                    } catch (err) { addLog("Erro importação: " + err.message, "error"); } 
+                    finally { setLoading(false); }
+                };
+                reader.readAsArrayBuffer(file);
+            };
+
             const handleUploadTerceirizacao = (file, type) => {
                 const r = new FileReader();
                 r.onload = (e) => {
@@ -1130,53 +1168,32 @@
             };
 
             if (!supabaseClient) return <div className="flex h-screen items-center justify-center bg-slate-50"><div className="loader h-8 w-8 border-4 rounded-full"></div></div>;
-
             if (!session) return <div className="font-sans"><StatusLog logs={logs} clearLogs={() => setLogs([])} /><LoginScreen onLogin={handleLogin} loading={loadingAuth} /></div>;
 
             return (
                 <div className="min-h-screen flex bg-slate-100 font-sans text-slate-800 overflow-hidden">
+                    <ExportOverlay isExporting={isExporting} progress={exportProgress} totalRows={exportTotalRows} />
                     <StatusLog logs={logs} clearLogs={() => setLogs([])} />
                     {confirmData && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"><div className="glass-card p-6 w-96"><h3 className="font-bold mb-2 text-lg text-slate-800">Confirmar Upload</h3><p className="text-sm text-slate-500 mb-4">Deseja importar <strong>{confirmData.count}</strong> registros?</p><div className="flex gap-2"><button onClick={()=>setConfirmData(null)} className="flex-1 border border-slate-300 p-2 rounded hover:bg-slate-50 text-sm font-medium">Cancelar</button><button onClick={confirmImportTerceirizacao} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded text-sm font-medium">Confirmar</button></div></div></div>}
 
+                    {/* SIDEBAR */}
                     <div className={`bg-slate-900 text-slate-300 flex flex-col fixed h-full shadow-2xl z-50 sidebar-transition ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
                         <div className="p-4 border-b border-slate-800 flex items-center justify-between relative">
                             <div className={`flex items-center gap-3 overflow-hidden ${!isSidebarOpen && 'justify-center w-full'}`}>
                                 <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-12 w-auto flex-shrink-0" />
-                                {isSidebarOpen && (
-                                    <div className="fade-enter whitespace-nowrap">
-                                        <span className="font-bold text-white text-lg block leading-tight">SAP</span>
-                                        <span className="text-[10px] font-medium text-slate-400 tracking-widest uppercase">Analytics</span>
-                                    </div>
-                                )}
+                                {isSidebarOpen && ( <div className="fade-enter whitespace-nowrap"><span className="font-bold text-white text-lg block leading-tight">SAP</span><span className="text-[10px] font-medium text-slate-400 tracking-widest uppercase">Analytics</span></div> )}
                             </div>
-                            <button 
-                                onClick={toggleSidebar} 
-                                className="absolute -right-4 top-6 bg-slate-800 text-slate-400 hover:text-white p-1 rounded-full border border-slate-700 shadow-lg z-30 hover:scale-110 transition-transform"
-                                title={isSidebarOpen ? "Recolher Menu" : "Expandir Menu"}
-                            >
+                            <button onClick={toggleSidebar} className="absolute -right-4 top-6 bg-slate-800 text-slate-400 hover:text-white p-1 rounded-full border border-slate-700 shadow-lg z-30 hover:scale-110 transition-transform">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transform transition-transform ${!isSidebarOpen ? 'rotate-180' : ''}`}><polyline points="15 18 9 12 15 6"/></svg>
                             </button>
                         </div>
-
                         <nav className="flex-1 p-2 space-y-2 overflow-y-auto custom-scrollbar">
                             {checkPermission(userRole, 'terceirizacao') && (
                                 <div className="group">
-                                    <button 
-                                        onClick={() => isSidebarOpen && toggleModule('terceirizacao')} 
-                                        className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}
-                                        title={!isSidebarOpen ? "Terceirização" : ""}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <Icons.Briefcase />
-                                            {isSidebarOpen && <span className="font-semibold text-sm fade-enter">Terceirização</span>}
-                                        </div>
-                                        {isSidebarOpen && (
-                                            <span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.terceirizacao ? 'rotate-180' : ''}`}>
-                                                <Icons.ChevronDown />
-                                            </span>
-                                        )}
+                                    <button onClick={() => isSidebarOpen && toggleModule('terceirizacao')} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}>
+                                        <div className="flex items-center gap-3"><Icons.Briefcase />{isSidebarOpen && <span className="font-semibold text-sm fade-enter">Terceirização</span>}</div>
+                                        {isSidebarOpen && (<span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.terceirizacao ? 'rotate-180' : ''}`}><Icons.ChevronDown /></span>)}
                                     </button>
-                                    
                                     {isSidebarOpen && expandedModules.terceirizacao && (
                                         <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-800 pl-3 fade-enter">
                                             <button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'dashboard' ? 'text-blue-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Visão Geral</button>
@@ -1186,25 +1203,12 @@
                                     )}
                                 </div>
                             )}
-
                             {checkPermission(userRole, 'controladoria') && (
                                 <div className="group mt-2">
-                                    <button 
-                                        onClick={() => isSidebarOpen && toggleModule('controladoria')} 
-                                        className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}
-                                        title={!isSidebarOpen ? "Controladoria" : ""}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <Icons.BarChart2 />
-                                            {isSidebarOpen && <span className="font-semibold text-sm fade-enter">Controladoria</span>}
-                                        </div>
-                                        {isSidebarOpen && (
-                                            <span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.controladoria ? 'rotate-180' : ''}`}>
-                                                <Icons.ChevronDown />
-                                            </span>
-                                        )}
+                                    <button onClick={() => isSidebarOpen && toggleModule('controladoria')} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}>
+                                        <div className="flex items-center gap-3"><Icons.BarChart2 />{isSidebarOpen && <span className="font-semibold text-sm fade-enter">Controladoria</span>}</div>
+                                        {isSidebarOpen && (<span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.controladoria ? 'rotate-180' : ''}`}><Icons.ChevronDown /></span>)}
                                     </button>
-                                    
                                     {isSidebarOpen && expandedModules.controladoria && (
                                         <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-800 pl-3 fade-enter">
                                             <button onClick={() => { setView('controladoria'); setControladoriaView('dash'); }} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'controladoria' && (controladoriaView === 'dash' || controladoriaView === 'centro_custo') ? 'text-purple-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Visão Geral</button>
@@ -1215,24 +1219,12 @@
                                     )}
                                 </div>
                             )}
-
                             {checkPermission(userRole, 'diesel') && (
                                 <div className="group mt-2">
-                                    <button 
-                                        onClick={() => isSidebarOpen && toggleModule('diesel')} 
-                                        className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <Icons.Fuel />
-                                            {isSidebarOpen && <span className="font-semibold text-sm fade-enter">Gestão Diesel</span>}
-                                        </div>
-                                        {isSidebarOpen && (
-                                            <span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.diesel ? 'rotate-180' : ''}`}>
-                                                <Icons.ChevronDown />
-                                            </span>
-                                        )}
+                                    <button onClick={() => isSidebarOpen && toggleModule('diesel')} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}>
+                                        <div className="flex items-center gap-3"><Icons.Fuel />{isSidebarOpen && <span className="font-semibold text-sm fade-enter">Gestão Diesel</span>}</div>
+                                        {isSidebarOpen && (<span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.diesel ? 'rotate-180' : ''}`}><Icons.ChevronDown /></span>)}
                                     </button>
-                                    
                                     {isSidebarOpen && expandedModules.diesel && (
                                         <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-800 pl-3 fade-enter">
                                             <button onClick={() => { setView('diesel'); setDieselView('dash'); }} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'diesel' && dieselView === 'dash' ? 'text-orange-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Visão Geral</button>
@@ -1242,50 +1234,32 @@
                                     )}
                                 </div>
                             )}
-
                             {checkPermission(userRole, 'admin') && (
                                 <div className={`mt-4 opacity-50 pointer-events-none filter grayscale flex items-center ${!isSidebarOpen ? 'justify-center' : 'px-3 py-3 gap-3'}`}>
-                                    <Icons.DollarSign />
-                                    {isSidebarOpen && <span className="font-semibold text-sm text-slate-400 fade-enter">Financeiro</span>}
+                                    <Icons.DollarSign />{isSidebarOpen && <span className="font-semibold text-sm text-slate-400 fade-enter">Financeiro</span>}
                                 </div>
                             )}
                         </nav>
-
                         <div className="p-4 border-t border-slate-800">
                             <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
-                                
-                                {/* Container do Avatar com RGB */}
                                 <div className="relative w-9 h-9 flex items-center justify-center flex-shrink-0">
-                                    {/* Efeito RGB (Borda Animada) */}
                                     <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,red,orange,yellow,green,blue,purple,red)] animate-[spin_3s_linear_infinite] blur-[2px]"></div>
-                                    
-                                    {/* O Avatar em si */}
                                     <div className="relative w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center text-white font-bold text-xs z-10 shadow-inner">
                                         {session.user.email.substring(0,2).toUpperCase()}
                                     </div>
                                 </div>
-
-                                {isSidebarOpen && (
-                                    <div className="overflow-hidden flex-1 fade-enter">
-                                        <p className="text-white text-xs font-medium truncate">{session.user.email.split('@')[0]}</p>
-                                        <p className="text-[10px] text-slate-500 truncate capitalize">{userRole}</p>
-                                    </div>
-                                )}
-                                
-                                {isSidebarOpen && (
-                                    <button onClick={handleLogout} className="text-slate-400 hover:text-white transition-colors" title="Sair">
-                                        <Icons.LogOut />
-                                    </button>
-                                )}
+                                {isSidebarOpen && ( <div className="overflow-hidden flex-1 fade-enter"><p className="text-white text-xs font-medium truncate">{session.user.email.split('@')[0]}</p><p className="text-[10px] text-slate-500 truncate capitalize">{userRole}</p></div> )}
+                                {isSidebarOpen && ( <button onClick={handleLogout} className="text-slate-400 hover:text-white transition-colors" title="Sair"><Icons.LogOut /></button> )}
                             </div>
                         </div>
-                    </div>
+                    </div> 
 
+                    {/* CONTEÚDO PRINCIPAL */}
                     <div className={`flex-1 content-transition ${isSidebarOpen ? 'ml-64' : 'ml-20'} overflow-y-auto h-screen`}>
                         <header className="bg-white/80 backdrop-blur-md h-16 border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-20 no-print">
                             <h1 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                                 {view === 'controladoria' ? (
-                                    <><span className="text-slate-400 font-normal flex items-center gap-2"><Icons.BarChart2 className="w-4 h-4" /> Controladoria <span className="text-slate-300">/</span></span><span className="text-purple-600">{controladoriaView === 'dash' ? 'Visão Geral (Variações)' : (controladoriaView === 'centro_custo' ? 'Visão Geral (Centro de Custo)' : (controladoriaView === 'report_exec' ? 'Relatório Executivo' : (controladoriaView === 'report' ? 'Dados Detalhados' : (controladoriaView === 'depara' ? 'Configuração De/Para' : 'Importação'))))}</span></>
+                                    <><span className="text-slate-400 font-normal flex items-center gap-2"><Icons.BarChart2 className="w-4 h-4" /> Controladoria <span className="text-slate-300">/</span></span><span className="text-purple-600">{controladoriaView === 'dash' ? 'Visão Geral (Variações)' : (controladoriaView === 'centro_custo' ? 'Visão Geral (Centro de Custo)' : (controladoriaView === 'report' ? 'Dados Detalhados' : (controladoriaView === 'depara' ? 'Configuração De/Para' : 'Importação')))}</span></>
                                 ) : view === 'diesel' ? (
                                     <><span className="text-slate-400 font-normal flex items-center gap-2"><Icons.Fuel className="w-4 h-4" /> Gestão Diesel <span className="text-slate-300">/</span></span><span className="text-orange-600">{dieselView === 'dash' ? 'Visão Geral' : (dieselView === 'report' ? 'Relatório Detalhado' : 'Importação')}</span></>
                                 ) : (
@@ -1297,30 +1271,27 @@
 
                         <main className="p-8 max-w-[1600px] mx-auto print-container pb-20">
                             <ErrorBoundary>
-                                {view === 'controladoria' && (controladoriaView === 'dash' || controladoriaView === 'report') && (
-                                    <div className="glass-card p-4 mb-6 flex items-center gap-6">
-                                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600"><div className="p-1.5 bg-slate-100 rounded text-slate-500"><Icons.Filter /></div> Filtros:</div>
-                                        <div className="flex items-center gap-2"><span className="text-xs text-slate-400">Período:</span><input type="month" className="border border-slate-200 rounded px-2 py-1 text-sm bg-slate-50" value={ctrlFilterPeriodo} onChange={e => setCtrlFilterPeriodo(e.target.value)} /></div>
-                                        {controladoriaView === 'dash' && (<div className="flex items-center gap-2"><span className="text-xs text-slate-400">Usina:</span><select className="border border-slate-200 rounded px-2 py-1 text-sm bg-slate-50 w-32" value={ctrlFilterUsina} onChange={e => setCtrlFilterUsina(e.target.value)}><option value="Todas">Todas</option>{controladoriaFiliais.map(u => <option key={u} value={u}>{u}</option>)}</select></div>)}
-                                        {(ctrlFilterPeriodo) && <button onClick={() => {setCtrlFilterPeriodo('');}} className="text-xs text-blue-600 underline">Limpar Filtros</button>}
-                                    </div>
-                                )}
-                                {view === 'controladoria' && controladoriaView === 'centro_custo' && (
-                                    <div className="glass-card p-4 mb-6 flex items-center gap-6">
-                                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600"><div className="p-1.5 bg-slate-100 rounded text-slate-500"><Icons.Filter /></div> Filtros:</div>
-                                        <div className="flex items-center gap-2"><span className="text-xs text-slate-400">Período:</span><input type="month" className="border border-slate-200 rounded px-2 py-1 text-sm" value={ctrlFilterPeriodo} onChange={e => setCtrlFilterPeriodo(e.target.value)} /></div>
-                                    </div>
-                                )}
+                                {/* CONTROLADORIA */}
                                 {view === 'controladoria' && (
                                     <>
+                                        {(controladoriaView === 'dash' || controladoriaView === 'report') && (
+                                            <div className="glass-card p-4 mb-6 flex items-center gap-6">
+                                                <div className="flex items-center gap-2 text-sm font-medium text-slate-600"><div className="p-1.5 bg-slate-100 rounded text-slate-500"><Icons.Filter /></div> Filtros:</div>
+                                                <div className="flex items-center gap-2"><span className="text-xs text-slate-400">Período:</span><input type="month" className="border border-slate-200 rounded px-2 py-1 text-sm bg-slate-50" value={ctrlFilterPeriodo} onChange={e => setCtrlFilterPeriodo(e.target.value)} /></div>
+                                                {controladoriaView === 'dash' && (<div className="flex items-center gap-2"><span className="text-xs text-slate-400">Usina:</span><select className="border border-slate-200 rounded px-2 py-1 text-sm bg-slate-50 w-32" value={ctrlFilterUsina} onChange={e => setCtrlFilterUsina(e.target.value)}><option value="Todas">Todas</option>{controladoriaFiliais.map(u => <option key={u} value={u}>{u}</option>)}</select></div>)}
+                                                {(ctrlFilterPeriodo) && <button onClick={() => {setCtrlFilterPeriodo('');}} className="text-xs text-blue-600 underline">Limpar Filtros</button>}
+                                            </div>
+                                        )}
+                                        {controladoriaView === 'centro_custo' && (<div className="glass-card p-4 mb-6 flex items-center gap-6"><div className="flex items-center gap-2 text-sm font-medium text-slate-600"><div className="p-1.5 bg-slate-100 rounded text-slate-500"><Icons.Filter /></div> Filtros:</div><div className="flex items-center gap-2"><span className="text-xs text-slate-400">Período:</span><input type="month" className="border border-slate-200 rounded px-2 py-1 text-sm" value={ctrlFilterPeriodo} onChange={e => setCtrlFilterPeriodo(e.target.value)} /></div></div>)}
                                         {controladoriaView === 'dash' && <ControladoriaDashboardAnalitico stats={controladoriaAnalise} loading={loading} tipo={ctrlAnaliseTipo} setTipo={setCtrlAnaliseTipo} onDrillDown={(conta) => { setDrillDownConta(conta); setControladoriaView('centro_custo'); }} periodo={ctrlFilterPeriodo} />}
                                         {controladoriaView === 'centro_custo' && <ControladoriaDashboardCentroCusto supabaseClient={supabaseClient} periodo={ctrlFilterPeriodo} contas={controladoriaContas} onNotify={addLog} initialConta={drillDownConta} onBack={() => setControladoriaView('dash')} />}
-                                        {controladoriaView === 'report' && <DataTable data={controladoriaRaw} onNotify={addLog} />}
+                                        {controladoriaView === 'report' && <DataTable data={controladoriaRaw} onNotify={addLog} onExportAll={() => batchExport('controladoria_importacoes', `Relatorio_Controladoria_${ctrlFilterPeriodo}`, (q) => ctrlFilterPeriodo ? q.eq('periodo', ctrlFilterPeriodo).order('usina') : q.order('usina'), (row) => ({ periodo: row.periodo, usina: row.usina, custo_total: parseFloat(row.custo_total)||0, volume_total: parseFloat(row.volume_total)||0, ...row.detalhes }))} />}
                                         {controladoriaView === 'depara' && <ControladoriaDePara supabaseClient={supabaseClient} onNotify={addLog} />}
                                         {controladoriaView === 'import' && <ControladoriaImport onImport={processControladoriaFile} loading={loading} />}
                                     </>
                                 )}
                                 
+                                {/* DIESEL */}
                                 {view === 'diesel' && (
                                     <>
                                         {(dieselView === 'dash' || dieselView === 'report') && (
@@ -1329,13 +1300,13 @@
                                                 <div className="flex items-center gap-2"><span className="text-xs text-slate-400">Mês:</span><input type="month" className="border border-slate-200 rounded px-2 py-1 text-sm bg-slate-50" value={dieselFilterPeriodo} onChange={e => setDieselFilterPeriodo(e.target.value)} /></div>
                                             </div>
                                         )}
-
                                         {dieselView === 'dash' && <DieselDashboard data={dieselData} loading={loading} periodo={dieselFilterPeriodo} />}
-                                        {dieselView === 'report' && <DataTable data={dieselData} onNotify={addLog} />}
+                                        {dieselView === 'report' && <DataTable data={dieselData} onNotify={addLog} onExportAll={() => batchExport('diesel_estoque', `Relatorio_Diesel_${dieselFilterPeriodo}`, (q) => q.eq('periodo', dieselFilterPeriodo).order('usina'))} />}
                                         {dieselView === 'import' && <DieselImport onImport={processDieselFile} loading={loading} />}
                                     </>
                                 )}
 
+                                {/* TERCEIRIZAÇÃO / GERAL */}
                                 {view === 'dashboard' && (
                                     <div className="space-y-8">
                                         <div className="glass-card p-4 mb-8 flex items-center gap-6"><div className="flex items-center gap-2 text-sm font-medium text-slate-600"><div className="p-1.5 bg-slate-100 rounded text-slate-500"><Icons.Filter /></div> Filtros:</div><select className="bg-transparent text-sm font-medium text-slate-700 focus:outline-none cursor-pointer hover:text-blue-600" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}><option value="Todos">📅 Todos os Meses</option>{dashboardData.meses && dashboardData.meses.map(m => <option key={m} value={m}>{m}</option>)}</select><select className="bg-transparent text-sm font-medium text-slate-700 focus:outline-none cursor-pointer hover:text-blue-600" value={filterFilial} onChange={e => setFilterFilial(e.target.value)}><option value="Todas">🏭 Todas as Filiais</option>{dashboardData.filiais && dashboardData.filiais.map(f => <option key={f} value={f}>{f}</option>)}</select></div>
@@ -1349,7 +1320,7 @@
                                         <div className="glass-card p-6 h-[450px] flex flex-col"><div className="flex justify-between items-center mb-6"><div><h3 className="font-bold text-slate-800 text-lg">Custo Médio por m³ por Usina</h3></div><div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200"><Icons.ListFilter className="text-slate-400 ml-2 w-4 h-4" /><select className="bg-transparent text-xs font-medium text-slate-600 p-1 focus:outline-none" value={rankingFilter} onChange={(e) => setRankingFilter(e.target.value)}><option value="top10">10 Maiores</option><option value="bottom10">10 Menores</option></select></div></div><ResponsiveContainer width="100%" height="100%"><BarChart data={dashboardData.chart_branch || []} margin={{top: 10, right: 10, left: 0, bottom: 20}} onClick={(data) => { if (data && data.activeLabel) { setFilterFilial(prev => prev === data.activeLabel ? 'Todas' : data.activeLabel); }}} style={{ cursor: 'pointer' }}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke={COLORS.grid} /><XAxis dataKey="name" tick={{fontSize: 11, fill: COLORS.text}} interval={0} angle={-15} textAnchor="end" height={60} axisLine={false} tickLine={false} /><YAxis tick={{fontSize: 11, fill: COLORS.text}} axisLine={false} tickLine={false} tickFormatter={(val) => `R$ ${val}`} /><Tooltip content={<CustomTooltip />} cursor={{fill: '#f8fafc'}} /><Legend wrapperStyle={{paddingTop: '20px'}} iconType="circle" /><Bar dataKey="val_betoneira" stackId="a" fill={COLORS.betoneira} name="Transporte" radius={[0, 0, 4, 4]} /><Bar dataKey="val_bomba" stackId="a" fill={COLORS.bomba} name="Bombeamento" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></div>
                                     </div>
                                 )}
-                                {view === 'reports' && <DataTable data={resumoData} onNotify={addLog} />}
+                                {view === 'reports' && <DataTable data={resumoData} onNotify={addLog} onExportAll={() => batchExport('resumo_mensal', 'Relatorio_Geral_Completo')} />}
                                 {view === 'upload' && (
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                         <UploadCard type="apuracao" iconName="fileText" onAnalyze={handleUploadTerceirizacao} isAnalyzing={loading} progress={0} />
@@ -1363,7 +1334,6 @@
                 </div>
             );
         };
-
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(
             <ErrorBoundary>
@@ -1373,5 +1343,6 @@
     </script>
 </body>
 </html>
+
 
 
