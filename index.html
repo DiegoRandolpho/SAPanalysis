@@ -1112,7 +1112,9 @@
                             fetchRelatoriosStats(); // Busca os novos gráficos/KPIs
                         }
                     }
-            }, [supabaseClient, session, view, controladoriaView, dieselView, ctrlFilterPeriodo, ctrlFilterUsina, ctrlAnaliseTipo, dieselFilterPeriodo]);
+                }
+            }, 
+            [supabaseClient, session, view, controladoriaView, dieselView, ctrlFilterPeriodo, ctrlFilterUsina, ctrlAnaliseTipo, dieselFilterPeriodo]);
 
             // --- IMPORTAÇÕES ---
             const processDieselFile = (file, periodDate) => {
@@ -1409,6 +1411,7 @@
     </script>
 </body>
 </html>
+
 
 
 
