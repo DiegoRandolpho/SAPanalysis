@@ -873,6 +873,9 @@
             // Estados Dashboard Geral / Terceirização
             const [dashboardData, setDashboardData] = useState({ kpis: { total_vol: 0, total_val: 0, vol_bomba: 0, vol_transp: 0 }, chart_class: [], chart_plate: [], chart_evo: [], chart_branch: [] });
             const [resumoData, setResumoData] = useState([]);
+            // Novo Estado para os Relatórios Gerenciais
+            const [relatoriosData, setRelatoriosData] = useState(null);
+            const [filterCidade, setFilterCidade] = useState('Todas');
             const [filterMonth, setFilterMonth] = useState('Todos');
             const [filterFilial, setFilterFilial] = useState('Todas');
             const [rankingFilter, setRankingFilter] = useState('top10');
@@ -1025,7 +1028,23 @@
                 const { data } = await supabaseClient.from('resumo_mensal').select('*').limit(5000); // Preview inicial
                 if(data) setResumoData(data);
             };
-
+                const fetchRelatoriosStats = async () => {
+                if(!supabaseClient || !session) return;
+                setLoading(true);
+                try {
+                    const { data, error } = await supabaseClient.rpc('get_relatorios_stats', { 
+                        f_mes: filterMonth, 
+                        f_filial: filterFilial,
+                        f_cidade: filterCidade
+                    });
+                    if(error) throw error;
+                    setRelatoriosData(data);
+                } catch(e) { 
+                    addLog("Erro Relatórios: " + e.message, 'error'); 
+                } finally { 
+                    setLoading(false); 
+                }
+            };
             const fetchControladoriaAnalitico = async () => {
                 if(!supabaseClient || !session || !ctrlFilterPeriodo) return;
                 setLoading(true);
@@ -1086,11 +1105,13 @@
                         if (controladoriaView === 'report') fetchControladoriaRaw();
                     } else if (view === 'diesel') {
                         if (dieselView === 'dash' || dieselView === 'report') fetchDieselData();
-                    } else {
+                   } else {
                         fetchDashboard(); 
-                        if(view === 'reports') fetchReport();
+                        if(view === 'reports') {
+                            fetchReport(); // Mantém a tabela
+                            fetchRelatoriosStats(); // Busca os novos gráficos/KPIs
+                        }
                     }
-                } 
             }, [supabaseClient, session, view, controladoriaView, dieselView, ctrlFilterPeriodo, ctrlFilterUsina, ctrlAnaliseTipo, dieselFilterPeriodo]);
 
             // --- IMPORTAÇÕES ---
@@ -1388,6 +1409,7 @@
     </script>
 </body>
 </html>
+
 
 
 
