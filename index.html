@@ -451,139 +451,7 @@
                 </div>
             );
         };
-        const ControladoriaDashboardAnalitico = ({ stats, loading, tipo, setTipo, onDrillDown, periodo, periodoComp }) => {
-            // Lógica de cores baseada nas 4 categorias
-            const isPositiveGood = tipo === 'Receita' || tipo === 'Resultado';
-            
-            const getVariationColor = (val) => {
-                if(val === 0) return 'bg-slate-100 text-slate-600';
-                if(isPositiveGood) return val > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
-                return val > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700';
-            };
-
-            const getArrow = (val) => val > 0 ? '▲' : (val < 0 ? '▼' : '-');
-            
-            const safeStats = (stats || []).map(row => ({
-                ...row,
-                valor_atual: parseFloat(row.valor_atual) || 0,
-                rs_m3: parseFloat(row.rs_m3) || 0,
-                perc_receita: parseFloat(row.perc_receita) || 0,
-                variacao_perc: parseFloat(row.variacao_perc) || 0
-            }));
-
-            if (safeStats.length === 0) return (
-                <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-                    <Icons.Info />
-                    <p className="mt-2 font-bold">Sem dados para exibir.</p>
-                    <p className="text-sm mt-1 max-w-md text-center">Isso pode acontecer se não houver dados no De/Para com o tipo <strong>"{tipo}"</strong> para o período selecionado.</p>
-                </div>
-            );
-
-            // Ref card (usando a primeira linha ou totais calculados se necessário)
-            const totalVal = safeStats.reduce((acc, curr) => acc + curr.valor_atual, 0);
-            
-            // Lógica para destaques (Top Variações)
-            const topVariacoes = [...safeStats]
-                .filter(i => isPositiveGood ? (i.variacao_perc < 0 && Math.abs(i.valor_atual) > 500) : (i.variacao_perc > 0 && i.valor_atual > 500))
-                .sort((a,b) => isPositiveGood ? a.variacao_perc - b.variacao_perc : b.variacao_perc - a.variacao_perc)
-                .slice(0, 3);
-
-            const tabs = [
-                { id: 'Receita', color: 'emerald' },
-                { id: 'Resultado', color: 'blue' },
-                { id: 'Custo', color: 'orange' },
-                { id: 'Despesa', color: 'red' } // ou slate, usando red para manter padrão de alerta
-            ];
-
-            return (
-                <div className="space-y-6">
-                    {/* Botões de Navegação das Categorias */}
-                    <div className="flex justify-center mb-4">
-                        <div className="bg-slate-200 p-1 rounded-lg flex shadow-inner gap-1">
-                            {tabs.map(t => (
-                                <button 
-                                    key={t.id}
-                                    onClick={() => setTipo(t.id)} 
-                                    className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${tipo === t.id ? `bg-white text-${t.color}-600 shadow ring-1 ring-slate-200` : 'text-slate-500 hover:text-slate-700'}`}
-                                >
-                                    {t.id}s
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="flex gap-6 items-start">
-                        <div className="flex-1 glass-card overflow-hidden">
-                            <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                                <h3 className={`font-bold text-sm text-slate-700`}>Detalhamento de {tipo}s</h3>
-                                <span className="text-xs text-slate-400">Comparando: {periodo} vs {periodoComp}</span>
-                            </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left text-slate-600">
-                                    <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
-                                        <tr>
-                                            <th className="px-6 py-3">Conta</th>
-                                            <th className="px-6 py-3 text-right">Valor Total</th>
-                                            <th className="px-6 py-3 text-right">R$ / m³</th>
-                                            <th className="px-6 py-3 text-right">% Repres.</th>
-                                            <th className="px-6 py-3 text-right">Var. Período</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {safeStats.map((row, i) => (
-                                            <tr key={i} onClick={() => onDrillDown(row.conta)} className="border-b border-slate-50 interactive-row transition-colors">
-                                                <td className="px-6 py-3 font-medium text-slate-800">{row.conta}</td>
-                                                <td className="px-6 py-3 text-right">{row.valor_atual.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
-                                                <td className="px-6 py-3 text-right font-mono text-slate-600">{row.rs_m3.toLocaleString('pt-BR', {minimumFractionDigits: 2, style:'currency', currency:'BRL'})}</td>
-                                                <td className="px-6 py-3 text-right">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        <span className="text-xs font-bold text-slate-700">{row.perc_receita.toFixed(2)}%</span>
-                                                        <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                            <div className={`h-full ${isPositiveGood ? 'bg-emerald-500' : 'bg-red-500'}`} style={{ width: `${Math.min(row.perc_receita, 100)}%` }}></div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-3 text-right">
-                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${getVariationColor(row.variacao_perc)}`}>
-                                                        {getArrow(row.variacao_perc)} {Math.abs(row.variacao_perc).toFixed(1)}%
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        {/* Cards de Destaque Lateral */}
-                        <div className="w-80 space-y-4">
-                            <div className={`glass-card p-5 border-t-4 ${isPositiveGood ? 'border-orange-500' : 'border-red-500'}`}>
-                                <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                    <span className={isPositiveGood ? 'text-orange-500' : 'text-red-500'}><Icons.BarChart2 /></span> 
-                                    {isPositiveGood ? 'Quedas Relevantes' : 'Aumentos de Custo'}
-                                </h4>
-                                <p className="text-xs text-slate-500 mb-4">Maiores impactos negativos vs período anterior.</p>
-                                {topVariacoes.length > 0 ? (
-                                    <div className="space-y-3">
-                                        {topVariacoes.map((item, idx) => (
-                                            <div key={idx} onClick={() => onDrillDown(item.conta)} className={`p-3 rounded-lg border interactive-row ${isPositiveGood ? 'bg-orange-50 border-orange-100' : 'bg-red-50 border-red-100'}`}>
-                                                <p className="text-xs font-bold text-slate-700 mb-1">{item.conta}</p>
-                                                <div className="flex justify-between items-end">
-                                                    <span className={`${isPositiveGood ? 'text-orange-600' : 'text-red-600'} font-bold text-sm`}>
-                                                        {isPositiveGood ? '▼' : '▲'} {Math.abs(item.variacao_perc).toFixed(1)}%
-                                                    </span>
-                                                    <span className="text-xs text-slate-400">R$ {item.valor_atual.toLocaleString('pt-BR', {notation: 'compact'})}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (<div className="text-center py-4 text-slate-400 text-xs">Nenhuma variação crítica.</div>)}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
+        
         const ControladoriaDashboardCentroCusto = ({ supabaseClient, periodo, contas, onNotify, initialConta, onBack }) => {
             const [selectedConta, setSelectedConta] = useState(initialConta || (contas.length > 0 ? contas[0] : ''));
             const [data, setData] = useState({ ranking: [], evolucao: [] });
@@ -1408,6 +1276,7 @@ const App = () => {
     </script>
 </body>
 </html>
+
 
 
 
