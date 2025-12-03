@@ -988,21 +988,84 @@
                         </table>
                     </div>
                     {showModal && (
-                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-                            <div className="bg-white rounded-xl p-6 w-full max-w-lg">
-                                <h3 className="font-bold mb-4">{formData.id ? 'Editar' : 'Novo'} Mapeamento</h3>
-                                <form onSubmit={handleSave} className="space-y-4">
-                                    <div><label className="input-label">Conta Original</label><select className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={formData.original_name} onChange={e => setFormData({...formData, original_name: e.target.value})} required disabled={!!formData.id}><option value="">Selecione...</option>{availableAccounts.map(acc => (<option key={acc} value={acc}>{acc}</option>))}</select></div>
-                                    <input placeholder="Amigável" className="w-full border p-2 rounded" value={formData.friendly_name} onChange={e=>setFormData({...formData, friendly_name:e.target.value})} required />
-                                    <div className="grid grid-cols-2 gap-4"><div><label className="input-label">Categoria</label><select className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value})} required><option value="Despesa">Despesa</option><option value="Custo">Custo</option><option value="Receita">Receita</option><option value="Resultado">Resultado</option></select></div>{(formData.tipo === 'Custo' || formData.tipo === 'Despesa') && (<div><label className="input-label">Classificação</label><select className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={formData.classificacao} onChange={e => setFormData({...formData, classificacao: e.target.value})}><option value="Variável">Variável</option><option value="Fixo">Fixo</option></select></div>)}</div>
-                                    <div className="flex justify-end gap-2"><button type="button" onClick={()=>setShowModal(false)} className="px-4 py-2 border rounded">Cancelar</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Salvar</button></div>
-                                </form>
-                            </div>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-lg border border-slate-200 dark:border-slate-700 shadow-2xl animate-enter">
+            <h3 className="font-bold mb-4 text-slate-800 dark:text-white">{formData.id ? 'Editar' : 'Novo'} Mapeamento</h3>
+            <form onSubmit={handleSave} className="space-y-4">
+                <div>
+                    <label className="input-label">Conta Original</label>
+                    <select 
+                        className="w-full border border-slate-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                        value={formData.original_name} 
+                        onChange={e => setFormData({...formData, original_name: e.target.value})} 
+                        required 
+                        disabled={!!formData.id}
+                    >
+                        <option value="">Selecione...</option>
+                        {availableAccounts.map(acc => (<option key={acc} value={acc}>{acc}</option>))}
+                    </select>
+                </div>
+                
+                <div>
+                    <label className="input-label">Nome Amigável</label>
+                    <input 
+                        placeholder="Ex: Combustível Frota" 
+                        className="w-full border border-slate-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-400" 
+                        value={formData.friendly_name} 
+                        onChange={e=>setFormData({...formData, friendly_name:e.target.value})} 
+                        required 
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="input-label">Categoria</label>
+                        <select 
+                            className="w-full border border-slate-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                            value={formData.tipo} 
+                            onChange={e => setFormData({...formData, tipo: e.target.value})} 
+                            required
+                        >
+                            <option value="Despesa">Despesa</option>
+                            <option value="Custo">Custo</option>
+                            <option value="Receita">Receita</option>
+                            <option value="Resultado">Resultado</option>
+                        </select>
+                    </div>
+                    {(formData.tipo === 'Custo' || formData.tipo === 'Despesa') && (
+                        <div>
+                            <label className="input-label">Classificação</label>
+                            <select 
+                                className="w-full border border-slate-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                                value={formData.classificacao} 
+                                onChange={e => setFormData({...formData, classificacao: e.target.value})}
+                            >
+                                <option value="Variável">Variável</option>
+                                <option value="Fixo">Fixo</option>
+                            </select>
                         </div>
                     )}
                 </div>
-            );
-        };
+                
+                <div className="flex justify-end gap-2 pt-2">
+                    <button 
+                        type="button" 
+                        onClick={()=>setShowModal(false)} 
+                        className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors font-medium text-sm"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        type="submit" 
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-blue-500/30"
+                    >
+                        Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+)}
 
         const DieselImport = ({ onImport, loading }) => {
             const [date, setDate] = useState('');
@@ -1510,4 +1573,5 @@
     </script>
 </body>
 </html>
+
 
