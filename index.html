@@ -931,16 +931,35 @@
             );
         };
         
-const ControladoriaDRE = ({ rawData, mappings, year, usinasSelecionadas, isDark }) => {
-    // 1. Gera as colunas de meses (Jan a Dez do ano selecionado)
-    const months = useMemo(() => Array.from({length: 12}, (_, i) => {
-        const m = String(i + 1).padStart(2, '0');
-        return { id: `${year}-${m}`, label: Utils.date.getMonths()[i] };
-    }), [year]);
+// --- Componente DRE (Demonstrativo do Resultado do Exercício) ---
+const ControladoriaDRE = ({ rawData, mappings, periodoIni, periodoFim, usinasSelecionadas, isDark }) => {
+    
+    // 1. Gera as colunas de meses dinamicamente entre Inicio e Fim
+    const months = useMemo(() => {
+        if (!periodoIni || !periodoFim) return [];
+        let start = new Date(periodoIni + '-01T00:00:00');
+        let end = new Date(periodoFim + '-01T00:00:00');
+        
+        // Ajuste de timezone para garantir a data correta
+        start = new Date(start.valueOf() + start.getTimezoneOffset() * 60000);
+        end = new Date(end.valueOf() + end.getTimezoneOffset() * 60000);
 
-    // 2. Processamento dos Dados (Pivot Table)
+        const list = [];
+        // Loop mês a mês
+        while (start <= end) {
+            const mStr = (start.getMonth() + 1).toString().padStart(2, '0');
+            const yStr = start.getFullYear();
+            const id = `${yStr}-${mStr}`;
+            // Rótulo ex: Jan 24, Fev 24
+            const label = `${Utils.date.getMonths()[start.getMonth()]} ${yStr.toString().substring(2)}`;
+            list.push({ id, label });
+            start.setMonth(start.getMonth() + 1);
+        }
+        return list;
+    }, [periodoIni, periodoFim]);
+
+    // 2. Processamento dos Dados
     const dreData = useMemo(() => {
-        // Estrutura Base
         const structure = {
             receita: { title: 'Receita Bruta', items: {}, total: {}, type: 'credit' },
             custo_var: { title: '(-) Custos Variáveis', items: {}, total: {}, type: 'debit' },
@@ -950,7 +969,7 @@ const ControladoriaDRE = ({ rawData, mappings, year, usinasSelecionadas, isDark 
             ebitda: { title: '(=) Resultado Operacional', isResult: true }
         };
 
-        // Inicializa totais por mês
+        // Inicializa totais por mês gerado para evitar undefined
         months.forEach(m => {
             structure.receita.total[m.id] = 0;
             structure.custo_var.total[m.id] = 0;
@@ -958,69 +977,79 @@ const ControladoriaDRE = ({ rawData, mappings, year, usinasSelecionadas, isDark 
             structure.despesa.total[m.id] = 0;
         });
 
-        // Filtragem Inicial (Usinas)
+        // Filtragem: Usinas
         const filteredRaw = rawData.filter(r => 
             usinasSelecionadas.includes('Todas') || usinasSelecionadas.includes(r.usina)
         );
 
-        // Agregação
         filteredRaw.forEach(row => {
-            // Verifica se o registro é do ano selecionado
-            if (!row.periodo.startsWith(year)) return;
+            // Filtragem: Período (Range)
+            if (row.periodo < periodoIni || row.periodo > periodoFim) return;
 
+            // Itera sobre os detalhes (contas originais)
             Object.entries(row.detalhes || {}).forEach(([contaOriginal, valor]) => {
                 const val = parseFloat(valor) || 0;
                 if (val === 0) return;
 
-                // Encontra mapeamento
+                // Busca o mapeamento De/Para
                 const map = mappings.find(m => m.original_name === contaOriginal);
-                if (!map) return; // Ignora se não houver De/Para (ou pode jogar em 'Outros')
+                
+                // Se não tiver mapeamento, ignoramos (ou poderia ir para uma categoria 'Outros')
+                if (!map) return; 
 
                 let groupKey = null;
-                // Lógica de Agrupamento solicitada
                 if (map.tipo === 'Receita') groupKey = 'receita';
                 else if (map.tipo === 'Custo' && map.classificacao === 'Variável') groupKey = 'custo_var';
                 else if (map.tipo === 'Custo' && map.classificacao === 'Fixo') groupKey = 'custo_fix';
                 else if (map.tipo === 'Despesa') groupKey = 'despesa';
 
                 if (groupKey) {
+                    // Usa o NOME AMIGÁVEL definido no De/Para
+                    const friendlyName = map.friendly_name;
+                    
                     // Inicializa a linha da conta se não existir
-                    if (!structure[groupKey].items[map.friendly_name]) {
-                        structure[groupKey].items[map.friendly_name] = {};
-                        months.forEach(m => structure[groupKey].items[map.friendly_name][m.id] = 0);
+                    if (!structure[groupKey].items[friendlyName]) {
+                        structure[groupKey].items[friendlyName] = {};
+                        months.forEach(m => structure[groupKey].items[friendlyName][m.id] = 0);
                     }
-                    // Soma valor
-                    structure[groupKey].items[map.friendly_name][row.periodo] += val;
-                    // Soma total do grupo
-                    structure[groupKey].total[row.periodo] += val;
+                    
+                    // Soma acumulativa (para contas originais que viram a mesma conta amigável)
+                    if (structure[groupKey].items[friendlyName][row.periodo] !== undefined) {
+                        structure[groupKey].items[friendlyName][row.periodo] += val;
+                    }
+                    
+                    // Soma no Total do Grupo
+                    if (structure[groupKey].total[row.periodo] !== undefined) {
+                        structure[groupKey].total[row.periodo] += val;
+                    }
                 }
             });
         });
 
         return structure;
-    }, [rawData, mappings, year, usinasSelecionadas, months]);
+    }, [rawData, mappings, months, usinasSelecionadas, periodoIni, periodoFim]);
 
-    // Função Auxiliar para Calcular Média (Ignora meses zerados/futuros se não tiverem valor)
+    // Função auxiliar para calcular totais e média da linha
     const getStats = (rowObj) => {
         let sum = 0;
         let count = 0;
         months.forEach(m => {
-            const val = rowObj[m.id];
+            const val = rowObj[m.id] || 0;
             sum += val;
             if (val !== 0) count++;
         });
         return { total: sum, avg: count > 0 ? sum / count : 0 };
     };
 
-    // Renderizador de Linha
+    // Renderiza linhas normais (Contas)
     const renderRow = (label, values, isHeader = false, indent = false) => {
         const stats = getStats(values);
         return (
-            <tr className={`border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isHeader ? 'font-bold bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>
+            <tr key={label} className={`border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isHeader ? 'font-bold bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>
                 <td className={`px-4 py-2 whitespace-nowrap ${indent ? 'pl-8' : ''}`}>{label}</td>
                 {months.map(m => (
                     <td key={m.id} className="px-2 py-2 text-right text-xs whitespace-nowrap">
-                        {values[m.id] !== 0 ? Utils.formatters.currency(values[m.id]) : '-'}
+                        {values[m.id] ? Utils.formatters.currency(values[m.id]) : '-'}
                     </td>
                 ))}
                 <td className="px-2 py-2 text-right text-xs font-bold bg-yellow-50/50 dark:bg-yellow-900/10 text-slate-800 dark:text-slate-200">
@@ -1033,17 +1062,17 @@ const ControladoriaDRE = ({ rawData, mappings, year, usinasSelecionadas, isDark 
         );
     };
 
-    // Renderizador de Linha de Resultado (Cálculo)
+    // Renderiza linhas de Resultado (Margem, EBITDA)
     const renderResultRow = (key, title) => {
         const values = {};
         months.forEach(m => {
-            const rec = dreData.receita.total[m.id];
-            const cv = dreData.custo_var.total[m.id];
-            const cf = dreData.custo_fix.total[m.id];
-            const desp = dreData.despesa.total[m.id];
+            const rec = dreData.receita.total[m.id] || 0;
+            const cv = dreData.custo_var.total[m.id] || 0;
+            const cf = dreData.custo_fix.total[m.id] || 0;
+            const desp = dreData.despesa.total[m.id] || 0;
 
-            if (key === 'margem') values[m.id] = rec - cv; // Receita - Custo Var
-            if (key === 'ebitda') values[m.id] = (rec - cv) - cf - desp; // Margem - Fixo - Despesa
+            if (key === 'margem') values[m.id] = rec - cv; 
+            if (key === 'ebitda') values[m.id] = (rec - cv) - cf - desp; 
         });
         
         const stats = getStats(values);
@@ -1052,7 +1081,7 @@ const ControladoriaDRE = ({ rawData, mappings, year, usinasSelecionadas, isDark 
             : 'text-blue-600 dark:text-blue-400';
 
         return (
-            <tr className="border-y-2 border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 font-bold text-sm">
+            <tr key={key} className="border-y-2 border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 font-bold text-sm">
                 <td className="px-4 py-3">{title}</td>
                 {months.map(m => (
                     <td key={m.id} className={`px-2 py-3 text-right whitespace-nowrap ${values[m.id] < 0 ? 'text-red-500' : ''}`}>
@@ -1078,7 +1107,7 @@ const ControladoriaDRE = ({ rawData, mappings, year, usinasSelecionadas, isDark 
                             <th className="px-4 py-3 min-w-[200px]">DRE / Conta</th>
                             {months.map(m => <th key={m.id} className="px-2 py-3 text-right min-w-[100px]">{m.label}</th>)}
                             <th className="px-2 py-3 text-right min-w-[100px] bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-500">Média</th>
-                            <th className="px-2 py-3 text-right min-w-[120px] bg-slate-100 dark:bg-slate-700">Total Ano</th>
+                            <th className="px-2 py-3 text-right min-w-[120px] bg-slate-100 dark:bg-slate-700">Total Período</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1090,7 +1119,7 @@ const ControladoriaDRE = ({ rawData, mappings, year, usinasSelecionadas, isDark 
                         {renderRow(dreData.custo_var.title, dreData.custo_var.total, true)}
                         {Object.entries(dreData.custo_var.items).sort().map(([k, v]) => renderRow(k, v, false, true))}
 
-                        {/* 3. Margem de Contribuição */}
+                        {/* 3. Margem */}
                         {renderResultRow('margem', dreData.margem.title)}
 
                         {/* 4. Custo Fixo */}
@@ -1101,7 +1130,7 @@ const ControladoriaDRE = ({ rawData, mappings, year, usinasSelecionadas, isDark 
                         {renderRow(dreData.despesa.title, dreData.despesa.total, true)}
                         {Object.entries(dreData.despesa.items).sort().map(([k, v]) => renderRow(k, v, false, true))}
 
-                        {/* 6. Resultado Final */}
+                        {/* 6. EBITDA */}
                         {renderResultRow('ebitda', dreData.ebitda.title)}
                     </tbody>
                 </table>
@@ -1765,6 +1794,7 @@ const MultiSelectDropdown = ({ label, options, selected, onChange }) => {
     </script>
 </body>
 </html>
+
 
 
 
