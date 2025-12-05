@@ -1752,7 +1752,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
             const [controladoriaRaw, setControladoriaRaw] = useState([]);
             const [resumoData, setResumoData] = useState([]);
             const [confirmData, setConfirmData] = useState(null);
-            const [filters, setFilters] = useState({ month: 'Todos', filial: 'Todas', cidade: 'Todas', ctrlPeriodo: '', ctrlPeriodoComp: '', ctrlUsina: 'Todas', ctrlTipo: 'Despesa', dieselPeriodo: '' });
+            const [filters, setFilters] = useState({ month: 'Todos', filial: 'Todas', cidade: 'Todas', ctrlPeriodo: '', ctrlPeriodoComp: '', ctrlUsina: 'Todas', ctrlTipo: 'Despesa', dieselPeriodo: '', dateIni: firstDay, dateFim: lastDay });
             const [selectedReportPeriods, setSelectedReportPeriods] = useState([]);
             const [drillDownConta, setDrillDownConta] = useState(null);
             const [controladoriaContas, setControladoriaContas] = useState([]);
@@ -1783,6 +1783,8 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
 
             useEffect(() => {
                 const today = new Date();
+                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+                const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
                 const m = (today.getMonth() + 1).toString().padStart(2, '0');
                 const y = today.getFullYear();
                 const cur = `${y}-${m}`;
@@ -1841,12 +1843,25 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
             };
 
             const fetchDashboard = async () => {
-                setLoading(true);
-                try {
-                    const { data, error } = await supabaseClient.rpc('get_dashboard_stats', { selected_month: filters.month, selected_branch: filters.filial });
-                    if(error) throw error; if(data) setDashboardData(data);
-                } catch(e) { console.error(e); } finally { setLoading(false); }
-            };
+    setLoading(true);
+    try {
+        // AQUI MUDOU: Agora chamamos a procedure nova com as datas
+        const { data, error } = await supabaseClient.rpc('get_dashboard_stats', { 
+            p_data_ini: filters.dateIni, 
+            p_data_fim: filters.dateFim, 
+            selected_branch: filters.filial 
+        });
+        
+        if(error) throw error; 
+        if(data) setDashboardData(data);
+    } catch(e) { 
+        console.error(e); 
+        // addLog não está acessível aqui se estiver fora do escopo, cuidado. 
+        // Se estiver dentro do componente App, ok.
+    } finally { 
+        setLoading(false);
+    }
+};
 
             const fetchReport = async () => {
                 setLoading(true);
@@ -2170,6 +2185,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
