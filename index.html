@@ -1140,12 +1140,12 @@
         };
 
         const DieselDashboard = ({ data, loading, periodo, isDark }) => {
-    // Estado para ordenação da tabela Micro
+    // 1. Hooks devem ficar sempre no topo, antes de qualquer return
     const [sortConfig, setSortConfig] = useState({ key: 'usina', direction: 'asc' });
 
-    if (!data || data.length === 0) return <div className="p-8 text-center text-slate-400">Sem dados para o período {periodo}.</div>;
+    // Garante array vazio caso data seja null/undefined para não quebrar os hooks abaixo
+    const safeData = data || [];
 
-    // Função de solicitar ordenação
     const requestSort = (key) => {
         let direction = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -1154,9 +1154,10 @@
         setSortConfig({ key, direction });
     };
 
-    // --- Cálculos MACRO ---
+    // --- Cálculos MACRO (useMemo) ---
     const macro = useMemo(() => {
-        const totals = data.reduce((acc, curr) => ({
+        // Usa safeData para garantir que o reduce não quebre
+        const totals = safeData.reduce((acc, curr) => ({
             vol_inicial: acc.vol_inicial + (curr.vol_inicial || 0),
             entradas: acc.entradas + (curr.entradas || 0),
             saidas: acc.saidas + (curr.saidas || 0),
@@ -1170,24 +1171,21 @@
         const variacaoPerc = divisorVar > 0 ? (totals.ajuste_vol / divisorVar) * 100 : 0;
 
         return { ...totals, custoMedioGeral, variacaoPerc };
-    }, [data]);
+    }, [safeData]);
 
-    // --- Preparação MICRO (Com Ordenação) ---
+    // --- Preparação MICRO (useMemo) ---
     const microData = useMemo(() => {
-        // 1. Calcula os campos derivados
-        let processed = data.map(row => {
+        let processed = safeData.map(row => {
             const divisor = (row.entradas || 0) + (row.vol_inicial || 0);
             const variacao = divisor > 0 ? ((row.ajuste_vol || 0) / divisor) * 100 : 0;
             return { ...row, variacao_calc: variacao };
         });
 
-        // 2. Aplica a ordenação
         if (sortConfig.key) {
             processed.sort((a, b) => {
                 let aVal = a[sortConfig.key];
                 let bVal = b[sortConfig.key];
 
-                // Tratamento para textos (case insensitive)
                 if (typeof aVal === 'string') aVal = aVal.toLowerCase();
                 if (typeof bVal === 'string') bVal = bVal.toLowerCase();
 
@@ -1197,13 +1195,19 @@
             });
         }
         return processed;
-    }, [data, sortConfig]);
+    }, [safeData, sortConfig]);
 
-    const topCustos = [...data].sort((a, b) => b.custo_medio - a.custo_medio).slice(0, 10);
-    const topAjustes = [...data].filter(d => Math.abs(d.ajuste_vol) > 0).sort((a, b) => Math.abs(b.ajuste_vol) - Math.abs(a.ajuste_vol)).slice(0, 10);
+    // 2. AGORA podemos fazer o retorno antecipado (pois os hooks já foram registrados)
+    if (!data || data.length === 0) {
+        return <div className="p-8 text-center text-slate-400">Sem dados para o período {periodo}.</div>;
+    }
+
+    // 3. Restante da lógica de renderização
+    const topCustos = [...safeData].sort((a, b) => b.custo_medio - a.custo_medio).slice(0, 10);
+    const topAjustes = [...safeData].filter(d => Math.abs(d.ajuste_vol) > 0).sort((a, b) => Math.abs(b.ajuste_vol) - Math.abs(a.ajuste_vol)).slice(0, 10);
     const chartColors = getChartColors(isDark);
 
-    // Componente auxiliar para renderizar cabeçalho ordenável
+    // Componente auxiliar para cabeçalho
     const SortableHeader = ({ label, sortKey, align = "right" }) => (
         <th 
             className={`px-3 py-2 text-${align} cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors select-none group`}
@@ -1234,7 +1238,7 @@
                 </div>
             </div>
 
-            {/* Botão de Exportar (Visível apenas na tela) */}
+            {/* Botão de Exportar */}
             <div className="flex justify-end no-print">
                 <button 
                     onClick={() => window.print()}
@@ -1272,7 +1276,7 @@
                 </div>
             </div>
 
-            {/* --- GRÁFICOS (Layout fixo para impressão) --- */}
+            {/* --- GRÁFICOS --- */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4 print:mb-4 avoid-break">
                 <div className="glass-card p-5 h-[320px] print:h-[250px] flex flex-col print:border print:border-slate-300">
                     <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-2 text-sm border-b pb-2">Top 10 Custo Médio (R$/L)</h3>
@@ -1302,7 +1306,7 @@
                 </div>
             </div>
 
-            {/* --- TABELA MICRO (Com Ordenação) --- */}
+            {/* --- TABELA MICRO --- */}
             <div className="glass-card overflow-hidden print:border print:border-slate-300 print:shadow-none">
                 <div className="p-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 print:bg-slate-100 print:border-slate-300">
                     <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
@@ -1825,6 +1829,7 @@
     </script>
 </body>
 </html>
+
 
 
 
