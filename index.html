@@ -1759,6 +1759,9 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
             const [controladoriaRaw, setControladoriaRaw] = useState([]);
             const [resumoData, setResumoData] = useState([]);
             const [confirmData, setConfirmData] = useState(null);
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
             const [filters, setFilters] = useState({ month: 'Todos', filial: 'Todas', cidade: 'Todas', ctrlPeriodo: '', ctrlPeriodoComp: '', ctrlUsina: 'Todas', ctrlTipo: 'Despesa', dieselPeriodo: '', dateIni: firstDay, dateFim: lastDay });
             const [selectedReportPeriods, setSelectedReportPeriods] = useState([]);
             const [drillDownConta, setDrillDownConta] = useState(null);
@@ -2192,6 +2195,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
