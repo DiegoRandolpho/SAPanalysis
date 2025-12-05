@@ -2289,7 +2289,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
                 }}
             >
                 <option value="Todas">🏭 Todas as Filiais</option>
-                {dashboardData.chart_usina && dashboardData.chart_usina.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+               {(dashboardData.lista_filiais || dashboardData.chart_usina || []).map(f => (<option key={f.name} value={f.name}>{f.name}</option>))}
             </select>
         </div>
 
@@ -2368,6 +2368,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
