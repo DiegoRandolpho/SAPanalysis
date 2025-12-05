@@ -1755,7 +1755,7 @@
                                 )}
                                 {view === 'diesel' && subView === 'dash' && (
                                     <>
-                                        <div className="glass-card p-4 mb-6 flex gap-4 relative z-30"><div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400"><Icons.Filter /> Filtros:</div><MonthPicker label="Mês" value={filters.dieselPeriodo} onChange={e=>setFilters({...filters, dieselPeriodo:e})} /></div>
+                                        <div className="glass-card p-4 mb-6 flex gap-4 relative z-30 no-print"><div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400"><Icons.Filter /> Filtros:</div><MonthPicker label="Mês" value={filters.dieselPeriodo} onChange={e=>setFilters({...filters, dieselPeriodo:e})} /></div>
                                         <DieselDashboard data={dieselData} loading={loading} periodo={filters.dieselPeriodo} isDark={isDark} />
                                     </>
                                 )}
@@ -1780,6 +1780,7 @@
     </script>
 </body>
 </html>
+
 
 
 
