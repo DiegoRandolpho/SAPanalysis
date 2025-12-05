@@ -1137,10 +1137,7 @@
         };
 
         const DieselDashboard = ({ data, loading, periodo, isDark }) => {
-    // 1. Hooks devem ficar sempre no topo, antes de qualquer return
     const [sortConfig, setSortConfig] = useState({ key: 'usina', direction: 'asc' });
-
-    // Garante array vazio caso data seja null/undefined para não quebrar os hooks abaixo
     const safeData = data || [];
 
     const requestSort = (key) => {
@@ -1151,9 +1148,8 @@
         setSortConfig({ key, direction });
     };
 
-    // --- Cálculos MACRO (useMemo) ---
+    // --- Cálculos MACRO ---
     const macro = useMemo(() => {
-        // Usa safeData para garantir que o reduce não quebre
         const totals = safeData.reduce((acc, curr) => ({
             vol_inicial: acc.vol_inicial + (curr.vol_inicial || 0),
             entradas: acc.entradas + (curr.entradas || 0),
@@ -1170,7 +1166,7 @@
         return { ...totals, custoMedioGeral, variacaoPerc };
     }, [safeData]);
 
-    // --- Preparação MICRO (useMemo) ---
+    // --- Preparação MICRO ---
     const microData = useMemo(() => {
         let processed = safeData.map(row => {
             const divisor = (row.entradas || 0) + (row.vol_inicial || 0);
@@ -1182,10 +1178,8 @@
             processed.sort((a, b) => {
                 let aVal = a[sortConfig.key];
                 let bVal = b[sortConfig.key];
-
                 if (typeof aVal === 'string') aVal = aVal.toLowerCase();
                 if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-
                 if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
                 if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
@@ -1194,22 +1188,16 @@
         return processed;
     }, [safeData, sortConfig]);
 
-    // 2. AGORA podemos fazer o retorno antecipado (pois os hooks já foram registrados)
     if (!data || data.length === 0) {
         return <div className="p-8 text-center text-slate-400">Sem dados para o período {periodo}.</div>;
     }
 
-    // 3. Restante da lógica de renderização
     const topCustos = [...safeData].sort((a, b) => b.custo_medio - a.custo_medio).slice(0, 10);
     const topAjustes = [...safeData].filter(d => Math.abs(d.ajuste_vol) > 0).sort((a, b) => Math.abs(b.ajuste_vol) - Math.abs(a.ajuste_vol)).slice(0, 10);
     const chartColors = getChartColors(isDark);
 
-    // Componente auxiliar para cabeçalho
     const SortableHeader = ({ label, sortKey, align = "right" }) => (
-        <th 
-            className={`px-3 py-2 text-${align} cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors select-none group`}
-            onClick={() => requestSort(sortKey)}
-        >
+        <th className={`px-3 py-2 text-${align} cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors select-none group border-r border-slate-200 dark:border-slate-700 last:border-0`} onClick={() => requestSort(sortKey)}>
             <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
                 {label}
                 <span className={`text-slate-400 ${sortConfig.key === sortKey ? 'text-blue-500' : 'opacity-0 group-hover:opacity-50'}`}>
@@ -1219,130 +1207,139 @@
         </th>
     );
 
+    // Sub-componente para os itens do resumo (Substitui os Cards feios)
+    const StatItem = ({ label, value, sub, colorClass, borderClass }) => (
+        <div className={`flex flex-col p-4 border rounded-lg bg-white dark:bg-slate-800 ${borderClass}`}>
+            <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wider mb-1">{label}</span>
+            <div className="flex items-baseline gap-1">
+                <span className={`text-xl font-bold ${colorClass}`}>{value}</span>
+                {sub && <span className="text-xs text-slate-400 font-medium">{sub}</span>}
+            </div>
+        </div>
+    );
+
     return (
-        <div className="space-y-6 pb-10 w-full">
-            {/* Cabeçalho APENAS Impressão */}
-            <div className="hidden print:block mb-6 border-b-2 border-slate-800 pb-2">
-                <div className="flex justify-between items-end">
+        <div className="w-full report-container pb-10">
+            {/* --- CABEÇALHO DO RELATÓRIO (Aparece bonito na impressão) --- */}
+            <div className="hidden print:flex justify-between items-center mb-6 border-b-2 border-slate-800 pb-4">
+                <div className="flex items-center gap-4">
+                    {/* Se tiver logo, coloque aqui */}
                     <div>
-                        <h1 className="text-2xl font-extrabold uppercase tracking-tight text-slate-900">Relatório de Estoque Diesel</h1>
-                        <p className="text-sm text-slate-600 mt-1">Competência: <strong>{periodo}</strong></p>
+                        <h1 className="text-3xl font-extrabold text-slate-900 uppercase tracking-tight">Relatório de Diesel</h1>
+                        <p className="text-sm text-slate-600">Competência: <strong>{periodo}</strong></p>
                     </div>
-                    <div className="text-right">
-                        <p className="text-xs text-slate-500">SAP Analytics</p>
-                        <p className="text-xs text-slate-500">{new Date().toLocaleDateString()}</p>
-                    </div>
+                </div>
+                <div className="text-right">
+                    <div className="bg-slate-100 px-3 py-1 rounded text-xs font-bold text-slate-700 mb-1">SAP ANALYTICS</div>
+                    <p className="text-[10px] text-slate-500">Gerado em: {new Date().toLocaleDateString()} às {new Date().toLocaleTimeString()}</p>
                 </div>
             </div>
 
-            {/* Botão de Exportar */}
-            <div className="flex justify-end no-print">
-                <button 
-                    onClick={() => window.print()}
-                    className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-lg transition-all active:scale-95"
-                >
-                    <Icons.Download className="w-4 h-4" /> Imprimir Relatório / Salvar PDF
+            {/* Botão Exportar */}
+            <div className="flex justify-end no-print mb-4">
+                <button onClick={() => window.print()} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-5 py-2 rounded-lg text-sm font-bold shadow transition-all">
+                    <Icons.Download className="w-4 h-4" /> Exportar PDF
                 </button>
             </div>
 
-            {/* --- INDICADORES MACRO --- */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print:gap-2">
-                <div className="glass-card p-4 border-l-4 border-slate-400">
-                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1">Estoque Inicial</p>
-                    <h3 className="text-lg font-bold">{Utils.math.roundVolume(macro.vol_inicial).toLocaleString('pt-BR')} <span className="text-xs font-normal text-slate-400">L</span></h3>
-                </div>
-                <div className="glass-card p-4 border-l-4 border-green-500">
-                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1">Entradas</p>
-                    <h3 className="text-lg font-bold text-green-700 dark:text-green-400">{Utils.math.roundVolume(macro.entradas).toLocaleString('pt-BR')} <span className="text-xs font-normal text-slate-400">L</span></h3>
-                </div>
-                <div className="glass-card p-4 border-l-4 border-orange-500">
-                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1">Saídas</p>
-                    <h3 className="text-lg font-bold text-orange-700 dark:text-orange-400">{Utils.math.roundVolume(macro.saidas).toLocaleString('pt-BR')} <span className="text-xs font-normal text-slate-400">L</span></h3>
-                </div>
-                <div className="glass-card p-4 border-l-4 border-blue-500">
-                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1">Estoque Final</p>
-                    <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400">{Utils.math.roundVolume(macro.vol_final).toLocaleString('pt-BR')} <span className="text-xs font-normal text-slate-400">L</span></h3>
-                </div>
-                <div className="glass-card p-4 border-l-4 border-emerald-500">
-                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1">Custo Médio</p>
-                    <h3 className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{Utils.formatters.currency(macro.custoMedioGeral)}</h3>
-                </div>
-                <div className={`glass-card p-4 border-l-4 ${Math.abs(macro.variacaoPerc) > 0.5 ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-blue-500'}`}>
-                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-1">Variação</p>
-                    <h3 className={`text-lg font-bold ${Math.abs(macro.variacaoPerc) > 0.5 ? 'text-red-600' : 'text-blue-600'}`}>{macro.variacaoPerc > 0 ? '+' : ''}{macro.variacaoPerc.toFixed(3)}%</h3>
+            {/* --- 1. RESUMO MACRO (ESTILO GRADE/TABELA) --- */}
+            {/* Isso substitui os cards soltos por um bloco coeso */}
+            <div className="mb-6 avoid-break">
+                <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-2 text-sm uppercase tracking-wide">
+                    <Icons.LayoutDashboard className="w-4 h-4" /> Visão Geral da Empresa
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <StatItem label="Estoque Inicial" value={Utils.math.roundVolume(macro.vol_inicial).toLocaleString()} sub="L" colorClass="text-slate-700 dark:text-slate-200" borderClass="border-slate-200 dark:border-slate-700 border-l-4 border-l-slate-400" />
+                    <StatItem label="Entradas" value={Utils.math.roundVolume(macro.entradas).toLocaleString()} sub="L" colorClass="text-green-600 dark:text-green-400" borderClass="border-green-100 dark:border-slate-700 border-l-4 border-l-green-500" />
+                    <StatItem label="Saídas" value={Utils.math.roundVolume(macro.saidas).toLocaleString()} sub="L" colorClass="text-orange-600 dark:text-orange-400" borderClass="border-orange-100 dark:border-slate-700 border-l-4 border-l-orange-500" />
+                    <StatItem label="Estoque Final" value={Utils.math.roundVolume(macro.vol_final).toLocaleString()} sub="L" colorClass="text-blue-600 dark:text-blue-400" borderClass="border-blue-100 dark:border-slate-700 border-l-4 border-l-blue-500" />
+                    <StatItem label="Custo Médio" value={Utils.formatters.currency(macro.custoMedioGeral)} colorClass="text-emerald-600 dark:text-emerald-400" borderClass="border-emerald-100 dark:border-slate-700 border-l-4 border-l-emerald-500" />
+                    <StatItem label="Variação" value={`${macro.variacaoPerc > 0 ? '+' : ''}${macro.variacaoPerc.toFixed(3)}%`} colorClass={Math.abs(macro.variacaoPerc) > 0.5 ? 'text-red-600' : 'text-blue-600'} borderClass={`border-l-4 ${Math.abs(macro.variacaoPerc) > 0.5 ? 'border-red-100 border-l-red-500' : 'border-blue-100 border-l-blue-500'} dark:border-slate-700`} />
                 </div>
             </div>
 
-            {/* --- GRÁFICOS --- */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4 print:mb-4 avoid-break">
-                <div className="glass-card p-5 h-[320px] print:h-[250px] flex flex-col print:border print:border-slate-300">
-                    <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-2 text-sm border-b pb-2">Top 10 Custo Médio (R$/L)</h3>
-                    <div className="flex-1 w-full min-h-0">
+            {/* --- 2. GRÁFICOS (ESTILO PAINEL) --- */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 avoid-break">
+                {/* Gráfico 1 */}
+                <div className="glass-card print:border-slate-300 overflow-hidden flex flex-col h-[350px]">
+                    <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-3 print-header">
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs uppercase">Top 10 Custo Médio (R$/L)</h3>
+                    </div>
+                    <div className="p-4 flex-1">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart layout="vertical" data={topCustos} margin={{top: 0, right: 30, left: 40, bottom: 0}}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                                 <XAxis type="number" hide />
                                 <YAxis dataKey="usina" type="category" width={50} tick={{fontSize: 10, fontWeight: 'bold', fill: '#64748b'}} />
-                                <Bar dataKey="custo_medio" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={12} label={{ position: 'right', fontSize: 10, formatter: (v) => v.toFixed(2) }} />
+                                <Bar dataKey="custo_medio" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={16} label={{ position: 'right', fontSize: 10, fontWeight: 'bold', formatter: (v) => v.toFixed(2) }} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
-                <div className="glass-card p-5 h-[320px] print:h-[250px] flex flex-col print:border print:border-slate-300">
-                    <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-2 text-sm border-b pb-2">Top 10 Ajustes de Volume (L)</h3>
-                    <div className="flex-1 w-full min-h-0">
+
+                {/* Gráfico 2 */}
+                <div className="glass-card print:border-slate-300 overflow-hidden flex flex-col h-[350px]">
+                    <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-3 print-header">
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs uppercase">Top 10 Ajustes de Volume (L)</h3>
+                    </div>
+                    <div className="p-4 flex-1">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={topAjustes} margin={{top: 10, right: 0, left: 0, bottom: 0}}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                                 <XAxis dataKey="usina" tick={{fontSize: 9, fill: '#64748b'}} interval={0} height={30} />
                                 <ReferenceLine y={0} stroke="#94a3b8" />
-                                <Bar dataKey="ajuste_vol" fill="#f59e0b" radius={[2, 2, 0, 0]} barSize={25} label={{ position: 'top', fontSize: 9 }} />
+                                <Bar dataKey="ajuste_vol" fill="#f59e0b" radius={[2, 2, 0, 0]} barSize={30} label={{ position: 'top', fontSize: 9, fontWeight: 'bold' }} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
             </div>
 
-            {/* --- TABELA MICRO --- */}
-            <div className="glass-card overflow-hidden print:border print:border-slate-300 print:shadow-none">
-                <div className="p-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 print:bg-slate-100 print:border-slate-300">
-                    <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
-                        <Icons.Table className="w-4 h-4" /> Detalhamento Analítico por Usina
-                    </h3>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print:text-black">
-                        <thead className="text-[10px] uppercase bg-slate-100 dark:bg-slate-900 border-b-2 border-slate-300 dark:border-slate-700 text-slate-500 font-bold print:bg-slate-200 print:text-black">
-                            <tr>
-                                <SortableHeader label="Usina" sortKey="usina" align="left" />
-                                <SortableHeader label="Est. Inicial" sortKey="vol_inicial" />
-                                <SortableHeader label="Entradas" sortKey="entradas" />
-                                <SortableHeader label="Saídas" sortKey="saidas" />
-                                <SortableHeader label="Ajustes" sortKey="ajuste_vol" />
-                                <SortableHeader label="Est. Final" sortKey="vol_final" />
-                                <SortableHeader label="Var %" sortKey="variacao_calc" />
-                                <SortableHeader label="Custo Méd." sortKey="custo_medio" />
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-slate-300">
-                            {microData.map((row, i) => (
-                                <tr key={i} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 print:hover:bg-transparent ${i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-800/20 print:bg-slate-50'}`}>
-                                    <td className="px-3 py-1.5 font-bold text-slate-700 dark:text-slate-200 print:text-black">{row.usina}</td>
-                                    <td className="px-3 py-1.5 text-right">{Utils.math.roundVolume(row.vol_inicial).toLocaleString()}</td>
-                                    <td className="px-3 py-1.5 text-right">{Utils.math.roundVolume(row.entradas).toLocaleString()}</td>
-                                    <td className="px-3 py-1.5 text-right">{Utils.math.roundVolume(row.saidas).toLocaleString()}</td>
-                                    <td className={`px-3 py-1.5 text-right ${row.ajuste_vol !== 0 ? 'font-bold' : ''} ${row.ajuste_vol < 0 ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>{Utils.math.roundVolume(row.ajuste_vol).toLocaleString()}</td>
-                                    <td className="px-3 py-1.5 text-right font-medium text-slate-800 dark:text-white print:text-black">{Utils.math.roundVolume(row.vol_final).toLocaleString()}</td>
-                                    <td className="px-3 py-1.5 text-right font-bold">
-                                        <span className={`px-1.5 py-0.5 rounded ${Math.abs(row.variacao_calc) > 0.5 ? 'bg-red-100 text-red-700 print:text-red-700 print:bg-transparent' : 'bg-green-100 text-green-700 print:text-green-700 print:bg-transparent'}`}>
-                                            {row.variacao_calc.toFixed(2)}%
-                                        </span>
-                                    </td>
-                                    <td className="px-3 py-1.5 text-right font-mono">{Utils.formatters.currency(row.custo_medio)}</td>
+            {/* --- 3. TABELA ANALÍTICA (ESTILO EXCEL) --- */}
+            <div className="avoid-break">
+                <div className="glass-card overflow-hidden print:border-slate-300">
+                    <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-3 flex justify-between items-center print-header">
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs uppercase flex items-center gap-2">
+                            <Icons.Table className="w-4 h-4" /> Detalhamento Analítico por Usina
+                        </h3>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold">{microData.length} Registros</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left">
+                            <thead className="text-[10px] uppercase bg-slate-100 dark:bg-slate-900 border-b-2 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold print-header">
+                                <tr>
+                                    <SortableHeader label="Usina" sortKey="usina" align="left" />
+                                    <SortableHeader label="Est. Inicial" sortKey="vol_inicial" />
+                                    <SortableHeader label="Entradas" sortKey="entradas" />
+                                    <SortableHeader label="Saídas" sortKey="saidas" />
+                                    <SortableHeader label="Ajustes" sortKey="ajuste_vol" />
+                                    <SortableHeader label="Est. Final" sortKey="vol_final" />
+                                    <SortableHeader label="Var %" sortKey="variacao_calc" />
+                                    <SortableHeader label="Custo Méd." sortKey="custo_medio" />
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                {microData.map((row, i) => (
+                                    <tr key={i} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 ${i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-800/20'}`}>
+                                        <td className="px-3 py-2 font-bold text-slate-700 dark:text-slate-200 border-r border-slate-50 dark:border-slate-800">{row.usina}</td>
+                                        <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-400">{Utils.math.roundVolume(row.vol_inicial).toLocaleString()}</td>
+                                        <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-400">{Utils.math.roundVolume(row.entradas).toLocaleString()}</td>
+                                        <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-400">{Utils.math.roundVolume(row.saidas).toLocaleString()}</td>
+                                        <td className={`px-3 py-2 text-right font-medium ${row.ajuste_vol < 0 ? 'text-red-600 dark:text-red-400' : (row.ajuste_vol > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300')}`}>
+                                            {Utils.math.roundVolume(row.ajuste_vol).toLocaleString()}
+                                        </td>
+                                        <td className="px-3 py-2 text-right font-bold text-slate-700 dark:text-white border-l border-slate-50 dark:border-slate-800">{Utils.math.roundVolume(row.vol_final).toLocaleString()}</td>
+                                        <td className="px-3 py-2 text-right">
+                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${Math.abs(row.variacao_calc) > 0.5 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>
+                                                {row.variacao_calc.toFixed(2)}%
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">{Utils.formatters.currency(row.custo_medio)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1826,6 +1823,7 @@
     </script>
 </body>
 </html>
+
 
 
 
