@@ -52,81 +52,73 @@
         .content-transition { transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .picker-popover { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
         /* --- CSS DE IMPRESSÃO (MODO RETRATO / PORTRAIT) --- */
+/* --- CSS DE IMPRESSÃO (CORREÇÃO DE CORTE DE PÁGINA) --- */
 @media print {
     @page { 
-        size: portrait; /* Mudança para Retrato */
+        size: portrait; 
         margin: 5mm; 
     }
     
-    body, html {
-        background-color: #ffffff !important;
-        background-image: none !important;
-        width: 100% !important;
-        height: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
+    /* 1. DESTRAVAR ALTURA: Essencial para imprimir múltiplas páginas */
+    html, body, #root, main, .h-screen, .min-h-screen, .overflow-y-auto, .flex-1 {
+        height: auto !important;
+        min-height: 0 !important;
         overflow: visible !important;
+        display: block !important; /* Remove comportamento flex que pode travar altura */
     }
 
-    /* Ocultar UI */
+    /* 2. OCULTAR UI */
     nav, header, aside, .sidebar, .filters-area, .status-log, button, .no-print, .fixed { 
         display: none !important; 
     }
 
-    /* Layout Principal */
-    #root, main, .content-transition, .report-container {
+    /* 3. LAYOUT DO RELATÓRIO */
+    .report-container {
+        width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
-        width: 100% !important;
-        max-width: none !important;
         background: white !important;
         color: black !important;
     }
-    
-    /* Remover margens da sidebar */
+
+    /* Remove margens laterais da sidebar */
     .ml-64, .ml-20 { margin-left: 0 !important; }
 
-    /* Estilo Cards para Impressão */
+    /* Estilo dos Cards e Elementos */
     .glass-card {
         background: #ffffff !important;
-        box-shadow: none !important;
         border: 1px solid #000000 !important;
+        box-shadow: none !important;
         border-radius: 4px !important;
-        margin-bottom: 8px !important;
-        break-inside: avoid;
+        margin-bottom: 10px !important;
+        page-break-inside: avoid; /* Tenta não quebrar cards ao meio */
     }
 
-    /* Textos */
-    h1, h2, h3, h4, span, p, div, td, th {
-        color: #000000 !important;
-        text-shadow: none !important;
+    /* 4. CONFIGURAÇÃO DA TABELA (PRINCIPAL) */
+    table { 
+        width: 100% !important; 
+        border-collapse: collapse !important; 
+        font-size: 9px !important; 
     }
+    
+    /* Faz o cabeçalho da tabela repetir em cada nova página */
+    thead { display: table-header-group !important; }
+    
+    /* Evita que uma linha da tabela seja cortada ao meio */
+    tr { page-break-inside: avoid !important; }
+    
+    th, td {
+        border: 1px solid #000000 !important;
+        padding: 3px !important;
+        color: black !important;
+    }
+    th { background-color: #e5e7eb !important; font-weight: bold !important; }
 
     /* Gráficos */
     .recharts-wrapper { width: 100% !important; }
     
-    /* --- TABELA COMPACTA PARA RETRATO --- */
-    table { width: 100% !important; border-collapse: collapse !important; font-size: 9px !important; } /* Fonte menor */
-    th { 
-        background-color: #e5e7eb !important; 
-        border: 1px solid #000000 !important;
-        font-weight: bold !important;
-        color: black !important;
-        padding: 2px 4px !important; /* Padding reduzido */
-        white-space: nowrap !important; /* Evita quebra de cabeçalho */
-    }
-    td { 
-        border: 1px solid #000000 !important; 
-        padding: 2px 4px !important;
-    }
-    tr { break-inside: avoid; }
-    
-    /* Header de Impressão */
-    .print-header {
-        background-color: #f1f5f9 !important;
-        border-bottom: 1px solid #000000 !important;
-        color: #000000 !important;
-    }
+    /* Forçar quebra de página antes da tabela se necessário (opcional) */
+    /* .break-before { page-break-before: always; } */
 }
     </style>
 </head>
@@ -1861,6 +1853,7 @@
     </script>
 </body>
 </html>
+
 
 
 
