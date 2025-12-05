@@ -1849,19 +1849,18 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
             const fetchDashboard = async () => {
     setLoading(true);
     try {
-        // AQUI MUDOU: Agora chamamos a procedure nova com as datas
+        // Chamada RPC atualizada com data_ini e data_fim
         const { data, error } = await supabaseClient.rpc('get_dashboard_stats', { 
             p_data_ini: filters.dateIni, 
             p_data_fim: filters.dateFim, 
             selected_branch: filters.filial 
         });
-        
+
         if(error) throw error; 
         if(data) setDashboardData(data);
     } catch(e) { 
         console.error(e); 
-        // addLog não está acessível aqui se estiver fora do escopo, cuidado. 
-        // Se estiver dentro do componente App, ok.
+        addLog("Erro ao carregar dashboard: " + e.message, 'error');
     } finally { 
         setLoading(false);
     }
@@ -2069,57 +2068,74 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
                             <ErrorBoundary>
                                 {view === 'dashboard' && (
     <div className="space-y-8">
-        {/* Barra de Filtros Unificada */}
-        <div className="glass-card p-4 flex gap-4 flex-wrap items-center relative z-30">
+        {/* Barra de Filtros Range de Datas */}
+        <div className="glass-card p-4 flex gap-4 flex-wrap items-center relative z-30 no-print">
             <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
-                <Icons.Filter /> Filtros:
+                <Icons.Filter /> Período:
             </div>
-            {/* Filtro de Mês */}
-            <select 
-                className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1" 
-                value={filters.month} 
+
+            {/* Data Inicial */}
+            <input 
+                type="date"
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                value={filters.dateIni}
                 onChange={e => {
                     const newVal = e.target.value;
-                    setFilters(prev => ({...prev, month: newVal}));
-                    // Força atualização imediata ao mudar filtro
-                    if (supabaseClient) {
+                    setFilters(prev => ({...prev, dateIni: newVal}));
+                    // Atualização imediata
+                    if (supabaseClient && newVal && filters.dateFim) {
                          setLoading(true);
-                         supabaseClient.rpc('get_dashboard_stats', { selected_month: newVal, selected_branch: filters.filial })
+                         supabaseClient.rpc('get_dashboard_stats', { p_data_ini: newVal, p_data_fim: filters.dateFim, selected_branch: filters.filial })
                             .then(({ data }) => { setDashboardData(data); setLoading(false); });
                     }
                 }}
-            >
-                <option value="Todos">📅 Todos os Meses</option>
-                {/* Aqui você precisa garantir que dashboardData.meses venha de algum lugar, ou usar uma lista fixa/gerada */}
-                {dashboardData.chart_evo && dashboardData.chart_evo.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
-            </select>
+            />
+
+            <span className="text-slate-400 text-xs">até</span>
+
+            {/* Data Final */}
+            <input 
+                type="date"
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                value={filters.dateFim}
+                onChange={e => {
+                    const newVal = e.target.value;
+                    setFilters(prev => ({...prev, dateFim: newVal}));
+                    if (supabaseClient && filters.dateIni && newVal) {
+                         setLoading(true);
+                         supabaseClient.rpc('get_dashboard_stats', { p_data_ini: filters.dateIni, p_data_fim: newVal, selected_branch: filters.filial })
+                            .then(({ data }) => { setDashboardData(data); setLoading(false); });
+                    }
+                }}
+            />
+
+            {/* Divisor */}
+            <div className="h-6 w-px bg-slate-300 dark:bg-slate-700 mx-2"></div>
 
             {/* Filtro de Filial */}
             <select 
-                className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1" 
+                className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 min-w-[150px]" 
                 value={filters.filial} 
                 onChange={e => {
                     const newVal = e.target.value;
                     setFilters(prev => ({...prev, filial: newVal}));
                     if (supabaseClient) {
                          setLoading(true);
-                         supabaseClient.rpc('get_dashboard_stats', { selected_month: filters.month, selected_branch: newVal })
+                         supabaseClient.rpc('get_dashboard_stats', { p_data_ini: filters.dateIni, p_data_fim: filters.dateFim, selected_branch: newVal })
                             .then(({ data }) => { setDashboardData(data); setLoading(false); });
                     }
                 }}
             >
                 <option value="Todas">🏭 Todas as Filiais</option>
-                {/* Popula filiais com base nos dados do gráfico de usinas */}
                 {dashboardData.chart_usina && dashboardData.chart_usina.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
             </select>
         </div>
 
-        {/* Renderiza o novo Dashboard Analítico */}
         <TerceirizacaoDashboard 
             data={dashboardData} 
             loading={loading} 
             isDark={isDark} 
-            filters={filters}
+            filters={filters} // Passa os filtros para exibir alertas corretos
         />
     </div>
 )}
@@ -2189,6 +2205,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
