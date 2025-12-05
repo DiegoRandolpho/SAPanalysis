@@ -51,6 +51,22 @@
         .sidebar-transition { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .content-transition { transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .picker-popover { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
+        /* --- Estilos de Impressão (Exportação PDF) --- */
+@media print {
+    @page { size: landscape; margin: 5mm; }
+    body { background-color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    
+    /* Ocultar elementos desnecessários na impressão */
+    .no-print, nav, header, .sidebar-transition, .status-log, .filters-area { display: none !important; }
+    
+    /* Expandir conteúdo */
+    .content-transition { margin-left: 0 !important; width: 100% !important; padding: 0 !important; }
+    .glass-card { box-shadow: none !important; border: 1px solid #ccc !important; break-inside: avoid; }
+    
+    /* Ajustes de texto para papel */
+    * { color: black !important; }
+    h1, h2, h3 { color: black !important; }
+}
     </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 transition-colors duration-300">
@@ -1084,36 +1100,153 @@
         };
 
         const DieselDashboard = ({ data, loading, periodo, isDark }) => {
-            if (!data || data.length === 0) return <div className="p-8 text-center text-slate-400">Sem dados para o período {periodo}.</div>;
-            const totalVol = data.reduce((acc, curr) => acc + (curr.vol_final || 0), 0);
-            const totalVal = data.reduce((acc, curr) => acc + (curr.vlr_final || 0), 0);
-            const totalEntrada = data.reduce((acc, curr) => acc + (curr.entradas || 0), 0);
-            const totalSaida = data.reduce((acc, curr) => acc + (curr.saidas || 0), 0);
-            const topCustos = [...data].sort((a, b) => b.custo_medio - a.custo_medio).slice(0, 10);
-            const topAjustes = [...data].filter(d => Math.abs(d.ajuste_vol) > 0).sort((a, b) => Math.abs(b.ajuste_vol) - Math.abs(a.ajuste_vol)).slice(0, 10);
-            const chartColors = getChartColors(isDark);
+    if (!data || data.length === 0) return <div className="p-8 text-center text-slate-400">Sem dados para o período {periodo}.</div>;
 
-            return (
-                <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-slide-up">
-                        <Card title="Estoque Atual (L)" value={Utils.math.roundVolume(totalVol).toLocaleString('pt-BR') + " L"} iconName="truck" color="blue" />
-                        <Card title="Valor em Estoque" value={Utils.formatters.currency(totalVal)} iconName="dollar" color="emerald" />
-                        <Card title="Entradas no Mês" value={Utils.math.roundVolume(totalEntrada).toLocaleString('pt-BR') + " L"} iconName="arrowRight" color="green" subtext="Abastecimentos recebidos" />
-                        <Card title="Saídas no Mês" value={Utils.math.roundVolume(totalSaida).toLocaleString('pt-BR') + " L"} iconName="fuel" color="orange" subtext="Consumo da frota" />
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-slide-up delay-200">
-                        <div className="glass-card p-6 h-[400px] flex flex-col">
-                            <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4">Top 10 - Maior Custo Médio (R$/L)</h3>
-                            <ResponsiveContainer width="100%" height="100%"><BarChart layout="vertical" data={topCustos} margin={{top: 5, right: 30, left: 40, bottom: 5}}><CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chartColors.grid} /><XAxis type="number" domain={['auto', 'auto']} tick={{fill: chartColors.text}} tickFormatter={(val) => `R$ ${val}`} /><YAxis dataKey="usina" type="category" width={60} tick={{fontSize: 10, fontWeight: 'bold', fill: chartColors.text}} /><Tooltip content={<CustomTooltip isDark={isDark} />} /><Bar dataKey="custo_medio" fill={chartColors.bomba} radius={[0, 4, 4, 0]} barSize={20} name="Custo Médio" /></BarChart></ResponsiveContainer>
-                        </div>
-                        <div className="glass-card p-6 h-[400px] flex flex-col">
-                            <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4">Top 10 - Maiores Ajustes (L)</h3>
-                            <ResponsiveContainer width="100%" height="100%"><BarChart data={topAjustes} margin={{top: 5, right: 5, left: 0, bottom: 5}}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartColors.grid} /><XAxis dataKey="usina" tick={{fontSize: 10, fill: chartColors.text}} interval={0} angle={-15} textAnchor="end" height={50} /><YAxis tick={{fill: chartColors.text}} tickFormatter={(val) => `${val} L`} /><Tooltip content={<CustomTooltip isDark={isDark} />} /><ReferenceLine y={0} stroke={chartColors.text} /><Bar dataKey="ajuste_vol" name="Ajuste (L)" radius={[4, 4, 0, 0]} fill={chartColors.secondary} /></BarChart></ResponsiveContainer>
-                        </div>
-                    </div>
+    // --- 1. Cálculos MACRO (Nível Empresa) ---
+    const macro = useMemo(() => {
+        const totals = data.reduce((acc, curr) => ({
+            vol_inicial: acc.vol_inicial + (curr.vol_inicial || 0),
+            entradas: acc.entradas + (curr.entradas || 0),
+            saidas: acc.saidas + (curr.saidas || 0),
+            vol_final: acc.vol_final + (curr.vol_final || 0),
+            ajuste_vol: acc.ajuste_vol + (curr.ajuste_vol || 0),
+            vlr_final: acc.vlr_final + (curr.vlr_final || 0)
+        }), { vol_inicial: 0, entradas: 0, saidas: 0, vol_final: 0, ajuste_vol: 0, vlr_final: 0 });
+
+        // Média de Custo Médio (Ponderada: Valor Total Estoque / Volume Total Estoque)
+        const custoMedioGeral = totals.vol_final > 0 ? totals.vlr_final / totals.vol_final : 0;
+
+        // Variação Média: Ajustes / (Entradas + Estoque Inicial)
+        const divisorVar = totals.entradas + totals.vol_inicial;
+        const variacaoPerc = divisorVar > 0 ? (totals.ajuste_vol / divisorVar) * 100 : 0;
+
+        return { ...totals, custoMedioGeral, variacaoPerc };
+    }, [data]);
+
+    // --- 2. Preparação MICRO (Tabela por Usina) ---
+    const microData = useMemo(() => {
+        return data.map(row => {
+            const divisor = (row.entradas || 0) + (row.vol_inicial || 0);
+            const variacao = divisor > 0 ? ((row.ajuste_vol || 0) / divisor) * 100 : 0;
+            return { ...row, variacao_calc: variacao };
+        }).sort((a, b) => a.usina.localeCompare(b.usina));
+    }, [data]);
+
+    // Dados para Gráficos
+    const topCustos = [...data].sort((a, b) => b.custo_medio - a.custo_medio).slice(0, 10);
+    const topAjustes = [...data].filter(d => Math.abs(d.ajuste_vol) > 0).sort((a, b) => Math.abs(b.ajuste_vol) - Math.abs(a.ajuste_vol)).slice(0, 10);
+    const chartColors = getChartColors(isDark);
+
+    const handlePrint = () => {
+        window.print();
+    };
+
+    return (
+        <div className="space-y-6 pb-10">
+            {/* Cabeçalho do Relatório para Impressão */}
+            <div className="hidden print:block mb-4 border-b border-black pb-2">
+                <h1 className="text-2xl font-bold">Relatório de Diesel - Competência: {periodo}</h1>
+                <p className="text-sm">Gerado via SAP Analytics</p>
+            </div>
+
+            {/* Botão de Exportar (Some na impressão) */}
+            <div className="flex justify-end no-print">
+                <button 
+                    onClick={handlePrint}
+                    className="flex items-center gap-2 bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-lg text-sm font-bold shadow transition-colors"
+                >
+                    <Icons.Download className="w-4 h-4" /> Exportar Relatório (PDF)
+                </button>
+            </div>
+
+            {/* --- Nível MACRO (Cards) --- */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <Card title="Estoque Inicial" value={Utils.math.roundVolume(macro.vol_inicial).toLocaleString('pt-BR')} iconName="database" color="gray" subtext="Litros" />
+                <Card title="Entradas Totais" value={Utils.math.roundVolume(macro.entradas).toLocaleString('pt-BR')} iconName="arrowRight" color="green" subtext="Litros" />
+                <Card title="Saídas Totais" value={Utils.math.roundVolume(macro.saidas).toLocaleString('pt-BR')} iconName="fuel" color="orange" subtext="Litros" />
+                <Card title="Estoque Final" value={Utils.math.roundVolume(macro.vol_final).toLocaleString('pt-BR')} iconName="truck" color="blue" subtext="Litros" />
+                <Card title="Custo Médio (Geral)" value={Utils.formatters.currency(macro.custoMedioGeral)} iconName="dollar" color="emerald" subtext="Ponderado" />
+                <Card 
+                    title="Variação Média" 
+                    value={`${macro.variacaoPerc > 0 ? '+' : ''}${macro.variacaoPerc.toFixed(3)}%`} 
+                    iconName="barChart" 
+                    color={Math.abs(macro.variacaoPerc) > 0.5 ? "red" : "blue"} 
+                    subtext="Sobra/Falta" 
+                />
+            </div>
+
+            {/* --- Gráficos (Top 10) --- */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 break-inside-avoid">
+                <div className="glass-card p-6 h-[350px] flex flex-col">
+                    <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 text-sm">Top 10 - Maior Custo Médio (R$/L)</h3>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart layout="vertical" data={topCustos} margin={{top: 5, right: 30, left: 40, bottom: 5}}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chartColors.grid} />
+                            <XAxis type="number" domain={['auto', 'auto']} tick={{fill: chartColors.text}} tickFormatter={(val) => `R$ ${val}`} />
+                            <YAxis dataKey="usina" type="category" width={60} tick={{fontSize: 10, fontWeight: 'bold', fill: chartColors.text}} />
+                            <Tooltip content={<CustomTooltip isDark={isDark} />} />
+                            <Bar dataKey="custo_medio" fill={chartColors.bomba} radius={[0, 4, 4, 0]} barSize={20} name="Custo Médio" />
+                        </BarChart>
+                    </ResponsiveContainer>
                 </div>
-            );
-        };
+                <div className="glass-card p-6 h-[350px] flex flex-col">
+                    <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 text-sm">Top 10 - Maiores Variações de Volume (L)</h3>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={topAjustes} margin={{top: 5, right: 5, left: 0, bottom: 5}}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartColors.grid} />
+                            <XAxis dataKey="usina" tick={{fontSize: 10, fill: chartColors.text}} interval={0} angle={-15} textAnchor="end" height={50} />
+                            <YAxis tick={{fill: chartColors.text}} tickFormatter={(val) => `${val} L`} />
+                            <Tooltip content={<CustomTooltip isDark={isDark} />} />
+                            <ReferenceLine y={0} stroke={chartColors.text} />
+                            <Bar dataKey="ajuste_vol" name="Ajuste (L)" radius={[4, 4, 0, 0]} fill={chartColors.secondary} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            {/* --- Nível MICRO (Tabela Detalhada) --- */}
+            <div className="glass-card overflow-hidden mt-6 break-before-page">
+                <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                    <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
+                        <Icons.Table /> Detalhamento por Usina (Nível Micro)
+                    </h3>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300">
+                        <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                            <tr>
+                                <th className="px-4 py-2">Usina</th>
+                                <th className="px-4 py-2 text-right">Est. Inicial</th>
+                                <th className="px-4 py-2 text-right">Entradas</th>
+                                <th className="px-4 py-2 text-right">Saídas</th>
+                                <th className="px-4 py-2 text-right">Ajustes</th>
+                                <th className="px-4 py-2 text-right">Est. Final</th>
+                                <th className="px-4 py-2 text-right bg-yellow-50 dark:bg-yellow-900/20">Variação (%)</th>
+                                <th className="px-4 py-2 text-right">Custo Méd.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {microData.map((row, i) => (
+                                <tr key={i} className={`border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 ${i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-800/30'}`}>
+                                    <td className="px-4 py-2 font-bold">{row.usina}</td>
+                                    <td className="px-4 py-2 text-right">{Utils.math.roundVolume(row.vol_inicial).toLocaleString()}</td>
+                                    <td className="px-4 py-2 text-right">{Utils.math.roundVolume(row.entradas).toLocaleString()}</td>
+                                    <td className="px-4 py-2 text-right">{Utils.math.roundVolume(row.saidas).toLocaleString()}</td>
+                                    <td className={`px-4 py-2 text-right ${row.ajuste_vol !== 0 ? 'font-bold' : ''} ${row.ajuste_vol < 0 ? 'text-red-500' : 'text-blue-500'}`}>{Utils.math.roundVolume(row.ajuste_vol).toLocaleString()}</td>
+                                    <td className="px-4 py-2 text-right font-medium">{Utils.math.roundVolume(row.vol_final).toLocaleString()}</td>
+                                    <td className={`px-4 py-2 text-right font-bold bg-yellow-50/50 dark:bg-yellow-900/10 ${Math.abs(row.variacao_calc) > 0.5 ? 'text-red-600' : 'text-green-600'}`}>
+                                        {row.variacao_calc.toFixed(2)}%
+                                    </td>
+                                    <td className="px-4 py-2 text-right">{Utils.formatters.currency(row.custo_medio)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
 
         const UploadCard = ({ type, iconName, onAnalyze, isAnalyzing, progress }) => {
             const Icon = Icons[iconName.charAt(0).toUpperCase() + iconName.slice(1)] || Icons.FileText;
@@ -1592,6 +1725,7 @@
     </script>
 </body>
 </html>
+
 
 
 
