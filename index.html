@@ -1564,6 +1564,141 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
         </div>
     );
 };
+        const TerceirizacaoDashboard = ({ data, loading, isDark, filters }) => {
+    const chartColors = getChartColors(isDark);
+    
+    if (!data || !data.kpis) return <div className="p-10 text-center text-slate-400">Carregando dados...</div>;
+
+    // Helper para calcular variação percentual segura
+    const getVar = (atual, ant) => {
+        if (!ant || ant === 0) return 0;
+        return ((atual - ant) / ant) * 100;
+    };
+
+    // Processar dados de análise para exibir Alertas
+    const analiseProcessada = (data.analise_tipo || []).map(item => {
+        const varPerc = getVar(item.rs_m3_atual, item.rs_m3_ant);
+        return { ...item, varPerc };
+    });
+
+    return (
+        <div className="space-y-6 animate-enter">
+            {/* 1. KPIs Principais */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <Card title="Volume Produzido" value={`${Utils.math.roundVolume(data.kpis.volume_total).toLocaleString()} m³`} iconName="database" color="blue" />
+                <Card title="Custo Total" value={Utils.formatters.currency(data.kpis.valor_total)} iconName="dollarSign" color="purple" />
+                <Card title="Custo Médio Geral" value={`${Utils.formatters.currency(data.kpis.custo_medio_geral)} /m³`} iconName="target" color="emerald" subtext="R$ Total / Vol. Prod" />
+                <Card title="Vol. Bombeado" value={`${Utils.math.roundVolume(data.kpis.vol_bomba).toLocaleString()} m³`} iconName="droplet" color="sky" />
+                <Card title="Vol. Transportado" value={`${Utils.math.roundVolume(data.kpis.vol_transp).toLocaleString()} m³`} iconName="truck" color="orange" />
+            </div>
+
+            {/* 2. Análise Detalhada por Tipo de Lançamento (De/Para) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Tabela de Variação e Impacto */}
+                <div className="lg:col-span-2 glass-card overflow-hidden flex flex-col">
+                    <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
+                            <Icons.Activity className="w-4 h-4 text-blue-500" /> Análise de Impacto (R$/m³)
+                        </h3>
+                        {filters.month === 'Todos' && <span className="text-xs text-orange-500 font-bold bg-orange-100 px-2 py-1 rounded">Selecione um mês para ver variação</span>}
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300">
+                            <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                                <tr>
+                                    <th className="px-6 py-3">Tipo de Custo</th>
+                                    <th className="px-6 py-3 text-right">Valor Total</th>
+                                    <th className="px-6 py-3 text-right bg-blue-50/50 dark:bg-blue-900/10">R$ / m³ (Atual)</th>
+                                    {filters.month !== 'Todos' && <th className="px-6 py-3 text-right">Var. vs Mês Ant.</th>}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {analiseProcessada.map((row, i) => (
+                                    <tr key={i} className="border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                        <td className="px-6 py-3 font-bold">{row.name}</td>
+                                        <td className="px-6 py-3 text-right">{Utils.formatters.currency(row.valor_atual)}</td>
+                                        <td className="px-6 py-3 text-right font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
+                                            {Utils.formatters.currency(row.rs_m3_atual)}
+                                        </td>
+                                        {filters.month !== 'Todos' && (
+                                            <td className="px-6 py-3 text-right">
+                                                <div className={`flex items-center justify-end gap-1 font-bold text-xs px-2 py-1 rounded-full w-fit ml-auto ${
+                                                    row.varPerc > 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 
+                                                    (row.varPerc < 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-100 text-slate-500')
+                                                }`}>
+                                                    {row.varPerc > 0 ? '▲' : (row.varPerc < 0 ? '▼' : '-')} {Math.abs(row.varPerc).toFixed(1)}%
+                                                </div>
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Card de Alertas/Destaques */}
+                <div className="glass-card p-5 flex flex-col">
+                    <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-4 text-sm">Distribuição de Custo</h3>
+                    <div className="flex-1 min-h-[200px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie 
+                                    data={analiseProcessada} 
+                                    cx="50%" cy="50%" 
+                                    innerRadius={60} outerRadius={80} 
+                                    paddingAngle={5} 
+                                    dataKey="valor_atual"
+                                >
+                                    {analiseProcessada.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={[chartColors.secondary, chartColors.accent, chartColors.success, chartColors.danger][index % 4]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip content={<CustomTooltip isDark={isDark} />} />
+                                <Legend verticalAlign="bottom" height={36} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. Gráficos de Detalhe */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Custo Médio por Classe */}
+                <div className="glass-card p-6 h-[400px] flex flex-col">
+                    <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 text-sm">Custo Médio por Classe de Equipamento (R$/m³)</h3>
+                    <div className="flex-1 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart layout="vertical" data={data.chart_classe} margin={{top: 5, right: 30, left: 40, bottom: 5}}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chartColors.grid} />
+                                <XAxis type="number" tick={{fill: chartColors.text}} tickFormatter={(val) => `R$ ${val}`} />
+                                <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 'bold', fill: chartColors.text}} />
+                                <Tooltip content={<CustomTooltip isDark={isDark} />} />
+                                <Bar dataKey="rs_m3" fill={chartColors.controladoria} radius={[0, 4, 4, 0]} barSize={20} name="R$/m³" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Top 10 Usinas (Maior Custo Total) */}
+                <div className="glass-card p-6 h-[400px] flex flex-col">
+                    <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 text-sm">Top 10 Filiais - Maior Custo Total</h3>
+                    <div className="flex-1 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={data.chart_usina} margin={{top: 5, right: 5, left: 0, bottom: 5}}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartColors.grid} />
+                                <XAxis dataKey="name" tick={{fontSize: 10, fill: chartColors.text}} interval={0} angle={-15} textAnchor="end" height={50} />
+                                <YAxis tick={{fill: chartColors.text}} tickFormatter={(val) => `R$ ${val/1000}k`} />
+                                <Tooltip content={<CustomTooltip isDark={isDark} />} />
+                                <Bar dataKey="value" fill={chartColors.bomba} radius={[4, 4, 0, 0]} name="Custo Total" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
         const App = () => {
             const [supabaseClient, setSupabaseClient] = useState(null);
             const [session, setSession] = useState(null);
@@ -1913,25 +2048,61 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
                         <main className="p-8 max-w-[1600px] mx-auto pb-20">
                             <ErrorBoundary>
                                 {view === 'dashboard' && (
-                                    <div className="space-y-8">
-                                        <div className="glass-card p-4 flex gap-4">
-                                            <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400"><Icons.Filter /> Filtros:</div>
-                                            <select className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800" value={filters.month} onChange={e=>setFilters({...filters, month:e.target.value})}><option value="Todos">📅 Todos os Meses</option>{dashboardData.meses && dashboardData.meses.map(m=><option key={m} value={m}>{m}</option>)}</select>
-                                            <select className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800" value={filters.filial} onChange={e=>setFilters({...filters, filial:e.target.value})}><option value="Todas">🏭 Todas as Filiais</option>{dashboardData.filiais && dashboardData.filiais.map(f=><option key={f} value={f}>{f}</option>)}</select>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                                            <Card title="Volume Total" value={Utils.math.roundVolume(dashboardData.kpis.total_vol).toLocaleString() + " m³"} iconName="Database" color="blue" />
-                                            <Card title="Vol. Bombeado" value={Utils.math.roundVolume(dashboardData.kpis.vol_bomba).toLocaleString() + " m³"} iconName="Droplet" color="sky" />
-                                            <Card title="Vol. Transp" value={Utils.math.roundVolume(dashboardData.kpis.vol_transp).toLocaleString() + " m³"} iconName="Truck" color="orange" />
-                                            <Card title="Custo Médio" value={Utils.formatters.currency(dashboardData.kpis.total_vol > 0 ? dashboardData.kpis.total_val/dashboardData.kpis.total_vol : 0)} iconName="DollarSign" color="emerald" />
-                                            <Card title="Valor Total" value={Utils.formatters.currency(dashboardData.kpis.total_val)} iconName="DollarSign" color="purple" />
-                                        </div>
-                                        <div className="glass-card p-6 h-[450px]">
-                                            <div className="flex justify-between items-center mb-6"><div><h3 className="font-bold text-slate-800 dark:text-white text-lg">Custo Médio por m³ por Usina</h3></div><div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-700 p-1 rounded-lg border border-slate-200 dark:border-slate-600"><Icons.ListFilter className="text-slate-400 ml-2 w-4 h-4" /><select className="bg-transparent text-xs font-medium text-slate-600 dark:text-slate-300 p-1 focus:outline-none dark:bg-slate-700" value={rankingFilter} onChange={(e) => setRankingFilter(e.target.value)}><option value="top10">10 Maiores</option><option value="bottom10">10 Menores</option></select></div></div>
-                                            <ResponsiveContainer width="100%" height="100%"><BarChart data={dashboardData.chart_branch || []} onClick={(data) => { if (data && data.activeLabel) { setFilters(prev => ({...prev, filial: prev.filial === data.activeLabel ? 'Todas' : data.activeLabel})); }}} style={{ cursor: 'pointer' }}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartColors.grid} /><XAxis dataKey="name" tick={{fill: chartColors.text}} /><YAxis tick={{fill: chartColors.text}} tickFormatter={(val) => `R$ ${val}`} /><Tooltip content={<CustomTooltip isDark={isDark} />} /><Legend /><Bar dataKey="val_betoneira" stackId="a" fill={chartColors.betoneira} name="Transporte" /><Bar dataKey="val_bomba" stackId="a" fill={chartColors.bomba} name="Bombeamento" /></BarChart></ResponsiveContainer>
-                                        </div>
-                                    </div>
-                                )}
+    <div className="space-y-8">
+        {/* Barra de Filtros Unificada */}
+        <div className="glass-card p-4 flex gap-4 flex-wrap items-center relative z-30">
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
+                <Icons.Filter /> Filtros:
+            </div>
+            {/* Filtro de Mês */}
+            <select 
+                className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1" 
+                value={filters.month} 
+                onChange={e => {
+                    const newVal = e.target.value;
+                    setFilters(prev => ({...prev, month: newVal}));
+                    // Força atualização imediata ao mudar filtro
+                    if (supabaseClient) {
+                         setLoading(true);
+                         supabaseClient.rpc('get_dashboard_stats', { selected_month: newVal, selected_branch: filters.filial })
+                            .then(({ data }) => { setDashboardData(data); setLoading(false); });
+                    }
+                }}
+            >
+                <option value="Todos">📅 Todos os Meses</option>
+                {/* Aqui você precisa garantir que dashboardData.meses venha de algum lugar, ou usar uma lista fixa/gerada */}
+                {dashboardData.chart_evo && dashboardData.chart_evo.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+            </select>
+
+            {/* Filtro de Filial */}
+            <select 
+                className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1" 
+                value={filters.filial} 
+                onChange={e => {
+                    const newVal = e.target.value;
+                    setFilters(prev => ({...prev, filial: newVal}));
+                    if (supabaseClient) {
+                         setLoading(true);
+                         supabaseClient.rpc('get_dashboard_stats', { selected_month: filters.month, selected_branch: newVal })
+                            .then(({ data }) => { setDashboardData(data); setLoading(false); });
+                    }
+                }}
+            >
+                <option value="Todas">🏭 Todas as Filiais</option>
+                {/* Popula filiais com base nos dados do gráfico de usinas */}
+                {dashboardData.chart_usina && dashboardData.chart_usina.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+            </select>
+        </div>
+
+        {/* Renderiza o novo Dashboard Analítico */}
+        <TerceirizacaoDashboard 
+            data={dashboardData} 
+            loading={loading} 
+            isDark={isDark} 
+            filters={filters}
+        />
+    </div>
+)}
                                 {view === 'reports' && (
                                     <div className="space-y-6">
                                         <div className="glass-card p-4 mb-6 flex gap-4 items-end relative z-30">
@@ -1998,6 +2169,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
