@@ -1421,7 +1421,149 @@
                 </div>
             );
         };
+const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
+    const [mappings, setMappings] = useState([]);
+    const [showModal, setShowModal] = useState(false);
+    const [formData, setFormData] = useState({ id: null, codigo: '', descricao: '', considerar_volume: false });
 
+    const fetchMappings = async () => {
+        try {
+            const { data, error } = await supabaseClient.from('terceirizacao_de_para').select('*').order('codigo');
+            if (error) throw error;
+            setMappings(data || []);
+        } catch (e) {
+            onNotify(e.message, "error");
+        }
+    };
+
+    useEffect(() => { fetchMappings(); }, []);
+
+    const handleSave = async (e) => {
+        e.preventDefault();
+        try {
+            const payload = { 
+                codigo: formData.codigo, 
+                descricao: formData.descricao, 
+                considerar_volume: formData.considerar_volume 
+            };
+            
+            const { error } = formData.id 
+                ? await supabaseClient.from('terceirizacao_de_para').update(payload).eq('id', formData.id)
+                : await supabaseClient.from('terceirizacao_de_para').insert(payload);
+
+            if (error) throw error;
+            onNotify("Salvo com sucesso!", "success");
+            setShowModal(false);
+            fetchMappings();
+        } catch (e) {
+            onNotify(e.message, "error");
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if (!confirm('Deseja excluir este mapeamento?')) return;
+        try {
+            const { error } = await supabaseClient.from('terceirizacao_de_para').delete().eq('id', id);
+            if (error) throw error;
+            fetchMappings();
+        } catch (e) {
+            onNotify(e.message, "error");
+        }
+    };
+
+    return (
+        <div className="max-w-4xl mx-auto space-y-6 animate-enter">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    <Icons.Settings /> Configuração De/Para - Terceirização
+                </h2>
+                <button 
+                    onClick={() => { setFormData({ id: null, codigo: '', descricao: '', considerar_volume: false }); setShowModal(true); }} 
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg"
+                >
+                    <Icons.Plus /> Novo Código
+                </button>
+            </div>
+
+            <div className="glass-card overflow-hidden">
+                <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300">
+                    <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                        <tr>
+                            <th className="px-6 py-3">Código (Lançamento)</th>
+                            <th className="px-6 py-3">Descrição (Centro de Custo)</th>
+                            <th className="px-6 py-3 text-center">Soma Volume?</th>
+                            <th className="px-6 py-3 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {mappings.map(item => (
+                            <tr key={item.id} className="border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800">
+                                <td className="px-6 py-3 font-mono font-bold text-blue-600 dark:text-blue-400">{item.codigo}</td>
+                                <td className="px-6 py-3 font-bold">{item.descricao}</td>
+                                <td className="px-6 py-3 text-center">
+                                    <span className={`px-2 py-1 rounded text-xs font-bold ${item.considerar_volume ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+                                        {item.considerar_volume ? 'SIM' : 'NÃO'}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-3 text-right flex justify-end gap-3">
+                                    <button onClick={() => { setFormData(item); setShowModal(true); }} className="text-blue-500 hover:text-blue-700 transition-colors"><Icons.Edit width={16} /></button>
+                                    <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:text-red-700 transition-colors"><Icons.Trash2 width={16} /></button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {showModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-md border border-slate-200 dark:border-slate-700 shadow-2xl animate-enter">
+                        <h3 className="font-bold mb-4 text-slate-800 dark:text-white">{formData.id ? 'Editar' : 'Novo'} Código</h3>
+                        <form onSubmit={handleSave} className="space-y-4">
+                            <div>
+                                <label className="input-label">Código do Lançamento</label>
+                                <input 
+                                    className="w-full border border-slate-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                    value={formData.codigo} 
+                                    onChange={e => setFormData({...formData, codigo: e.target.value})} 
+                                    placeholder="Ex: 1, 10, 4..." 
+                                    required 
+                                />
+                            </div>
+                            <div>
+                                <label className="input-label">Descrição Amigável</label>
+                                <input 
+                                    className="w-full border border-slate-300 dark:border-slate-600 rounded-lg p-2.5 text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                    value={formData.descricao} 
+                                    onChange={e => setFormData({...formData, descricao: e.target.value})} 
+                                    placeholder="Ex: Produção, Diesel..." 
+                                    required 
+                                />
+                            </div>
+                            <div className="flex items-center gap-3 p-3 border border-slate-100 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                                <input 
+                                    type="checkbox" 
+                                    id="checkVol"
+                                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                                    checked={formData.considerar_volume} 
+                                    onChange={e => setFormData({...formData, considerar_volume: e.target.checked})} 
+                                />
+                                <label htmlFor="checkVol" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                                    Considerar como Volume Produzido?
+                                    <p className="text-[10px] text-slate-400 font-normal">Marque apenas para itens de produção (Ex: 1, 10)</p>
+                                </label>
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2">
+                                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors font-medium text-sm">Cancelar</button>
+                                <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-colors shadow-lg">Salvar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
         const App = () => {
             const [supabaseClient, setSupabaseClient] = useState(null);
             const [session, setSession] = useState(null);
@@ -1853,6 +1995,7 @@
     </script>
 </body>
 </html>
+
 
 
 
