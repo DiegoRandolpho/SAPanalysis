@@ -1565,25 +1565,179 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
         </div>
     );
 };
-        const TerceirizacaoDashboard = ({ data, loading, isDark, filters }) => {
+        const TerceirizacaoDashboard = ({ data, loading, isDark, filters, supabaseClient }) => {
     const chartColors = getChartColors(isDark);
     
+    // Estados para o Drill-down (Detalhamento)
+    const [drillData, setDrillData] = useState(null);
+    const [isDrillLoading, setIsDrillLoading] = useState(false);
+    const [selectedCostType, setSelectedCostType] = useState(null);
+
     if (!data || !data.kpis) return <div className="p-10 text-center text-slate-400">Carregando dados...</div>;
 
-    // Helper para calcular variação percentual segura
+    // Helper de Variação
     const getVar = (atual, ant) => {
         if (!ant || ant === 0) return 0;
         return ((atual - ant) / ant) * 100;
     };
 
-    // Processar dados de análise para exibir Alertas
-    const analiseProcessada = (data.analise_tipo || []).map(item => {
-        const varPerc = getVar(item.rs_m3_atual, item.rs_m3_ant);
-        return { ...item, varPerc };
-    });
+    const analiseProcessada = (data.analise_tipo || []).map(item => ({
+        ...item,
+        varPerc: getVar(item.rs_m3_atual, item.rs_m3_ant)
+    }));
+
+    // Função que chama o detalhamento ao clicar
+    const handleDrillDown = async (tipoCusto) => {
+        setSelectedCostType(tipoCusto);
+        setIsDrillLoading(true);
+        setDrillData(null);
+
+        try {
+            const { data: res, error } = await supabaseClient.rpc('get_terceirizacao_detalhe_custo', {
+                p_data_ini: filters.dateIni,
+                p_data_fim: filters.dateFim,
+                p_filial: filters.filial,
+                p_tipo_custo: tipoCusto,
+                p_vol_prod_total: data.kpis.volume_total // Passa o volume total para calcular o impacto relativo
+            });
+
+            if (error) throw error;
+            setDrillData(res);
+        } catch (error) {
+            console.error("Erro no drilldown:", error);
+        } finally {
+            setIsDrillLoading(false);
+        }
+    };
+
+    // Componente interno do Modal
+    const DrillDownModal = () => {
+        if (!selectedCostType) return null;
+
+        return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-enter">
+                <div className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
+                    {/* Header Modal */}
+                    <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 rounded-t-xl">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                <Icons.Search className="text-blue-500" /> Detalhes: <span className="text-blue-600 dark:text-blue-400">{selectedCostType}</span>
+                            </h3>
+                            <p className="text-xs text-slate-500">Impacto no Custo Médio Geral (R$/m³)</p>
+                        </div>
+                        <button onClick={() => setSelectedCostType(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500">
+                            <Icons.X />
+                        </button>
+                    </div>
+
+                    {/* Conteúdo Modal */}
+                    <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                        {isDrillLoading ? (
+                            <div className="h-64 flex flex-col items-center justify-center text-slate-400">
+                                <div className="loader h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent mb-4"></div>
+                                Carregando detalhes...
+                            </div>
+                        ) : drillData ? (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* Gráfico Placas */}
+                                <div className="glass-card p-5 border border-slate-200 dark:border-slate-700">
+                                    <h4 className="font-bold text-slate-700 dark:text-slate-200 mb-4 text-sm border-b pb-2">Top 10 Equipamentos (Impacto R$/m³)</h4>
+                                    <div className="h-[300px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart layout="vertical" data={drillData.placas} margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chartColors.grid} />
+                                                <XAxis type="number" tick={{ fill: chartColors.text, fontSize: 10 }} tickFormatter={(v) => `R$ ${v.toFixed(2)}`} />
+                                                <YAxis dataKey="name" type="category" width={60} tick={{ fill: chartColors.text, fontSize: 10, fontWeight: 'bold' }} />
+                                                <Tooltip 
+                                                    content={({ active, payload }) => {
+                                                        if (active && payload && payload.length) {
+                                                            const d = payload[0].payload;
+                                                            return (
+                                                                <div className="bg-white dark:bg-slate-800 p-2 border shadow text-xs rounded">
+                                                                    <p className="font-bold text-slate-700 dark:text-slate-200">{d.name}</p>
+                                                                    <p className="text-slate-500">{d.classe}</p>
+                                                                    <p className="text-blue-600 font-bold">R$ {d.rs_m3_impacto.toFixed(4)} /m³</p>
+                                                                    <p className="text-slate-400">Total: {Utils.formatters.currency(d.valor)}</p>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    }}
+                                                />
+                                                <Bar dataKey="rs_m3_impacto" fill={chartColors.bomba} radius={[0, 4, 4, 0]} barSize={20} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+
+                                {/* Gráfico Filiais */}
+                                <div className="glass-card p-5 border border-slate-200 dark:border-slate-700">
+                                    <h4 className="font-bold text-slate-700 dark:text-slate-200 mb-4 text-sm border-b pb-2">Top 10 Filiais (Impacto R$/m³)</h4>
+                                    <div className="h-[300px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart layout="vertical" data={drillData.filiais} margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chartColors.grid} />
+                                                <XAxis type="number" tick={{ fill: chartColors.text, fontSize: 10 }} tickFormatter={(v) => `R$ ${v.toFixed(2)}`} />
+                                                <YAxis dataKey="name" type="category" width={60} tick={{ fill: chartColors.text, fontSize: 10, fontWeight: 'bold' }} />
+                                                <Tooltip 
+                                                    content={({ active, payload }) => {
+                                                        if (active && payload && payload.length) {
+                                                            const d = payload[0].payload;
+                                                            return (
+                                                                <div className="bg-white dark:bg-slate-800 p-2 border shadow text-xs rounded">
+                                                                    <p className="font-bold text-slate-700 dark:text-slate-200">{d.name}</p>
+                                                                    <p className="text-green-600 font-bold">R$ {d.rs_m3_impacto.toFixed(4)} /m³</p>
+                                                                    <p className="text-slate-400">Total: {Utils.formatters.currency(d.valor)}</p>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    }}
+                                                />
+                                                <Bar dataKey="rs_m3_impacto" fill={chartColors.secondary} radius={[0, 4, 4, 0]} barSize={20} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                                
+                                {/* Tabela Detalhada (Opcional, se quiser ver números brutos) */}
+                                <div className="lg:col-span-2 glass-card overflow-hidden">
+                                    <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300">
+                                        <thead className="bg-slate-100 dark:bg-slate-800 uppercase font-bold text-slate-500">
+                                            <tr>
+                                                <th className="px-4 py-2">Placa</th>
+                                                <th className="px-4 py-2">Classe</th>
+                                                <th className="px-4 py-2 text-right">Valor Total</th>
+                                                <th className="px-4 py-2 text-right">Impacto (R$/m³)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                            {drillData.placas.slice(0, 5).map((row, i) => (
+                                                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                                    <td className="px-4 py-2 font-bold">{row.name}</td>
+                                                    <td className="px-4 py-2">{row.classe}</td>
+                                                    <td className="px-4 py-2 text-right">{Utils.formatters.currency(row.valor)}</td>
+                                                    <td className="px-4 py-2 text-right font-mono text-blue-600 dark:text-blue-400">{row.rs_m3_impacto.toFixed(4)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center text-slate-500">Nenhum dado encontrado para este detalhamento.</div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="space-y-6 animate-enter">
+            {/* Modal de Detalhamento */}
+            <DrillDownModal />
+
             {/* 1. KPIs Principais */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <Card title="Volume Produzido" value={`${Utils.math.roundVolume(data.kpis.volume_total).toLocaleString()} m³`} iconName="database" color="blue" />
@@ -1593,7 +1747,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
                 <Card title="Vol. Transportado" value={`${Utils.math.roundVolume(data.kpis.vol_transp).toLocaleString()} m³`} iconName="truck" color="orange" />
             </div>
 
-            {/* 2. Análise Detalhada por Tipo de Lançamento (De/Para) */}
+            {/* 2. Análise Detalhada por Tipo de Lançamento */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Tabela de Variação e Impacto */}
                 <div className="lg:col-span-2 glass-card overflow-hidden flex flex-col">
@@ -1601,7 +1755,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
                         <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
                             <Icons.Activity className="w-4 h-4 text-blue-500" /> Análise de Impacto (R$/m³)
                         </h3>
-                        {filters.month === 'Todos' && <span className="text-xs text-orange-500 font-bold bg-orange-100 px-2 py-1 rounded">Selecione um mês para ver variação</span>}
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Clique na linha para detalhar</span>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300">
@@ -1615,8 +1769,16 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
                             </thead>
                             <tbody>
                                 {analiseProcessada.map((row, i) => (
-                                    <tr key={i} className="border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                        <td className="px-6 py-3 font-bold">{row.name}</td>
+                                    <tr 
+                                        key={i} 
+                                        onClick={() => handleDrillDown(row.name)}
+                                        className="border-b border-slate-50 dark:border-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors group"
+                                        title="Clique para ver detalhes por placa e filial"
+                                    >
+                                        <td className="px-6 py-3 font-bold flex items-center gap-2">
+                                            {row.name}
+                                            <Icons.Search className="w-3 h-3 text-slate-300 group-hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all" />
+                                        </td>
                                         <td className="px-6 py-3 text-right">{Utils.formatters.currency(row.valor_atual)}</td>
                                         <td className="px-6 py-3 text-right font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
                                             {Utils.formatters.currency(row.rs_m3_atual)}
@@ -1638,7 +1800,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
                     </div>
                 </div>
 
-                {/* Card de Alertas/Destaques */}
+                {/* Card de Distribuição */}
                 <div className="glass-card p-5 flex flex-col">
                     <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-4 text-sm">Distribuição de Custo</h3>
                     <div className="flex-1 min-h-[200px]">
@@ -1681,7 +1843,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
                     </div>
                 </div>
 
-                {/* Top 10 Usinas (Maior Custo Total) */}
+                {/* Top 10 Usinas */}
                 <div className="glass-card p-6 h-[400px] flex flex-col">
                     <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 text-sm">Top 10 Filiais - Maior Custo Total</h3>
                     <div className="flex-1 w-full">
@@ -2136,6 +2298,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
             loading={loading} 
             isDark={isDark} 
             filters={filters} // Passa os filtros para exibir alertas corretos
+            supabaseClient={supabaseClient}
         />
     </div>
 )}
@@ -2205,6 +2368,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
