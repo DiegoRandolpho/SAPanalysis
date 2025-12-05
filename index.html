@@ -51,61 +51,58 @@
         .sidebar-transition { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .content-transition { transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .picker-popover { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
-        /* --- Estilos de Impressão (Exportação PDF) --- */
-/* --- CSS DE IMPRESSÃO OTIMIZADO (Substitua o anterior) --- */
+    /* --- CSS DE IMPRESSÃO PROFISSIONAL --- */
 @media print {
     @page { 
         size: landscape; 
         margin: 5mm; 
     }
     
-    /* Zera tudo para garantir que nada corte */
-    html, body, #root, main, .overflow-y-auto, .overflow-x-auto {
-        height: auto !important;
-        width: 100% !important;
-        overflow: visible !important; /* MATA A BARRA DE ROLAGEM NA IMPRESSÃO */
+    body { 
+        /* Permite cores de fundo na impressão (importante para o visual 'Dark' ou 'Cinza') */
+        -webkit-print-color-adjust: exact !important; 
+        print-color-adjust: exact !important;
         background-color: white !important;
-        color: black !important;
-        margin: 0 !important;
-        padding: 0 !important;
     }
 
-    /* Ocultar elementos de UI */
+    /* Ocultar UI do sistema */
     .no-print, nav, header, .sidebar, .filters-area, .status-log, button { 
         display: none !important; 
     }
-    
-    /* Ajuste de layout principal */
-    .content-transition { 
-        margin-left: 0 !important; 
-        width: 100% !important; 
+
+    /* Reset de Layout */
+    .content-transition { margin: 0 !important; width: 100% !important; padding: 0 !important; }
+    main { padding: 0 !important; max-width: none !important; }
+
+    /* Estilização para parecer um Relatório Oficial */
+    .report-container {
+        width: 100%;
+        font-family: 'Inter', sans-serif;
+        color: #1e293b !important; /* Slate 800 */
     }
 
-    /* Transformar cards em elementos simples de relatório */
+    /* Forçar quebras de página inteligentes */
+    .avoid-break { break-inside: avoid; page-break-inside: avoid; }
+    .force-break { break-before: page; }
+
+    /* Ajuste de Gráficos para não estourarem */
+    .recharts-wrapper { width: 100% !important; }
+    
+    /* Remover sombras e usar bordas sólidas na impressão */
     .glass-card {
-        background: white !important;
         box-shadow: none !important;
-        border: 1px solid #ddd !important;
+        background: white !important;
+        border: 1px solid #cbd5e1 !important; /* Slate 300 */
         border-radius: 4px !important;
-        margin-bottom: 10px !important;
-        break-inside: avoid; /* Evita quebrar o card no meio da página */
-    }
-
-    /* Ajuste de Texto */
-    h1, h2, h3, h4, p, span, td, th {
-        color: black !important;
-        text-shadow: none !important;
-    }
-
-    /* Ajuste Específico para Gráficos não cortarem */
-    .recharts-wrapper {
-        width: 100% !important;
-        height: auto !important;
+        margin-bottom: 12px !important;
     }
     
-    /* Tabelas compactas para impressão */
-    table { font-size: 10px !important; width: 100% !important; }
-    th, td { padding: 4px !important; border-bottom: 1px solid #ccc !important; }
+    /* Cabeçalhos de Tabela e Cards mais bonitos na impressão */
+    .print-header {
+        background-color: #f1f5f9 !important; /* Slate 100 */
+        border-bottom: 2px solid #94a3b8 !important; /* Slate 400 */
+        color: #0f172a !important; /* Slate 900 */
+    }
 }
     </style>
 </head>
@@ -1829,6 +1826,7 @@
     </script>
 </body>
 </html>
+
 
 
 
