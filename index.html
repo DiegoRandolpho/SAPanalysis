@@ -1861,21 +1861,192 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
         </div>
     );
 };
-        const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
+        // --- 1. COMPONENTE DO MODAL (DEFINIDO FORA PARA NÃO TRAVAR) ---
+const ConciliacaoModal = ({ provider, data, loading, ajustes, onClose, onAddAjuste, onDeleteAjuste }) => {
+    if (!provider) return null;
+
+    // Definição de estados locais do formulário dentro do modal
+    const [localAjuste, setLocalAjuste] = useState({ tipo: 'ISS', valor: '', obs: '' });
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Proteção de dados (Garante Array mesmo se vier null)
+    const creditos = Array.isArray(data?.creditos) ? data.creditos : [];
+    const debitos = Array.isArray(data?.debitos) ? data.debitos : [];
+    const listaAjustes = Array.isArray(ajustes) ? ajustes : [];
+
+    // Cálculos de Totais
+    const totalCred = creditos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
+    const totalDeb = debitos.reduce((acc, curr) => acc + (Math.abs(Number(curr.valor)) || 0), 0);
+    const totalAj = listaAjustes.reduce((acc, a) => acc + (Number(a.valor) || 0), 0);
+    
+    // Fórmula: Crédito (O que devo) - (Débito (O que paguei) + Ajustes (O que descontei))
+    const saldoModal = totalCred - (totalDeb + totalAj);
+
+    const handleSubmitAjuste = async (e) => {
+        e.preventDefault();
+        if (!localAjuste.valor) return;
+        setIsSaving(true);
+        await onAddAjuste(localAjuste); // Chama a função do pai
+        setLocalAjuste({ ...localAjuste, valor: '', obs: '' }); // Limpa valor
+        setIsSaving(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-enter" onClick={onClose}>
+            <div className="bg-white dark:bg-slate-900 w-full max-w-[90%] h-[90vh] rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                
+                {/* Header */}
+                <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                            <Icons.Search className="text-blue-500" /> Extrato: {provider.nome_terceiro}
+                        </h3>
+                        <p className="text-sm text-slate-500 font-mono mt-1">Cód SAP: <strong>{provider.sap_code}</strong></p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className={`px-4 py-2 rounded border text-lg font-bold shadow-sm flex flex-col items-end ${Math.abs(saldoModal) <= 1.00 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                            <span className="text-[10px] uppercase opacity-70">Saldo Final</span>
+                            {Utils.formatters.currency(saldoModal)}
+                        </div>
+                        <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500">
+                            <Icons.X width={24} height={24} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Conteúdo - 3 Colunas */}
+                <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+                    
+                    {/* 1. CRÉDITOS (Esquerda) */}
+                    <div className="flex-1 flex flex-col border-r border-slate-200 dark:border-slate-700 min-w-[300px]">
+                        <div className="p-3 bg-blue-50/50 dark:bg-blue-900/10 text-center font-bold text-blue-700 dark:text-blue-400 text-xs uppercase border-b border-blue-100 dark:border-blue-900/20">
+                            APURAÇÃO (CRÉDITOS)
+                        </div>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-900">
+                            {loading ? <div className="p-10 text-center text-slate-400"><div className="loader h-6 w-6 border-2 border-blue-500 rounded-full border-t-transparent mx-auto mb-2"></div>Buscando...</div> : (
+                                <table className="w-full text-xs text-left">
+                                    <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800 shadow-sm text-slate-500 font-bold z-10">
+                                        <tr><th className="p-2 border-b dark:border-slate-700">Data</th><th className="p-2 border-b dark:border-slate-700">Placa</th><th className="p-2 border-b dark:border-slate-700 text-right">Valor</th></tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
+                                        {creditos.map((c, i) => (
+                                            <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                                <td className="p-2 whitespace-nowrap">{Utils.date.formatNice(c.data)}</td>
+                                                <td className="p-2 font-bold">{c.placa}</td>
+                                                <td className="p-2 text-right font-medium text-slate-800 dark:text-white">{Utils.formatters.currency(c.valor)}</td>
+                                            </tr>
+                                        ))}
+                                        {creditos.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-slate-400 italic">Nenhum registro de apuração no período.</td></tr>}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-right font-bold text-sm text-blue-700 dark:text-blue-400">
+                            Total Crédito: {Utils.formatters.currency(totalCred)}
+                        </div>
+                    </div>
+
+                    {/* 2. DÉBITOS (Meio) */}
+                    <div className="flex-1 flex flex-col border-r border-slate-200 dark:border-slate-700 min-w-[300px]">
+                        <div className="p-3 bg-emerald-50/50 dark:bg-emerald-900/10 text-center font-bold text-emerald-700 dark:text-emerald-400 text-xs uppercase border-b border-emerald-100 dark:border-emerald-900/20">
+                            PAGAMENTOS (DÉBITOS)
+                        </div>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-900">
+                            {loading ? <div className="p-10 text-center text-slate-400">Buscando...</div> : (
+                                <table className="w-full text-xs text-left">
+                                    <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800 shadow-sm text-slate-500 font-bold z-10">
+                                        <tr><th className="p-2 border-b dark:border-slate-700">Doc</th><th className="p-2 border-b dark:border-slate-700">Ref/Texto</th><th className="p-2 border-b dark:border-slate-700 text-right">Valor</th></tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
+                                        {debitos.map((d, i) => (
+                                            <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                                <td className="p-2 font-mono text-[10px]">{d.n_documento}</td>
+                                                <td className="p-2 truncate max-w-[120px]" title={d.texto}>{d.texto || '-'}</td>
+                                                <td className="p-2 text-right font-medium text-emerald-600 dark:text-emerald-400">{Utils.formatters.currency(Math.abs(d.valor))}</td>
+                                            </tr>
+                                        ))}
+                                        {debitos.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-slate-400 italic">Nenhum pagamento localizado.</td></tr>}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-right font-bold text-sm text-emerald-700 dark:text-emerald-400">
+                            Total Débito: {Utils.formatters.currency(totalDeb)}
+                        </div>
+                    </div>
+
+                    {/* 3. AJUSTES (Direita) */}
+                    <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/50 min-w-[300px]">
+                        <div className="p-3 bg-orange-50/50 dark:bg-orange-900/10 text-center font-bold text-orange-700 dark:text-orange-400 text-xs uppercase border-b border-orange-100 dark:border-orange-900/20">
+                            IMPOSTOS / AJUSTES MANUAIS
+                        </div>
+                        
+                        {/* Lista de Ajustes */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+                            {listaAjustes.map(aj => (
+                                <div key={aj.id} className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-xs flex justify-between items-center shadow-sm group hover:shadow-md transition-all">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-bold text-slate-800 dark:text-white bg-slate-100 dark:bg-slate-700 px-1.5 rounded">{aj.tipo}</span>
+                                            <span className="text-[10px] text-slate-400">{Utils.date.formatNice(aj.created_at)}</span>
+                                        </div>
+                                        <div className="text-slate-500 truncate max-w-[150px]" title={aj.observacao}>{aj.observacao || 'Sem observação'}</div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-bold text-orange-600 dark:text-orange-400 text-sm">{Utils.formatters.currency(aj.valor)}</span>
+                                        <button onClick={() => onDeleteAjuste(aj.id)} className="text-slate-300 hover:text-red-500 transition-colors p-1" title="Excluir">
+                                            <Icons.Trash2 width={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                            {listaAjustes.length === 0 && <div className="text-center text-slate-400 italic text-xs mt-10">Nenhum ajuste lançado para este período.</div>}
+                        </div>
+
+                        {/* Formulário */}
+                        <div className="p-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                            <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Adicionar Ajuste</h4>
+                            <form onSubmit={handleSubmitAjuste} className="space-y-2">
+                                <div className="flex gap-2">
+                                    <select className="border border-slate-300 dark:border-slate-600 rounded px-2 py-2 text-xs bg-transparent dark:text-white dark:bg-slate-700 w-1/3 outline-none focus:ring-1 focus:ring-blue-500 font-medium" value={localAjuste.tipo} onChange={e=>setLocalAjuste({...localAjuste, tipo:e.target.value})}>
+                                        <option value="ISS">ISS</option>
+                                        <option value="IRRF">IRRF</option>
+                                        <option value="PCC">PCC</option>
+                                        <option value="INSS">INSS</option>
+                                        <option value="DESC. TÉCNICO">Desc. Técnico</option>
+                                        <option value="OUTROS">Outros</option>
+                                    </select>
+                                    <input type="text" placeholder="Valor (R$)" className="border border-slate-300 dark:border-slate-600 rounded px-2 py-2 text-xs bg-transparent dark:text-white w-1/3 outline-none focus:ring-1 focus:ring-blue-500" value={localAjuste.valor} onChange={e=>setLocalAjuste({...localAjuste, valor:e.target.value})} required />
+                                    <button type="submit" disabled={isSaving} className="bg-blue-600 text-white rounded px-3 py-2 text-xs font-bold w-1/3 hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1 shadow-lg shadow-blue-500/30">
+                                        {isSaving ? <div className="loader h-3 w-3 border-2 border-white rounded-full border-t-transparent"></div> : <><Icons.Plus width={12}/> Adicionar</>}
+                                    </button>
+                                </div>
+                                <input type="text" placeholder="Observação (Ex: Nota fiscal 123...)" className="border border-slate-300 dark:border-slate-600 rounded px-2 py-2 text-xs w-full bg-transparent dark:text-white outline-none focus:ring-1 focus:ring-blue-500" value={localAjuste.obs} onChange={e=>setLocalAjuste({...localAjuste, obs:e.target.value})} />
+                            </form>
+                        </div>
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-right font-bold text-sm text-orange-600 dark:text-orange-400">
+                            Total Ajustes: {Utils.formatters.currency(totalAj)}
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- 2. COMPONENTE PRINCIPAL (TELA DE PAGAMENTOS) ---
+const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     
-    // Estados para o Drill-down (Modal) e Ajustes
+    // Estados do Modal
     const [selectedProvider, setSelectedProvider] = useState(null);
     const [drillData, setDrillData] = useState(null);
     const [drillLoading, setDrillLoading] = useState(false);
     const [ajustesData, setAjustesData] = useState([]);
-    
-    // Estado do Formulário de Ajuste
-    const [newAjuste, setNewAjuste] = useState({ tipo: 'ISS', valor: '', obs: '' });
-    const [savingAjuste, setSavingAjuste] = useState(false);
 
-    // 1. Busca Dados Principais
+    // 1. Busca Tabela Principal
     const fetchData = async () => {
         setLoading(true);
         try {
@@ -1893,7 +2064,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
         }
     };
 
-    // 2. Busca Detalhes
+    // 2. Busca Detalhes (Função chamada ao clicar na linha)
     const fetchDetalhes = async (providerCode) => {
         setDrillLoading(true);
         try {
@@ -1918,163 +2089,65 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
 
     const handleRowClick = (provider) => {
         setSelectedProvider(provider);
-        setNewAjuste({ tipo: 'ISS', valor: '', obs: '' });
-        setDrillData(null); 
+        setDrillData(null); // Limpa para mostrar loading no modal
         setAjustesData([]);
         fetchDetalhes(provider.sap_code);
     };
 
-    const handleSaveAjuste = async (e) => {
-        e.preventDefault();
-        if (!newAjuste.valor || !selectedProvider) return;
-        setSavingAjuste(true);
+    const handleAddAjuste = async (novoAjuste) => {
         try {
             const { error } = await supabaseClient.from('ajustes_conciliacao').insert({
                 terceiro_codigo: selectedProvider.sap_code,
                 data_referencia: filters.dateFim,
-                tipo: newAjuste.tipo,
-                valor: Utils.formatters.parseBrl(newAjuste.valor),
-                observacao: newAjuste.obs,
+                tipo: novoAjuste.tipo,
+                valor: Utils.formatters.parseBrl(novoAjuste.valor),
+                observacao: novoAjuste.obs,
                 usuario: 'Sistema'
             });
             if (error) throw error;
-            onNotify("Ajuste lançado!", "success");
-            setNewAjuste({ ...newAjuste, valor: '', obs: '' });
+            
+            onNotify("Ajuste adicionado!", "success");
+            // Atualiza apenas os detalhes e a tabela principal
             await fetchDetalhes(selectedProvider.sap_code);
-            fetchData(); 
+            fetchData();
         } catch (err) {
-            onNotify("Erro ao salvar: " + err.message, "error");
-        } finally {
-            setSavingAjuste(false);
+            onNotify("Erro ao salvar ajuste: " + err.message, "error");
         }
     };
 
     const handleDeleteAjuste = async (id) => {
-        if(!confirm("Excluir este ajuste?")) return;
+        if(!confirm("Tem certeza que deseja excluir este ajuste?")) return;
         try {
             const { error } = await supabaseClient.from('ajustes_conciliacao').delete().eq('id', id);
             if(error) throw error;
-            fetchDetalhes(selectedProvider.sap_code);
+            await fetchDetalhes(selectedProvider.sap_code);
             fetchData();
             onNotify("Ajuste removido.", "success");
         } catch(e) { onNotify(e.message, "error"); }
-    }
+    };
 
     useEffect(() => {
         if (filters.dateIni && filters.dateFim) fetchData();
     }, [filters.dateIni, filters.dateFim]);
-
-    // --- CÁLCULOS DO MODAL (Feitos no escopo principal) ---
-    // Isso previne o erro de renderização
-    const creditos = drillData?.creditos || [];
-    const debitos = drillData?.debitos || [];
-    const ajustes = ajustesData || [];
-
-    const totalCred = creditos.reduce((acc, curr) => acc + (curr.valor || 0), 0);
-    const totalDeb = debitos.reduce((acc, curr) => acc + (Math.abs(curr.valor) || 0), 0);
-    const totalAj = ajustes.reduce((acc, a) => acc + (a.valor || 0), 0);
-    const saldoModal = totalCred - (totalDeb + totalAj);
 
     if (!data) return <div className="p-10 text-center text-slate-400">Carregando conciliação...</div>;
     const { kpis, lista } = data;
 
     return (
         <div className="space-y-6 animate-enter pb-10">
-            
-            {/* --- MODAL DE DETALHES --- */}
+            {/* Modal Renderizado aqui, mas definido fora */}
             {selectedProvider && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-enter" onClick={() => setSelectedProvider(null)}>
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-7xl h-[90vh] rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-                        
-                        {/* Header Modal */}
-                        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                    <Icons.Search className="text-blue-500" /> Extrato: {selectedProvider.nome_terceiro}
-                                </h3>
-                                <p className="text-xs text-slate-500 font-mono">Cód SAP: {selectedProvider.sap_code}</p>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <div className={`px-4 py-2 rounded border text-sm font-bold shadow-sm ${Math.abs(saldoModal) <= 1.00 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
-                                    Saldo Final: {Utils.formatters.currency(saldoModal)}
-                                </div>
-                                <button onClick={() => setSelectedProvider(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500">
-                                    <Icons.X />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Conteúdo - 3 Colunas */}
-                        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
-                            
-                            {/* 1. CRÉDITOS */}
-                            <div className="flex-1 flex flex-col border-r border-slate-200 dark:border-slate-700">
-                                <div className="p-2 bg-blue-50/50 dark:bg-blue-900/10 text-center font-bold text-blue-700 dark:text-blue-400 text-xs uppercase border-b border-blue-100 dark:border-blue-900/20">APURAÇÃO (CRÉDITOS)</div>
-                                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                    {drillLoading ? <div className="p-4 text-center text-xs text-slate-400">Carregando...</div> : (
-                                        <table className="w-full text-xs text-left">
-                                            <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500"><tr><th className="p-2">Data</th><th className="p-2">Placa</th><th className="p-2 text-right">Valor</th></tr></thead>
-                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
-                                                {creditos.map((c, i) => (
-                                                    <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50"><td className="p-2">{Utils.date.formatNice(c.data)}</td><td className="p-2">{c.placa}</td><td className="p-2 text-right font-medium">{Utils.formatters.currency(c.valor)}</td></tr>
-                                                ))}
-                                                {creditos.length === 0 && <tr><td colSpan="3" className="p-4 text-center text-slate-400 italic">Sem créditos.</td></tr>}
-                                            </tbody>
-                                        </table>
-                                    )}
-                                </div>
-                                <div className="p-2 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-right font-bold text-xs text-blue-600 dark:text-blue-400">Total: {Utils.formatters.currency(totalCred)}</div>
-                            </div>
-
-                            {/* 2. DÉBITOS */}
-                            <div className="flex-1 flex flex-col border-r border-slate-200 dark:border-slate-700">
-                                <div className="p-2 bg-emerald-50/50 dark:bg-emerald-900/10 text-center font-bold text-emerald-700 dark:text-emerald-400 text-xs uppercase border-b border-emerald-100 dark:border-emerald-900/20">PAGAMENTOS (DÉBITOS)</div>
-                                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                    {drillLoading ? <div className="p-4 text-center text-xs text-slate-400">Carregando...</div> : (
-                                        <table className="w-full text-xs text-left">
-                                            <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500"><tr><th className="p-2">Doc</th><th className="p-2">Texto</th><th className="p-2 text-right">Valor</th></tr></thead>
-                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
-                                                {debitos.map((d, i) => (
-                                                    <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50"><td className="p-2">{d.n_documento}</td><td className="p-2 truncate max-w-[100px]" title={d.texto}>{d.texto}</td><td className="p-2 text-right font-medium text-emerald-600 dark:text-emerald-400">{Utils.formatters.currency(Math.abs(d.valor))}</td></tr>
-                                                ))}
-                                                {debitos.length === 0 && <tr><td colSpan="3" className="p-4 text-center text-slate-400 italic">Sem pagamentos.</td></tr>}
-                                            </tbody>
-                                        </table>
-                                    )}
-                                </div>
-                                <div className="p-2 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-right font-bold text-xs text-emerald-600 dark:text-emerald-400">Total: {Utils.formatters.currency(totalDeb)}</div>
-                            </div>
-
-                            {/* 3. AJUSTES */}
-                            <div className="flex-1 flex flex-col bg-slate-50/30 dark:bg-slate-900">
-                                <div className="p-2 bg-orange-50/50 dark:bg-orange-900/10 text-center font-bold text-orange-700 dark:text-orange-400 text-xs uppercase border-b border-orange-100 dark:border-orange-900/20">IMPOSTOS / AJUSTES</div>
-                                <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
-                                    {ajustes.map(aj => (
-                                        <div key={aj.id} className="bg-white dark:bg-slate-800 p-2 rounded border border-slate-200 dark:border-slate-700 text-xs flex justify-between items-center shadow-sm group">
-                                            <div><span className="font-bold text-slate-700 dark:text-slate-200">{aj.tipo}</span><span className="mx-2 text-slate-400">|</span><span className="text-slate-500" title={aj.observacao}>{aj.observacao ? (aj.observacao.length > 15 ? aj.observacao.substring(0,15)+'...' : aj.observacao) : '-'}</span></div>
-                                            <div className="flex items-center gap-2"><span className="font-bold text-orange-600 dark:text-orange-400">{Utils.formatters.currency(aj.valor)}</span><button onClick={() => handleDeleteAjuste(aj.id)} className="text-slate-300 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"><Icons.Trash2 width={12} /></button></div>
-                                        </div>
-                                    ))}
-                                    {ajustes.length === 0 && <div className="text-center text-slate-400 italic text-xs mt-4">Nenhum ajuste.</div>}
-                                </div>
-                                <div className="p-3 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
-                                    <form onSubmit={handleSaveAjuste} className="space-y-2">
-                                        <div className="flex gap-2">
-                                            <select className="border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-xs bg-transparent dark:text-white dark:bg-slate-700 w-1/3 outline-none" value={newAjuste.tipo} onChange={e=>setNewAjuste({...newAjuste, tipo:e.target.value})}><option value="ISS">ISS</option><option value="IRRF">IRRF</option><option value="PCC">PCC</option><option value="INSS">INSS</option><option value="OUTROS">Outros</option></select>
-                                            <input type="text" placeholder="Valor (R$)" className="border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-xs bg-transparent dark:text-white w-1/3 outline-none" value={newAjuste.valor} onChange={e=>setNewAjuste({...newAjuste, valor:e.target.value})} required />
-                                            <button type="submit" disabled={savingAjuste} className="bg-blue-600 text-white rounded px-3 py-1 text-xs font-bold w-1/3 hover:bg-blue-700 transition-colors disabled:opacity-50">{savingAjuste ? '...' : 'Add'}</button>
-                                        </div>
-                                        <input type="text" placeholder="Obs..." className="border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-xs w-full bg-transparent dark:text-white outline-none" value={newAjuste.obs} onChange={e=>setNewAjuste({...newAjuste, obs:e.target.value})} />
-                                    </form>
-                                </div>
-                                <div className="p-2 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-right font-bold text-xs text-orange-600 dark:text-orange-400">Total: {Utils.formatters.currency(totalAj)}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <ConciliacaoModal 
+                    provider={selectedProvider}
+                    data={drillData}
+                    loading={drillLoading}
+                    ajustes={ajustesData}
+                    onClose={() => setSelectedProvider(null)}
+                    onAddAjuste={handleAddAjuste}
+                    onDeleteAjuste={handleDeleteAjuste}
+                />
             )}
 
-            {/* Cabeçalho Impressão */}
             <div className="hidden print:block mb-4 border-b border-black pb-2">
                 <h1 className="text-xl font-bold">Relatório de Conciliação de Pagamentos</h1>
                 <p className="text-xs">Período: {Utils.date.formatNice(filters.dateIni)} à {Utils.date.formatNice(filters.dateFim)}</p>
@@ -2114,15 +2187,15 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                             {lista.map((row, i) => (
-                                <tr key={i} onClick={() => handleRowClick(row)} className={`cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 ${i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-800/20'}`}>
-                                    <td className="px-4 py-2 font-bold">{row.nome_terceiro}</td>
+                                <tr key={i} onClick={() => handleRowClick(row)} className={`cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors ${i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-800/20'}`}>
+                                    <td className="px-4 py-2 font-bold group-hover:text-blue-600">{row.nome_terceiro}</td>
                                     <td className="px-4 py-2 text-center font-mono text-slate-500">{row.sap_code}</td>
                                     <td className="px-4 py-2 text-right">{Utils.formatters.currency(row.v_credito)}</td>
                                     <td className="px-4 py-2 text-right text-slate-500">{Utils.formatters.currency(row.v_pago_real)}</td>
                                     <td className="px-4 py-2 text-right text-purple-600 font-medium">{Utils.formatters.currency(row.v_ajuste)}</td>
                                     <td className={`px-4 py-2 text-right font-bold ${Math.abs(row.saldo) > 1.00 ? 'text-red-500' : 'text-green-600'}`}>{Utils.formatters.currency(row.saldo)}</td>
                                     <td className="px-4 py-2 text-center">
-                                        <span className={`px-2 py-1 rounded text-[10px] font-bold border ${row.status === 'PAGO TOTAL' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>{row.status}</span>
+                                        <span className={`px-2 py-1 rounded text-[10px] font-bold border ${row.status === 'PAGO TOTAL' ? 'bg-green-100 text-green-700 border-green-200' : (row.status === 'DIFERENÇA' ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-red-100 text-red-700 border-red-200')}`}>{row.status}</span>
                                     </td>
                                 </tr>
                             ))}
@@ -2743,6 +2816,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
