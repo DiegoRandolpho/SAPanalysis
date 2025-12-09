@@ -1861,55 +1861,55 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
         </div>
     );
 };
-        // --- 1. COMPONENTE DO MODAL (DEFINIDO FORA PARA NÃO TRAVAR) ---
+       // =============================================================================
+// 1. COMPONENTE DO MODAL (DEFINIDO FORA DA FUNÇÃO PRINCIPAL)
+// =============================================================================
 const ConciliacaoModal = ({ provider, data, loading, ajustes, onClose, onAddAjuste, onDeleteAjuste }) => {
     if (!provider) return null;
 
-    // Definição de estados locais do formulário dentro do modal
     const [localAjuste, setLocalAjuste] = useState({ tipo: 'ISS', valor: '', obs: '' });
     const [isSaving, setIsSaving] = useState(false);
 
-    // Proteção de dados (Garante Array mesmo se vier null)
-    const creditos = Array.isArray(data?.creditos) ? data.creditos : [];
-    const debitos = Array.isArray(data?.debitos) ? data.debitos : [];
+    // Proteção de dados para evitar tela branca
+    const creditos = (data && data.creditos) ? data.creditos : [];
+    const debitos = (data && data.debitos) ? data.debitos : [];
     const listaAjustes = Array.isArray(ajustes) ? ajustes : [];
 
-    // Cálculos de Totais
     const totalCred = creditos.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
     const totalDeb = debitos.reduce((acc, curr) => acc + (Math.abs(Number(curr.valor)) || 0), 0);
     const totalAj = listaAjustes.reduce((acc, a) => acc + (Number(a.valor) || 0), 0);
     
-    // Fórmula: Crédito (O que devo) - (Débito (O que paguei) + Ajustes (O que descontei))
     const saldoModal = totalCred - (totalDeb + totalAj);
 
     const handleSubmitAjuste = async (e) => {
         e.preventDefault();
         if (!localAjuste.valor) return;
         setIsSaving(true);
-        await onAddAjuste(localAjuste); // Chama a função do pai
-        setLocalAjuste({ ...localAjuste, valor: '', obs: '' }); // Limpa valor
+        await onAddAjuste(localAjuste);
+        setLocalAjuste({ ...localAjuste, valor: '', obs: '' });
         setIsSaving(false);
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-enter" onClick={onClose}>
-            <div className="bg-white dark:bg-slate-900 w-full max-w-[90%] h-[90vh] rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" onClick={onClose}>
+            {/* Removi 'animate-enter' para evitar bugs visuais */}
+            <div className="bg-white dark:bg-slate-900 w-full max-w-[95%] h-[90vh] rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                 
                 {/* Header */}
                 <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
                     <div>
                         <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                            <Icons.Search className="text-blue-500" /> Extrato: {provider.nome_terceiro}
+                            <Icons.Search className="text-blue-500" /> Detalhes: {provider.nome_terceiro}
                         </h3>
                         <p className="text-sm text-slate-500 font-mono mt-1">Cód SAP: <strong>{provider.sap_code}</strong></p>
                     </div>
                     <div className="flex items-center gap-4">
                         <div className={`px-4 py-2 rounded border text-lg font-bold shadow-sm flex flex-col items-end ${Math.abs(saldoModal) <= 1.00 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                            <span className="text-[10px] uppercase opacity-70">Saldo Final</span>
+                            <span className="text-[10px] uppercase opacity-70 text-slate-600">Saldo Final</span>
                             {Utils.formatters.currency(saldoModal)}
                         </div>
-                        <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500">
-                            <Icons.X width={24} height={24} />
+                        <button onClick={onClose} className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500">
+                            <Icons.X width={20} height={20} />
                         </button>
                     </div>
                 </div>
@@ -1923,7 +1923,7 @@ const ConciliacaoModal = ({ provider, data, loading, ajustes, onClose, onAddAjus
                             APURAÇÃO (CRÉDITOS)
                         </div>
                         <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-900">
-                            {loading ? <div className="p-10 text-center text-slate-400"><div className="loader h-6 w-6 border-2 border-blue-500 rounded-full border-t-transparent mx-auto mb-2"></div>Buscando...</div> : (
+                            {loading ? <div className="p-10 text-center text-slate-400">Carregando...</div> : (
                                 <table className="w-full text-xs text-left">
                                     <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800 shadow-sm text-slate-500 font-bold z-10">
                                         <tr><th className="p-2 border-b dark:border-slate-700">Data</th><th className="p-2 border-b dark:border-slate-700">Placa</th><th className="p-2 border-b dark:border-slate-700 text-right">Valor</th></tr>
@@ -1936,13 +1936,13 @@ const ConciliacaoModal = ({ provider, data, loading, ajustes, onClose, onAddAjus
                                                 <td className="p-2 text-right font-medium text-slate-800 dark:text-white">{Utils.formatters.currency(c.valor)}</td>
                                             </tr>
                                         ))}
-                                        {creditos.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-slate-400 italic">Nenhum registro de apuração no período.</td></tr>}
+                                        {creditos.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-slate-400 italic">Nenhum crédito.</td></tr>}
                                     </tbody>
                                 </table>
                             )}
                         </div>
                         <div className="p-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-right font-bold text-sm text-blue-700 dark:text-blue-400">
-                            Total Crédito: {Utils.formatters.currency(totalCred)}
+                            Total: {Utils.formatters.currency(totalCred)}
                         </div>
                     </div>
 
@@ -1952,10 +1952,10 @@ const ConciliacaoModal = ({ provider, data, loading, ajustes, onClose, onAddAjus
                             PAGAMENTOS (DÉBITOS)
                         </div>
                         <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-900">
-                            {loading ? <div className="p-10 text-center text-slate-400">Buscando...</div> : (
+                            {loading ? <div className="p-10 text-center text-slate-400">Carregando...</div> : (
                                 <table className="w-full text-xs text-left">
                                     <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800 shadow-sm text-slate-500 font-bold z-10">
-                                        <tr><th className="p-2 border-b dark:border-slate-700">Doc</th><th className="p-2 border-b dark:border-slate-700">Ref/Texto</th><th className="p-2 border-b dark:border-slate-700 text-right">Valor</th></tr>
+                                        <tr><th className="p-2 border-b dark:border-slate-700">Doc</th><th className="p-2 border-b dark:border-slate-700">Texto</th><th className="p-2 border-b dark:border-slate-700 text-right">Valor</th></tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
                                         {debitos.map((d, i) => (
@@ -1965,32 +1965,31 @@ const ConciliacaoModal = ({ provider, data, loading, ajustes, onClose, onAddAjus
                                                 <td className="p-2 text-right font-medium text-emerald-600 dark:text-emerald-400">{Utils.formatters.currency(Math.abs(d.valor))}</td>
                                             </tr>
                                         ))}
-                                        {debitos.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-slate-400 italic">Nenhum pagamento localizado.</td></tr>}
+                                        {debitos.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-slate-400 italic">Nenhum débito.</td></tr>}
                                     </tbody>
                                 </table>
                             )}
                         </div>
                         <div className="p-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-right font-bold text-sm text-emerald-700 dark:text-emerald-400">
-                            Total Débito: {Utils.formatters.currency(totalDeb)}
+                            Total: {Utils.formatters.currency(totalDeb)}
                         </div>
                     </div>
 
                     {/* 3. AJUSTES (Direita) */}
                     <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/50 min-w-[300px]">
                         <div className="p-3 bg-orange-50/50 dark:bg-orange-900/10 text-center font-bold text-orange-700 dark:text-orange-400 text-xs uppercase border-b border-orange-100 dark:border-orange-900/20">
-                            IMPOSTOS / AJUSTES MANUAIS
+                            IMPOSTOS / AJUSTES
                         </div>
                         
-                        {/* Lista de Ajustes */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
                             {listaAjustes.map(aj => (
-                                <div key={aj.id} className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-xs flex justify-between items-center shadow-sm group hover:shadow-md transition-all">
+                                <div key={aj.id} className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-xs flex justify-between items-center shadow-sm group">
                                     <div>
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className="font-bold text-slate-800 dark:text-white bg-slate-100 dark:bg-slate-700 px-1.5 rounded">{aj.tipo}</span>
                                             <span className="text-[10px] text-slate-400">{Utils.date.formatNice(aj.created_at)}</span>
                                         </div>
-                                        <div className="text-slate-500 truncate max-w-[150px]" title={aj.observacao}>{aj.observacao || 'Sem observação'}</div>
+                                        <div className="text-slate-500 truncate max-w-[150px]" title={aj.observacao}>{aj.observacao || '-'}</div>
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <span className="font-bold text-orange-600 dark:text-orange-400 text-sm">{Utils.formatters.currency(aj.valor)}</span>
@@ -2000,32 +1999,31 @@ const ConciliacaoModal = ({ provider, data, loading, ajustes, onClose, onAddAjus
                                     </div>
                                 </div>
                             ))}
-                            {listaAjustes.length === 0 && <div className="text-center text-slate-400 italic text-xs mt-10">Nenhum ajuste lançado para este período.</div>}
+                            {listaAjustes.length === 0 && <div className="text-center text-slate-400 italic text-xs mt-10">Nenhum ajuste.</div>}
                         </div>
 
                         {/* Formulário */}
-                        <div className="p-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                        <div className="p-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 shadow-lg z-20">
                             <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Adicionar Ajuste</h4>
                             <form onSubmit={handleSubmitAjuste} className="space-y-2">
                                 <div className="flex gap-2">
-                                    <select className="border border-slate-300 dark:border-slate-600 rounded px-2 py-2 text-xs bg-transparent dark:text-white dark:bg-slate-700 w-1/3 outline-none focus:ring-1 focus:ring-blue-500 font-medium" value={localAjuste.tipo} onChange={e=>setLocalAjuste({...localAjuste, tipo:e.target.value})}>
+                                    <select className="border border-slate-300 dark:border-slate-600 rounded px-2 py-2 text-xs bg-transparent dark:text-white dark:bg-slate-700 w-1/3 outline-none font-medium" value={localAjuste.tipo} onChange={e=>setLocalAjuste({...localAjuste, tipo:e.target.value})}>
                                         <option value="ISS">ISS</option>
                                         <option value="IRRF">IRRF</option>
                                         <option value="PCC">PCC</option>
                                         <option value="INSS">INSS</option>
-                                        <option value="DESC. TÉCNICO">Desc. Técnico</option>
                                         <option value="OUTROS">Outros</option>
                                     </select>
-                                    <input type="text" placeholder="Valor (R$)" className="border border-slate-300 dark:border-slate-600 rounded px-2 py-2 text-xs bg-transparent dark:text-white w-1/3 outline-none focus:ring-1 focus:ring-blue-500" value={localAjuste.valor} onChange={e=>setLocalAjuste({...localAjuste, valor:e.target.value})} required />
-                                    <button type="submit" disabled={isSaving} className="bg-blue-600 text-white rounded px-3 py-2 text-xs font-bold w-1/3 hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1 shadow-lg shadow-blue-500/30">
-                                        {isSaving ? <div className="loader h-3 w-3 border-2 border-white rounded-full border-t-transparent"></div> : <><Icons.Plus width={12}/> Adicionar</>}
+                                    <input type="text" placeholder="Valor (R$)" className="border border-slate-300 dark:border-slate-600 rounded px-2 py-2 text-xs bg-transparent dark:text-white w-1/3 outline-none" value={localAjuste.valor} onChange={e=>setLocalAjuste({...localAjuste, valor:e.target.value})} required />
+                                    <button type="submit" disabled={isSaving} className="bg-blue-600 text-white rounded px-3 py-2 text-xs font-bold w-1/3 hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1">
+                                        {isSaving ? '...' : 'Adicionar'}
                                     </button>
                                 </div>
-                                <input type="text" placeholder="Observação (Ex: Nota fiscal 123...)" className="border border-slate-300 dark:border-slate-600 rounded px-2 py-2 text-xs w-full bg-transparent dark:text-white outline-none focus:ring-1 focus:ring-blue-500" value={localAjuste.obs} onChange={e=>setLocalAjuste({...localAjuste, obs:e.target.value})} />
+                                <input type="text" placeholder="Observação..." className="border border-slate-300 dark:border-slate-600 rounded px-2 py-2 text-xs w-full bg-transparent dark:text-white outline-none" value={localAjuste.obs} onChange={e=>setLocalAjuste({...localAjuste, obs:e.target.value})} />
                             </form>
                         </div>
                         <div className="p-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-right font-bold text-sm text-orange-600 dark:text-orange-400">
-                            Total Ajustes: {Utils.formatters.currency(totalAj)}
+                            Total: {Utils.formatters.currency(totalAj)}
                         </div>
                     </div>
 
@@ -2035,7 +2033,9 @@ const ConciliacaoModal = ({ provider, data, loading, ajustes, onClose, onAddAjus
     );
 };
 
-// --- 2. COMPONENTE PRINCIPAL (TELA DE PAGAMENTOS) ---
+// =============================================================================
+// 2. COMPONENTE PRINCIPAL (TELA)
+// =============================================================================
 const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -2058,13 +2058,13 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
             setData(result);
         } catch (e) {
             console.error(e);
-            onNotify("Erro ao carregar pagamentos: " + e.message, "error");
+            onNotify("Erro ao carregar: " + e.message, "error");
         } finally {
             setLoading(false);
         }
     };
 
-    // 2. Busca Detalhes (Função chamada ao clicar na linha)
+    // 2. Busca Detalhes
     const fetchDetalhes = async (providerCode) => {
         setDrillLoading(true);
         try {
@@ -2081,15 +2081,17 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
             setAjustesData(resAj || []);
 
         } catch (e) {
-            onNotify("Erro detalhe: " + e.message, "error");
+            onNotify("Erro ao detalhar: " + e.message, "error");
         } finally {
             setDrillLoading(false);
         }
     };
 
+    // Eventos
     const handleRowClick = (provider) => {
-        setSelectedProvider(provider);
-        setDrillData(null); // Limpa para mostrar loading no modal
+        console.log("Clicou no fornecedor:", provider);
+        setSelectedProvider(provider); // Isso abre o modal
+        setDrillData(null); 
         setAjustesData([]);
         fetchDetalhes(provider.sap_code);
     };
@@ -2106,23 +2108,22 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
             });
             if (error) throw error;
             
-            onNotify("Ajuste adicionado!", "success");
-            // Atualiza apenas os detalhes e a tabela principal
+            onNotify("Ajuste salvo!", "success");
             await fetchDetalhes(selectedProvider.sap_code);
-            fetchData();
+            fetchData(); // Atualiza saldo na tabela de trás
         } catch (err) {
-            onNotify("Erro ao salvar ajuste: " + err.message, "error");
+            onNotify("Erro: " + err.message, "error");
         }
     };
 
     const handleDeleteAjuste = async (id) => {
-        if(!confirm("Tem certeza que deseja excluir este ajuste?")) return;
+        if(!confirm("Excluir ajuste?")) return;
         try {
             const { error } = await supabaseClient.from('ajustes_conciliacao').delete().eq('id', id);
             if(error) throw error;
             await fetchDetalhes(selectedProvider.sap_code);
             fetchData();
-            onNotify("Ajuste removido.", "success");
+            onNotify("Excluído.", "success");
         } catch(e) { onNotify(e.message, "error"); }
     };
 
@@ -2135,7 +2136,7 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
 
     return (
         <div className="space-y-6 animate-enter pb-10">
-            {/* Modal Renderizado aqui, mas definido fora */}
+            {/* O MODAL AGORA VIVE AQUI, RENDERIZADO CONDICIONALMENTE */}
             {selectedProvider && (
                 <ConciliacaoModal 
                     provider={selectedProvider}
@@ -2153,15 +2154,13 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
                 <p className="text-xs">Período: {Utils.date.formatNice(filters.dateIni)} à {Utils.date.formatNice(filters.dateFim)}</p>
             </div>
 
-            {/* KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 no-print">
                 <Card title="Apurado (Crédito)" value={Utils.formatters.currency(kpis.valor_apurado_total)} iconName="fileText" color="blue" />
                 <Card title="Pago (Débito)" value={Utils.formatters.currency(kpis.valor_pago_total)} iconName="dollarSign" color="emerald" />
-                <Card title="Ajustes/Impostos" value={Utils.formatters.currency(kpis.valor_ajustado_total)} iconName="activity" color="purple" subtext="Adicionados manualmente" />
-                <Card title="Pendentes/Divergentes" value={kpis.qtd_diferenca + kpis.qtd_pendente} iconName="alertCircle" color="red" />
+                <Card title="Ajustes/Impostos" value={Utils.formatters.currency(kpis.valor_ajustado_total)} iconName="activity" color="purple" />
+                <Card title="Divergentes" value={kpis.qtd_diferenca + kpis.qtd_pendente} iconName="alertCircle" color="red" />
             </div>
 
-            {/* Tabela Principal */}
             <div className="glass-card overflow-hidden print:border-slate-300">
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center print:bg-slate-100">
                     <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
@@ -2816,6 +2815,7 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
