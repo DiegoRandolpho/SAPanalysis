@@ -2291,15 +2291,14 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
 const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
-    // Mês atual como padrão
-    const [mesAno, setMesAno] = useState(new Date().toISOString().slice(0, 7));
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Chama a função SQL
+            // Agora usa as datas do filtro global (dateIni e dateFim)
             const { data: res, error } = await supabaseClient.rpc('get_terceirizacao_turnover', {
-                p_mes_ano: mesAno,
+                p_data_ini: filters.dateIni,
+                p_data_fim: filters.dateFim,
                 p_filial: filters.filial || 'Todas'
             });
 
@@ -2313,12 +2312,12 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
         }
     };
 
-    // Recarrega sempre que mudar o mês ou a filial global
     useEffect(() => {
-        fetchData();
-    }, [mesAno, filters.filial]);
+        if (filters.dateIni && filters.dateFim) {
+            fetchData();
+        }
+    }, [filters.dateIni, filters.dateFim, filters.filial]);
 
-    // Se estiver carregando ou sem dados, mostra o loader
     if (loading || !data) {
         return (
             <div className="flex flex-col items-center justify-center h-64 text-slate-400">
@@ -2330,22 +2329,15 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
 
     return (
         <div className="space-y-6 animate-enter pb-10">
-            {/* Header e Filtro de Mês */}
-            <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
+            {/* Header Simples (Filtro fica no App.js agora) */}
+            <div className="flex justify-between items-end mb-2 no-print">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                         <Icons.Briefcase className="text-cyan-500" /> Turnover (RH)
                     </h2>
-                    <p className="text-sm text-slate-500 mt-1">Análise de admissões, demissões e rotatividade da frota.</p>
-                </div>
-                <div className="glass-card px-4 py-2 flex items-center gap-3 border border-slate-200 dark:border-slate-700">
-                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Mês de Referência:</span>
-                    <input 
-                        type="month" 
-                        className="bg-transparent border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-700 dark:text-white outline-none focus:border-cyan-500 transition-colors"
-                        value={mesAno}
-                        onChange={(e) => setMesAno(e.target.value)}
-                    />
+                    <p className="text-sm text-slate-500 mt-1">
+                        Análise de {Utils.date.formatNice(filters.dateIni)} até {Utils.date.formatNice(filters.dateFim)}
+                    </p>
                 </div>
             </div>
 
@@ -2356,14 +2348,14 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
                     value={data.headcount_inicial} 
                     iconName="truck" 
                     color="blue" 
-                    subtext="Veículos ativos no dia 01"
+                    subtext="Ativos no início do período"
                 />
                 <Card 
                     title="Admissões (Novos)" 
                     value={data.admissoes} 
                     iconName="userPlus" 
                     color="emerald" 
-                    subtext="Novos contratos no mês"
+                    subtext="Novos contratos"
                 />
                 <Card 
                     title="Desligamentos" 
@@ -2412,7 +2404,7 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
                                     </tr>
                                 ))}
                                 {(!data.lista_admitidos || data.lista_admitidos.length === 0) && (
-                                    <tr><td colSpan="3" className="p-10 text-center italic text-slate-400">Nenhuma admissão registrada neste período.</td></tr>
+                                    <tr><td colSpan="3" className="p-10 text-center italic text-slate-400">Nenhuma admissão registrada.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -2447,7 +2439,7 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
                                     </tr>
                                 ))}
                                 {(!data.lista_demitidos || data.lista_demitidos.length === 0) && (
-                                    <tr><td colSpan="3" className="p-10 text-center italic text-slate-400">Nenhum desligamento registrado neste período.</td></tr>
+                                    <tr><td colSpan="3" className="p-10 text-center italic text-slate-400">Nenhum desligamento registrado.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -3007,16 +2999,53 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
                                         </div>
                                     )}
                                     
-                                    {/* --- BLOCO DE TURNOVER (Agora fora, livre para funcionar) --- */}
                                     {view === 'terceirizacao_turnover' && (
-                                        <div className="space-y-6 animate-enter pb-10">
-                                            <TerceirizacaoTurnover 
-                                                supabaseClient={supabaseClient} 
-                                                filters={filters} 
-                                                onNotify={addLog} 
-                                            />
-                                        </div>
-                                    )}
+    <div className="space-y-6 animate-enter pb-10">
+        {/* Barra de Filtros Padronizada */}
+        <div className="glass-card p-4 flex gap-4 items-center no-print">
+            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                <Icons.Filter /> Período:
+            </div>
+            
+            <input 
+                type="date" 
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-cyan-500 outline-none"
+                value={filters.dateIni} 
+                onChange={e => setFilters({...filters, dateIni: e.target.value})} 
+            />
+            
+            <span className="text-slate-400 text-xs">até</span>
+            
+            <input 
+                type="date" 
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-cyan-500 outline-none"
+                value={filters.dateFim} 
+                onChange={e => setFilters({...filters, dateFim: e.target.value})} 
+            />
+
+            {/* Divisor */}
+            <div className="h-6 w-px bg-slate-300 dark:bg-slate-700 mx-2"></div>
+
+            {/* Filtro de Filial (Opcional, mas útil) */}
+            <select 
+                className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 min-w-[150px]" 
+                value={filters.filial} 
+                onChange={e => setFilters(prev => ({...prev, filial: e.target.value}))}
+            >
+                <option value="Todas">🏭 Todas as Filiais</option>
+                {/* Reutiliza a lista de filiais do dashboard se disponível, senão apenas 'Todas' */}
+                {(dashboardData.lista_filiais || []).map(f => (<option key={f.name} value={f.name}>{f.name}</option>))}
+            </select>
+        </div>
+
+        {/* Componente Turnover */}
+        <TerceirizacaoTurnover 
+            supabaseClient={supabaseClient} 
+            filters={filters} 
+            onNotify={addLog} 
+        />
+    </div>
+)}
                                 {view === 'controladoria' && (subView === 'dash' || subView === 'report') && (
                                     <>
                                         <div className="glass-card p-4 mb-6 flex gap-4 flex-wrap items-center relative z-30">
@@ -3074,6 +3103,7 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
