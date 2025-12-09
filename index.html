@@ -1401,7 +1401,7 @@
                         <button onClick={toggleSidebar} className="absolute -right-4 top-6 bg-slate-800 text-slate-400 hover:text-white p-1 rounded-full border border-slate-700 shadow-lg z-30 hover:scale-110 transition-transform"><Icons.ChevronLeft className={`transform transition-transform ${!isSidebarOpen ? 'rotate-180' : ''}`} /></button>
                     </div>
                     <nav className="flex-1 p-2 space-y-2 overflow-y-auto custom-scrollbar">
-                        {Utils.checkPermission(userRole, 'terceirizacao') && (<div className="group"><button onClick={() => isSidebarOpen && toggleModule('terceirizacao')} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}><div className="flex items-center gap-3"><Icons.Briefcase />{isSidebarOpen && <span className="font-semibold text-sm fade-enter">Terceirização</span>}</div>{isSidebarOpen && (<span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.terceirizacao ? 'rotate-180' : ''}`}><Icons.ChevronDown /></span>)}</button>{isSidebarOpen && expandedModules.terceirizacao && (<div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-800 pl-3 fade-enter"><button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'dashboard' ? 'text-blue-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Visão Geral</button><button onClick={() => setView('reports')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'reports' ? 'text-emerald-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Relatórios</button><button onClick={() => setView('upload')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'upload' ? 'text-purple-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Importação</button><button onClick={() => setView('terceirizacao_cadastros')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_cadastros' ? 'text-indigo-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Cadastros</button><button onClick={() => setView('terceirizacao_depara')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_depara' ? 'text-orange-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Configuração</button><button onClick={() => setView('terceirizacao_turnover')}  className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_turnover' ? 'text-cyan-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Turnover (RH)</button><button onClick={() => setView('terceirizacao_pagamentos')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view ==='terceirizacao_pagamentos' ? 'text-emerald-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Pagamentos</button></div>)}</div>)}
+                        {Utils.checkPermission(userRole, 'terceirizacao') && (<div className="group"><button onClick={() => isSidebarOpen && toggleModule('terceirizacao')} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}><div className="flex items-center gap-3"><Icons.Briefcase />{isSidebarOpen && <span className="font-semibold text-sm fade-enter">Terceirização</span>}</div>{isSidebarOpen && (<span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.terceirizacao ? 'rotate-180' : ''}`}><Icons.ChevronDown /></span>)}</button>{isSidebarOpen && expandedModules.terceirizacao && (<div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-800 pl-3 fade-enter"><button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'dashboard' ? 'text-blue-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Visão Geral</button><button onClick={() => setView('reports')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'reports' ? 'text-emerald-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Relatórios</button><button onClick={() => setView('terceirizacao_ativos')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_ativos' ? 'text-teal-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Relatório de Ativos</button><button onClick={() => setView('upload')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'upload' ? 'text-purple-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Importação</button><button onClick={() => setView('terceirizacao_cadastros')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_cadastros' ? 'text-indigo-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Cadastros</button><button onClick={() => setView('terceirizacao_depara')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_depara' ? 'text-orange-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Configuração</button><button onClick={() => setView('terceirizacao_turnover')}  className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_turnover' ? 'text-cyan-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Turnover (RH)</button><button onClick={() => setView('terceirizacao_pagamentos')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view ==='terceirizacao_pagamentos' ? 'text-emerald-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Pagamentos</button></div>)}</div>)}
                         {Utils.checkPermission(userRole, 'controladoria') && (<div className="group mt-2">
         <button onClick={() => isSidebarOpen && toggleModule('controladoria')} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}>
             <div className="flex items-center gap-3"><Icons.BarChart2 />{isSidebarOpen && <span className="font-semibold text-sm fade-enter">Controladoria</span>}</div>
@@ -2795,6 +2795,173 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
         </div>
     );
 };
+        // ============================================================================
+// COMPONENTE: RELATÓRIO DE ATIVOS (FROTA VIGENTE)
+// ============================================================================
+const TerceirizacaoRelatorioAtivos = ({ supabaseClient, filters, onNotify }) => {
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(false);
+
+    // Buscar dados
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const { data: res, error } = await supabaseClient.rpc('get_relatorio_ativos', {
+                p_filial: filters.filial || 'Todas'
+            });
+
+            if (error) throw error;
+            setData(res);
+        } catch (e) {
+            onNotify("Erro ao carregar ativos: " + e.message, "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, [filters.filial]);
+
+    // Exportar Excel
+    const handleExport = () => {
+        if (!data || !data.lista.length) return onNotify("Sem dados para exportar.", "error");
+        
+        const XLSX = window.XLSX;
+        if (!XLSX) return onNotify("Biblioteca Excel não carregada.", "error");
+
+        const ws = XLSX.utils.json_to_sheet(data.lista.map(item => ({
+            "Cód. SAP": item.cod_sap,
+            "Nome / Razão": item.nome,
+            "CNPJ": item.cnpj,
+            "Filial": item.filial,
+            "Veículo": item.veiculo,
+            "Início Contrato": Utils.date.formatNice(item.data_inicial),
+            "Dias Ativo": item.dias_ativo,
+            "Valor Mensal": item.valor_base
+        })));
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Terceiros Ativos");
+        XLSX.writeFile(wb, `Frota_Ativa_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
+    if (loading) return <div className="p-10 text-center text-slate-400">Carregando frota ativa...</div>;
+    if (!data) return null;
+
+    const { kpis, lista } = data;
+
+    return (
+        <div className="space-y-6 animate-enter pb-10">
+            {/* Header e Ações */}
+            <div className="flex justify-between items-end mb-2 no-print">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <Icons.CheckCircle className="text-emerald-500" /> Relatório de Ativos
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                        Terceiros com contrato vigente na filial: <strong>{filters.filial}</strong>
+                    </p>
+                </div>
+                <button 
+                    onClick={handleExport}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all"
+                >
+                    <Icons.Download width={16} /> Exportar Excel
+                </button>
+            </div>
+
+            {/* KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card 
+                    title="Terceiros Ativos" 
+                    value={kpis.total_ativos} 
+                    iconName="user" 
+                    color="blue" 
+                    subtext="Contratos vigentes"
+                />
+                <Card 
+                    title="Frota (Veículos)" 
+                    value={kpis.frota_distinta} 
+                    iconName="truck" 
+                    color="orange" 
+                    subtext="Equipamentos distintos"
+                />
+                <Card 
+                    title="Custo Fixo Mensal" 
+                    value={Utils.formatters.currency(kpis.custo_mensal)} 
+                    iconName="dollarSign" 
+                    color="purple" 
+                    subtext="Soma dos valores base"
+                />
+            </div>
+
+            {/* Tabela */}
+            <div className="glass-card overflow-hidden">
+                <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
+                    <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
+                        <Icons.ListFilter width={16} /> Detalhamento da Frota
+                    </h3>
+                    <span className="text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded text-slate-500">
+                        {lista.length} Registros
+                    </span>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300">
+                        <thead className="uppercase bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 font-bold text-slate-500">
+                            <tr>
+                                <th className="px-4 py-3">Status</th>
+                                <th className="px-4 py-3">SAP / Nome</th>
+                                <th className="px-4 py-3">Filial</th>
+                                <th className="px-4 py-3">Veículo</th>
+                                <th className="px-4 py-3">Início</th>
+                                <th className="px-4 py-3 text-right">Valor Base</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                            {lista.map((row, i) => (
+                                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                    <td className="px-4 py-3">
+                                        <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-1 rounded text-[10px] font-bold border border-emerald-200 dark:border-emerald-800">
+                                            ATIVO
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <div className="font-bold text-slate-800 dark:text-slate-200">{row.nome}</div>
+                                        <div className="text-[10px] text-slate-400 font-mono">SAP: {row.cod_sap} | Doc: {row.cnpj || '-'}</div>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <div className="font-medium">{row.filial}</div>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="p-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 rounded"><Icons.Truck width={12} /></div>
+                                            <span className="font-mono font-bold">{row.veiculo}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <div>{Utils.date.formatNice(row.data_inicial)}</div>
+                                        <div className="text-[9px] text-slate-400">{row.dias_ativo} dias ativo</div>
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-mono font-bold text-slate-700 dark:text-slate-200">
+                                        {Utils.formatters.currency(row.valor_base)}
+                                    </td>
+                                </tr>
+                            ))}
+                            {lista.length === 0 && (
+                                <tr>
+                                    <td colSpan="6" className="p-10 text-center italic text-slate-400">
+                                        Nenhum terceiro ativo encontrado nesta filial.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
         const App = () => {
             
             const [supabaseClient, setSupabaseClient] = useState(null);
@@ -3399,6 +3566,32 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
         />
     </div>
 )}
+                       {view === 'terceirizacao_ativos' && (
+    <div className="space-y-6 animate-enter pb-10">
+        {/* Barra de Filtros (Simples: Apenas Filial) */}
+        <div className="glass-card p-4 flex gap-4 items-center no-print">
+            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                <Icons.Filter /> Filtros:
+            </div>
+            
+            <select 
+                className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 min-w-[200px]" 
+                value={filters.filial} 
+                onChange={e => setFilters(prev => ({...prev, filial: e.target.value}))}
+            >
+                <option value="Todas">🏭 Todas as Filiais</option>
+                {/* Reutiliza a lista de filiais existente */}
+                {(dashboardData.lista_filiais || []).map(f => (<option key={f.name} value={f.name}>{f.name}</option>))}
+            </select>
+        </div>
+
+        <TerceirizacaoRelatorioAtivos 
+            supabaseClient={supabaseClient} 
+            filters={filters} 
+            onNotify={addLog} 
+        />
+    </div>
+)}         
                                 {view === 'controladoria' && (subView === 'dash' || subView === 'report') && (
                                     <>
                                         <div className="glass-card p-4 mb-6 flex gap-4 flex-wrap items-center relative z-30">
@@ -3456,6 +3649,7 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
