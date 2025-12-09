@@ -2453,7 +2453,7 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
     );
 };
 // ============================================================================
-// COMPONENTE: CADASTRO DE TERCEIROS (COM MÁSCARAS E EDIÇÃO)
+// COMPONENTE: CADASTRO DE TERCEIROS (COM HOVER NAS AÇÕES)
 // ============================================================================
 const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
     const [terceiros, setTerceiros] = useState([]);
@@ -2487,7 +2487,6 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
     // --- FUNÇÕES AUXILIARES DE FORMATAÇÃO ---
     const formatDocumento = (val, type) => {
         if (!val) return '-';
-        // Remove tudo que não é dígito e remove notação científica se houver sujeira
         const str = String(val).replace(/\D/g, '');
         
         if (type === 'CNPJ' || str.length > 11) {
@@ -2498,9 +2497,9 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
     };
 
     const handleMaskInput = (e, type) => {
-        let val = e.target.value.replace(/\D/g, ''); // Só números
+        let val = e.target.value.replace(/\D/g, ''); 
         if (type === 'CNPJ') {
-            val = val.slice(0, 14); // Limita tamanho
+            val = val.slice(0, 14);
             val = val.replace(/^(\d{2})(\d)/, "$1.$2");
             val = val.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
             val = val.replace(/\.(\d{3})(\d)/, ".$1/$2");
@@ -2573,8 +2572,8 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
         try {
             const payload = { 
                 ...formData,
-                cnpj: formData.cnpj.replace(/\D/g, ''), // Salva limpo no banco
-                cpf: formData.cpf.replace(/\D/g, ''),   // Salva limpo no banco
+                cnpj: formData.cnpj.replace(/\D/g, ''), 
+                cpf: formData.cpf.replace(/\D/g, ''),   
                 nome_completo: formData.nome_completo || formData.razao_social 
             };
 
@@ -2623,15 +2622,13 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
         );
     });
 
-    // 6. Abrir Modal (Novo ou Editar)
+    // 6. Abrir Modal
     const openModal = (item = null) => {
         if (item) {
-            // Ao editar, aplica máscara para exibir bonito no input
             setFormData({
                 ...item,
                 cnpj: formatDocumento(item.cnpj, 'CNPJ'),
                 cpf: formatDocumento(item.cpf, 'CPF'),
-                // Garante que campos nulos virem string vazia para não dar erro no React
                 rua: item.rua || '',
                 bairro: item.bairro || '',
                 cidade: item.cidade || '',
@@ -2666,7 +2663,6 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
 
                 <div className="p-6 overflow-y-auto custom-scrollbar">
                     <form onSubmit={handleSave} className="space-y-6">
-                        {/* Seção 1 */}
                         <div className="space-y-4">
                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2">Dados Cadastrais</h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2700,7 +2696,6 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
                             </div>
                         </div>
 
-                        {/* Seção 2: Endereço */}
                         <div className="space-y-4">
                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2">Endereço</h4>
                             <div className="flex gap-4">
@@ -2722,7 +2717,6 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
                             </div>
                         </div>
 
-                        {/* Seção 3: Contato */}
                         <div className="space-y-4">
                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2">Contato</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2732,8 +2726,10 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
                         </div>
 
                         <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
-                            <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800">Cancelar</button>
-                            <button type="submit" disabled={isSaving} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow-lg flex items-center gap-2">{isSaving ? 'Salvando...' : 'Salvar Cadastro'}</button>
+                            <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancelar</button>
+                            <button type="submit" disabled={isSaving} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow-lg flex items-center gap-2 transition-colors disabled:opacity-70">
+                                {isSaving ? <div className="loader h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div> : <><Icons.CheckCircle width={16} /> Salvar Cadastro</>}
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -2775,7 +2771,6 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
                                         </td>
                                         <td className="px-6 py-3 font-mono text-xs"><span className="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded border border-slate-200 dark:border-slate-600">{row.cod_sap}</span></td>
                                         <td className="px-6 py-3 text-xs font-mono">
-                                            {/* AQUI APLICAMOS A FORMATAÇÃO VISUAL NA TABELA */}
                                             {row.cnpj && <div className="mb-1"><span className="font-bold text-slate-500 mr-1">CNPJ:</span>{formatDocumento(row.cnpj, 'CNPJ')}</div>}
                                             {row.cpf && <div><span className="font-bold text-slate-500 mr-1">CPF:</span>{formatDocumento(row.cpf, 'CPF')}</div>}
                                         </td>
@@ -2783,7 +2778,8 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
                                             {row.cidade ? <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded">{row.cidade}/{row.estado}</span> : '-'}
                                         </td>
                                         <td className="px-6 py-3 text-right">
-                                            <div className="flex justify-end gap-2 opacity-100">
+                                            {/* EFEITO DE HOVER RETOMADO AQUI */}
+                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                                 <button onClick={() => openModal(row)} className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors" title="Editar"><Icons.Edit width={16} /></button>
                                                 <button onClick={() => handleDelete(row.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors" title="Excluir"><Icons.Trash2 width={16} /></button>
                                             </div>
@@ -3460,6 +3456,7 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
