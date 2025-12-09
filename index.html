@@ -260,6 +260,8 @@
             Fuel: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><line x1="3" y1="22" x2="15" y2="22"/><line x1="5" y1="17" x2="5" y2="11"/><circle cx="14" cy="10" r="7"/><path d="M8 12a7 7 0 0 1 14 0"/></svg>,
             AlertCircle: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
             Moon: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>,
+            Phone: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>,
+            Mail: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>,
             Sun: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>,
             ArrowUp: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>,
             ArrowDown: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>,
@@ -1445,7 +1447,7 @@
                         <button onClick={toggleSidebar} className="absolute -right-4 top-6 bg-slate-800 text-slate-400 hover:text-white p-1 rounded-full border border-slate-700 shadow-lg z-30 hover:scale-110 transition-transform"><Icons.ChevronLeft className={`transform transition-transform ${!isSidebarOpen ? 'rotate-180' : ''}`} /></button>
                     </div>
                     <nav className="flex-1 p-2 space-y-2 overflow-y-auto custom-scrollbar">
-                        {Utils.checkPermission(userRole, 'terceirizacao') && (<div className="group"><button onClick={() => isSidebarOpen && toggleModule('terceirizacao')} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}><div className="flex items-center gap-3"><Icons.Briefcase />{isSidebarOpen && <span className="font-semibold text-sm fade-enter">Terceirização</span>}</div>{isSidebarOpen && (<span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.terceirizacao ? 'rotate-180' : ''}`}><Icons.ChevronDown /></span>)}</button>{isSidebarOpen && expandedModules.terceirizacao && (<div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-800 pl-3 fade-enter"><button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'dashboard' ? 'text-blue-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Visão Geral</button><button onClick={() => setView('reports')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'reports' ? 'text-emerald-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Relatórios</button><button onClick={() => setView('upload')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'upload' ? 'text-purple-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Importação</button><button onClick={() => setView('terceirizacao_depara')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_depara' ? 'text-orange-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Configuração</button><button onClick={() => setView('terceirizacao_turnover')}  className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_turnover' ? 'text-cyan-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Turnover (RH)</button><button onClick={() => setView('terceirizacao_pagamentos')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view ==='terceirizacao_pagamentos' ? 'text-emerald-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Pagamentos</button></div>)}</div>)}
+                        {Utils.checkPermission(userRole, 'terceirizacao') && (<div className="group"><button onClick={() => isSidebarOpen && toggleModule('terceirizacao')} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}><div className="flex items-center gap-3"><Icons.Briefcase />{isSidebarOpen && <span className="font-semibold text-sm fade-enter">Terceirização</span>}</div>{isSidebarOpen && (<span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.terceirizacao ? 'rotate-180' : ''}`}><Icons.ChevronDown /></span>)}</button>{isSidebarOpen && expandedModules.terceirizacao && (<div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-800 pl-3 fade-enter"><button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'dashboard' ? 'text-blue-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Visão Geral</button><button onClick={() => setView('reports')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'reports' ? 'text-emerald-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Relatórios</button><button onClick={() => setView('upload')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'upload' ? 'text-purple-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Importação</button><button onClick={() => setView('terceirizacao_cadastros')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_cadastros' ? 'text-indigo-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Cadastros</button><button onClick={() => setView('terceirizacao_depara')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_depara' ? 'text-orange-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Configuração</button><button onClick={() => setView('terceirizacao_turnover')}  className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_turnover' ? 'text-cyan-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Turnover (RH)</button><button onClick={() => setView('terceirizacao_pagamentos')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view ==='terceirizacao_pagamentos' ? 'text-emerald-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Pagamentos</button></div>)}</div>)}
                         {Utils.checkPermission(userRole, 'controladoria') && (<div className="group mt-2">
         <button onClick={() => isSidebarOpen && toggleModule('controladoria')} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}>
             <div className="flex items-center gap-3"><Icons.BarChart2 />{isSidebarOpen && <span className="font-semibold text-sm fade-enter">Controladoria</span>}</div>
@@ -2496,6 +2498,315 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
         </div>
     );
 };
+        // ============================================================================
+// COMPONENTE: CADASTRO DE TERCEIROS
+// ============================================================================
+const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
+    const [terceiros, setTerceiros] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    
+    // Estados do Modal
+    const [showModal, setShowModal] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [formData, setFormData] = useState({
+        id: null,
+        apelido: '',
+        cod_sap: '',
+        tipo_pessoa: 'Física', // Padrão
+        cnpj: '',
+        razao_social: '',
+        nome_completo: '',
+        cpf: '',
+        data_nascimento: '',
+        email: '',
+        telefone: ''
+    });
+
+    // 1. Buscar Dados
+    const fetchTerceiros = async () => {
+        setLoading(true);
+        try {
+            const { data, error } = await supabaseClient
+                .from('terceiros')
+                .select('*')
+                .order('apelido', { ascending: true }); // Ordena por apelido
+            
+            if (error) throw error;
+            setTerceiros(data || []);
+        } catch (e) {
+            onNotify("Erro ao carregar: " + e.message, "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchTerceiros(); }, []);
+
+    // 2. Salvar (Inserir ou Editar)
+    const handleSave = async (e) => {
+        e.preventDefault();
+        setIsSaving(true);
+        try {
+            // Remove campos vazios para não salvar sujeira
+            const payload = { ...formData };
+            if (!payload.data_nascimento) payload.data_nascimento = null;
+
+            let error;
+            if (payload.id) {
+                // Update
+                const { error: err } = await supabaseClient.from('terceiros').update(payload).eq('id', payload.id);
+                error = err;
+            } else {
+                // Insert (Remove ID null)
+                delete payload.id;
+                const { error: err } = await supabaseClient.from('terceiros').insert(payload);
+                error = err;
+            }
+
+            if (error) throw error;
+            onNotify("Cadastro salvo com sucesso!", "success");
+            setShowModal(false);
+            fetchTerceiros();
+        } catch (e) {
+            onNotify("Erro ao salvar: " + e.message, "error");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // 3. Excluir
+    const handleDelete = async (id) => {
+        if (!confirm("Tem certeza que deseja excluir este cadastro?")) return;
+        try {
+            const { error } = await supabaseClient.from('terceiros').delete().eq('id', id);
+            if (error) throw error;
+            onNotify("Excluído com sucesso.", "success");
+            fetchTerceiros();
+        } catch (e) {
+            onNotify(e.message, "error");
+        }
+    };
+
+    // 4. Filtragem Local
+    const filteredData = thirds = terceiros.filter(t => {
+        const search = searchTerm.toLowerCase();
+        return (
+            (t.apelido || '').toLowerCase().includes(search) ||
+            (t.nome_completo || '').toLowerCase().includes(search) ||
+            (t.razao_social || '').toLowerCase().includes(search) ||
+            (t.cod_sap || '').toLowerCase().includes(search) ||
+            (t.cpf || '').includes(search) ||
+            (t.cnpj || '').includes(search)
+        );
+    });
+
+    const openModal = (item = null) => {
+        if (item) {
+            setFormData(item);
+        } else {
+            setFormData({
+                id: null, apelido: '', cod_sap: '', tipo_pessoa: 'Física',
+                cnpj: '', razao_social: '', nome_completo: '', cpf: '',
+                data_nascimento: '', email: '', telefone: ''
+            });
+        }
+        setShowModal(true);
+    };
+
+    return (
+        <div className="space-y-6 animate-enter pb-10">
+            {/* Header e Controles */}
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <Icons.User className="text-blue-500" /> Cadastro de Terceiros
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-1">Gerencie motoristas, fornecedores e prestadores.</p>
+                </div>
+                <div className="flex gap-3 w-full md:w-auto">
+                    <div className="relative flex-1 md:w-64">
+                        <Icons.Search className="absolute left-3 top-2.5 text-slate-400 w-4 h-4" />
+                        <input 
+                            type="text" 
+                            placeholder="Buscar por nome, SAP, CPF..." 
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-9 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <button 
+                        onClick={() => openModal()} 
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-500/30 transition-all"
+                    >
+                        <Icons.Plus width={16} /> Novo
+                    </button>
+                </div>
+            </div>
+
+            {/* Tabela de Listagem */}
+            <div className="glass-card overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300">
+                        <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                            <tr>
+                                <th className="px-6 py-3">Apelido / Nome</th>
+                                <th className="px-6 py-3">Cód. SAP</th>
+                                <th className="px-6 py-3">Documento (CPF/CNPJ)</th>
+                                <th className="px-6 py-3">Contato</th>
+                                <th className="px-6 py-3 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                            {loading ? (
+                                <tr><td colSpan="5" className="p-8 text-center text-slate-400">Carregando cadastros...</td></tr>
+                            ) : filteredData.length === 0 ? (
+                                <tr><td colSpan="5" className="p-8 text-center text-slate-400 italic">Nenhum registro encontrado.</td></tr>
+                            ) : (
+                                filteredData.map((row) => (
+                                    <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                                        <td className="px-6 py-3">
+                                            <div className="font-bold text-slate-800 dark:text-slate-200">{row.apelido || row.nome_completo || row.razao_social}</div>
+                                            <div className="text-xs text-slate-400">{row.tipo_pessoa === 'Física' ? row.nome_completo : row.razao_social}</div>
+                                        </td>
+                                        <td className="px-6 py-3 font-mono text-xs bg-slate-50/50 dark:bg-slate-800/50 w-fit rounded">{row.cod_sap}</td>
+                                        <td className="px-6 py-3">{row.cpf || row.cnpj || '-'}</td>
+                                        <td className="px-6 py-3 text-xs">
+                                            {row.telefone && <div className="flex items-center gap-1"><Icons.Phone width={12}/> {row.telefone}</div>}
+                                            {row.email && <div className="flex items-center gap-1 text-blue-500"><Icons.Mail width={12}/> {row.email}</div>}
+                                        </td>
+                                        <td className="px-6 py-3 text-right">
+                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => openModal(row)} className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"><Icons.Edit width={16} /></button>
+                                                <button onClick={() => handleDelete(row.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"><Icons.Trash2 width={16} /></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-500 text-center">
+                    Exibindo {filteredData.length} registros
+                </div>
+            </div>
+
+            {/* MODAL DE CADASTRO */}
+            {showModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-enter" onClick={() => setShowModal(false)}>
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+                        
+                        {/* Header Modal */}
+                        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                {formData.id ? <Icons.Edit className="text-blue-500" /> : <Icons.Plus className="text-blue-500" />}
+                                {formData.id ? 'Editar Terceiro' : 'Novo Cadastro'}
+                            </h3>
+                            <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-slate-500"><Icons.X width={20}/></button>
+                        </div>
+
+                        {/* Form */}
+                        <div className="p-6 overflow-y-auto custom-scrollbar">
+                            <form onSubmit={handleSave} className="space-y-5">
+                                
+                                {/* Linha 1: Tipo e SAP */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="input-label">Tipo de Pessoa</label>
+                                        <select 
+                                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500"
+                                            value={formData.tipo_pessoa}
+                                            onChange={e => setFormData({...formData, tipo_pessoa: e.target.value})}
+                                        >
+                                            <option value="Física">Pessoa Física</option>
+                                            <option value="Jurídica">Pessoa Jurídica</option>
+                                        </select>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="input-label">Código SAP <span className="text-red-500">*</span></label>
+                                        <input type="text" required className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 font-mono" 
+                                            value={formData.cod_sap} onChange={e => setFormData({...formData, cod_sap: e.target.value})} placeholder="Ex: 40001234" />
+                                    </div>
+                                </div>
+
+                                {/* Linha 2: Apelido */}
+                                <div>
+                                    <label className="input-label">Apelido (Nome Fantasia) <span className="text-red-500">*</span></label>
+                                    <input type="text" required className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" 
+                                        value={formData.apelido} onChange={e => setFormData({...formData, apelido: e.target.value})} placeholder="Como o terceiro é conhecido..." />
+                                </div>
+
+                                {/* Renderização Condicional PF vs PJ */}
+                                {formData.tipo_pessoa === 'Física' ? (
+                                    <>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="input-label">CPF</label>
+                                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" 
+                                                    value={formData.cpf} onChange={e => setFormData({...formData, cpf: e.target.value})} placeholder="000.000.000-00" />
+                                            </div>
+                                            <div>
+                                                <label className="input-label">Data de Nascimento</label>
+                                                <input type="date" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" 
+                                                    value={formData.data_nascimento} onChange={e => setFormData({...formData, data_nascimento: e.target.value})} />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="input-label">Nome Completo</label>
+                                            <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" 
+                                                value={formData.nome_completo} onChange={e => setFormData({...formData, nome_completo: e.target.value})} />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="input-label">CNPJ</label>
+                                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" 
+                                                    value={formData.cnpj} onChange={e => setFormData({...formData, cnpj: e.target.value})} placeholder="00.000.000/0001-00" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="input-label">Razão Social</label>
+                                            <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" 
+                                                value={formData.razao_social} onChange={e => setFormData({...formData, razao_social: e.target.value})} />
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Contato (Comum a todos) */}
+                                <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">Informações de Contato</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="input-label">E-mail</label>
+                                            <input type="email" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" 
+                                                value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                                        </div>
+                                        <div>
+                                            <label className="input-label">Telefone / WhatsApp</label>
+                                            <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" 
+                                                value={formData.telefone} onChange={e => setFormData({...formData, telefone: e.target.value})} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Botões do Modal */}
+                                <div className="flex justify-end gap-3 pt-4">
+                                    <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800">Cancelar</button>
+                                    <button type="submit" disabled={isSaving} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow-lg flex items-center gap-2">
+                                        {isSaving ? 'Salvando...' : 'Salvar Cadastro'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
         const App = () => {
             
             const [supabaseClient, setSupabaseClient] = useState(null);
@@ -3029,6 +3340,14 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
                                         <DataTable data={filteredReportData} onNotify={addLog} onExportAll={() => batchExport('resumo_mensal', 'Relatorio_Geral_Completo')} />
                                     </div>
                                 )}
+                                {view === 'terceirizacao_cadastros' && (
+                                    <div className="space-y-6 animate-enter pb-10">
+                                        <TerceirizacaoCadastros 
+                                            supabaseClient={supabaseClient} 
+                                            onNotify={addLog} 
+                                        />
+                                    </div>
+                                )}
                                 {view === 'terceirizacao_pagamentos' && (
                                         <div className="space-y-8">
                                             <div className="glass-card p-4 flex gap-4 items-center no-print">
@@ -3149,6 +3468,7 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
