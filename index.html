@@ -2283,48 +2283,64 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
         </>
     );
 };
-        const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
+        // ============================================================================
+// COMPONENTE: TURNOVER (RH)
+// ============================================================================
+const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
     const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(false);
-    
-    // Mês selecionado (YYYY-MM) para o cálculo
+    const [loading, setLoading] = useState(true);
+    // Mês atual como padrão
     const [mesAno, setMesAno] = useState(new Date().toISOString().slice(0, 7));
 
     const fetchData = async () => {
         setLoading(true);
         try {
+            // Chama a função SQL
             const { data: res, error } = await supabaseClient.rpc('get_terceirizacao_turnover', {
                 p_mes_ano: mesAno,
-                p_filial: filters.filial // Usa o filtro global de filial
+                p_filial: filters.filial || 'Todas'
             });
+
             if (error) throw error;
             setData(res);
         } catch (e) {
-            onNotify("Erro Turnover: " + e.message, "error");
+            console.error("Erro Turnover:", e);
+            onNotify("Erro ao calcular Turnover: " + e.message, "error");
         } finally {
             setLoading(false);
         }
     };
 
+    // Recarrega sempre que mudar o mês ou a filial global
     useEffect(() => {
         fetchData();
     }, [mesAno, filters.filial]);
 
-    if (!data) return <div className="p-10 text-center"><div className="loader mx-auto"></div> Calculando Turnover...</div>;
+    // Se estiver carregando ou sem dados, mostra o loader
+    if (loading || !data) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+                <div className="loader h-10 w-10 border-4 border-cyan-500 rounded-full border-t-transparent mb-4 animate-spin"></div>
+                <p>Calculando indicadores de Turnover...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 animate-enter pb-10">
-            {/* Header / Filtro Específico */}
-            <div className="flex justify-between items-end mb-4 no-print">
+            {/* Header e Filtro de Mês */}
+            <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
                 <div>
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">Indicadores de Turnover</h2>
-                    <p className="text-sm text-slate-500">Análise de rotatividade da frota terceirizada</p>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <Icons.Briefcase className="text-cyan-500" /> Turnover (RH)
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-1">Análise de admissões, demissões e rotatividade da frota.</p>
                 </div>
-                <div className="glass-card px-4 py-2 flex items-center gap-3">
-                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Mês de Análise:</span>
+                <div className="glass-card px-4 py-2 flex items-center gap-3 border border-slate-200 dark:border-slate-700">
+                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Mês de Referência:</span>
                     <input 
                         type="month" 
-                        className="bg-transparent border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-700 dark:text-white outline-none"
+                        className="bg-transparent border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-700 dark:text-white outline-none focus:border-cyan-500 transition-colors"
                         value={mesAno}
                         onChange={(e) => setMesAno(e.target.value)}
                     />
@@ -2338,78 +2354,104 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
                     value={data.headcount_inicial} 
                     iconName="truck" 
                     color="blue" 
-                    subtext="Ativos no dia 01"
+                    subtext="Veículos ativos no dia 01"
                 />
                 <Card 
                     title="Admissões (Novos)" 
                     value={data.admissoes} 
-                    iconName="user" 
+                    iconName="userPlus" 
                     color="emerald" 
-                    subtext="Contratos novos"
+                    subtext="Novos contratos no mês"
                 />
                 <Card 
-                    title="Demissões (Saídas)" 
+                    title="Desligamentos" 
                     value={data.demissoes} 
-                    iconName="logOut" 
-                    color="red" 
-                    subtext="Sem renovação"
+                    iconName="userMinus" 
+                    color="rose" 
+                    subtext="Contratos encerrados"
                 />
                 <Card 
                     title="Taxa de Turnover" 
-                    value={data.turnover_perc.toFixed(2) + "%"} 
+                    value={Number(data.turnover_perc).toFixed(2) + "%"} 
                     iconName="activity" 
                     color={data.turnover_perc > 5 ? "red" : "purple"} 
                     subtext="(Adm + Dem) / Inicial"
                 />
             </div>
 
-            {/* Detalhamento */}
+            {/* Tabelas de Detalhamento */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Lista de Admitidos */}
-                <div className="glass-card overflow-hidden">
-                    <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/30 flex justify-between">
-                        <h3 className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">Entradas / Admissões</h3>
-                        <span className="text-xs font-bold bg-white dark:bg-slate-800 px-2 rounded text-emerald-600">{data.admissoes}</span>
+                
+                {/* Tabela de Admissões */}
+                <div className="glass-card overflow-hidden flex flex-col h-[400px]">
+                    <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 border-b border-emerald-100 dark:border-emerald-800/30 flex justify-between items-center">
+                        <h3 className="font-bold text-emerald-700 dark:text-emerald-400 text-sm flex items-center gap-2">
+                            <Icons.TrendingUp width={16} /> Entradas / Admissões
+                        </h3>
+                        <span className="text-xs font-bold bg-white dark:bg-slate-800 px-2 py-1 rounded text-emerald-600 border border-emerald-200 dark:border-emerald-900">
+                            {data.admissoes}
+                        </span>
                     </div>
-                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
                         <table className="w-full text-xs text-left">
-                            <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500"><tr><th className="p-2">Data</th><th className="p-2">Fornecedor</th><th className="p-2">Veículo</th></tr></thead>
+                            <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500 font-semibold">
+                                <tr>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800">Data Início</th>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800">Fornecedor</th>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800">Equipamento</th>
+                                </tr>
+                            </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
-                                {data.lista_admitidos.map((item, i) => (
-                                    <tr key={i} className="hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10">
-                                        <td className="p-2">{Utils.date.formatNice(item.data_inicial)}</td>
-                                        <td className="p-2 font-bold">{item.fornecedor}</td>
-                                        <td className="p-2">{item.equipamento}</td>
+                                {(data.lista_admitidos || []).map((item, i) => (
+                                    <tr key={i} className="hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-colors">
+                                        <td className="p-3 font-mono text-emerald-600 dark:text-emerald-400">{Utils.date.formatNice(item.data_inicial)}</td>
+                                        <td className="p-3 font-bold">{item.fornecedor}</td>
+                                        <td className="p-3">{item.equipamento}</td>
                                     </tr>
                                 ))}
-                                {data.lista_admitidos.length === 0 && <tr><td colSpan="3" className="p-4 text-center italic text-slate-400">Nenhuma admissão no período.</td></tr>}
+                                {(!data.lista_admitidos || data.lista_admitidos.length === 0) && (
+                                    <tr><td colSpan="3" className="p-10 text-center italic text-slate-400">Nenhuma admissão registrada neste período.</td></tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                {/* Lista de Demitidos */}
-                <div className="glass-card overflow-hidden">
-                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800/30 flex justify-between">
-                        <h3 className="font-bold text-red-700 dark:text-red-400 text-sm">Saídas / Desligamentos</h3>
-                        <span className="text-xs font-bold bg-white dark:bg-slate-800 px-2 rounded text-red-600">{data.demissoes}</span>
+                {/* Tabela de Demissões */}
+                <div className="glass-card overflow-hidden flex flex-col h-[400px]">
+                    <div className="p-4 bg-rose-50 dark:bg-rose-900/10 border-b border-rose-100 dark:border-rose-800/30 flex justify-between items-center">
+                        <h3 className="font-bold text-rose-700 dark:text-rose-400 text-sm flex items-center gap-2">
+                            <Icons.TrendingDown width={16} /> Saídas / Desligamentos
+                        </h3>
+                        <span className="text-xs font-bold bg-white dark:bg-slate-800 px-2 py-1 rounded text-rose-600 border border-rose-200 dark:border-rose-900">
+                            {data.demissoes}
+                        </span>
                     </div>
-                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
                         <table className="w-full text-xs text-left">
-                            <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500"><tr><th className="p-2">Data Fim</th><th className="p-2">Fornecedor</th><th className="p-2">Veículo</th></tr></thead>
+                            <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500 font-semibold">
+                                <tr>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800">Data Fim</th>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800">Fornecedor</th>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800">Equipamento</th>
+                                </tr>
+                            </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
-                                {data.lista_demitidos.map((item, i) => (
-                                    <tr key={i} className="hover:bg-red-50/50 dark:hover:bg-red-900/10">
-                                        <td className="p-2">{Utils.date.formatNice(item.data_final)}</td>
-                                        <td className="p-2 font-bold">{item.fornecedor}</td>
-                                        <td className="p-2">{item.equipamento}</td>
+                                {(data.lista_demitidos || []).map((item, i) => (
+                                    <tr key={i} className="hover:bg-rose-50/50 dark:hover:bg-rose-900/10 transition-colors">
+                                        <td className="p-3 font-mono text-rose-600 dark:text-rose-400">{Utils.date.formatNice(item.data_final)}</td>
+                                        <td className="p-3 font-bold">{item.fornecedor}</td>
+                                        <td className="p-3">{item.equipamento}</td>
                                     </tr>
                                 ))}
-                                {data.lista_demitidos.length === 0 && <tr><td colSpan="3" className="p-4 text-center italic text-slate-400">Nenhum desligamento no período.</td></tr>}
+                                {(!data.lista_demitidos || data.lista_demitidos.length === 0) && (
+                                    <tr><td colSpan="3" className="p-10 text-center italic text-slate-400">Nenhum desligamento registrado neste período.</td></tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
                 </div>
+
             </div>
         </div>
     );
@@ -3030,6 +3072,7 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
