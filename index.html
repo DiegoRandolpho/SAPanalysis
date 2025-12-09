@@ -1397,7 +1397,7 @@
                         <button onClick={toggleSidebar} className="absolute -right-4 top-6 bg-slate-800 text-slate-400 hover:text-white p-1 rounded-full border border-slate-700 shadow-lg z-30 hover:scale-110 transition-transform"><Icons.ChevronLeft className={`transform transition-transform ${!isSidebarOpen ? 'rotate-180' : ''}`} /></button>
                     </div>
                     <nav className="flex-1 p-2 space-y-2 overflow-y-auto custom-scrollbar">
-                        {Utils.checkPermission(userRole, 'terceirizacao') && (<div className="group"><button onClick={() => isSidebarOpen && toggleModule('terceirizacao')} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}><div className="flex items-center gap-3"><Icons.Briefcase />{isSidebarOpen && <span className="font-semibold text-sm fade-enter">Terceirização</span>}</div>{isSidebarOpen && (<span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.terceirizacao ? 'rotate-180' : ''}`}><Icons.ChevronDown /></span>)}</button>{isSidebarOpen && expandedModules.terceirizacao && (<div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-800 pl-3 fade-enter"><button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'dashboard' ? 'text-blue-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Visão Geral</button><button onClick={() => setView('reports')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'reports' ? 'text-emerald-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Relatórios</button><button onClick={() => setView('upload')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'upload' ? 'text-purple-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Importação</button><button onClick={() => setView('terceirizacao_depara')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_depara' ? 'text-orange-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Configuração</button><button onClick={() => setView('terceirizacao_pagamentos')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view ==='terceirizacao_pagamentos' ? 'text-emerald-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Pagamentos</button></div>)}</div>)}
+                        {Utils.checkPermission(userRole, 'terceirizacao') && (<div className="group"><button onClick={() => isSidebarOpen && toggleModule('terceirizacao')} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}><div className="flex items-center gap-3"><Icons.Briefcase />{isSidebarOpen && <span className="font-semibold text-sm fade-enter">Terceirização</span>}</div>{isSidebarOpen && (<span className={`text-slate-500 transform transition-transform duration-200 ${expandedModules.terceirizacao ? 'rotate-180' : ''}`}><Icons.ChevronDown /></span>)}</button>{isSidebarOpen && expandedModules.terceirizacao && (<div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-800 pl-3 fade-enter"><button onClick={() => setView('dashboard')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'dashboard' ? 'text-blue-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Visão Geral</button><button onClick={() => setView('reports')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'reports' ? 'text-emerald-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Relatórios</button><button onClick={() => setView('upload')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'upload' ? 'text-purple-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Importação</button><button onClick={() => setView('terceirizacao_depara')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_depara' ? 'text-orange-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>Configuração</button><button onClick={() => setView('terceirizacao_turnover')}  className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view === 'terceirizacao_turnover' ? 'text-cyan-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Turnover (RH)</button><button onClick={() => setView('terceirizacao_pagamentos')} className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded transition-colors ${view ==='terceirizacao_pagamentos' ? 'text-emerald-400 font-medium bg-slate-800/50' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`} >Pagamentos</button></div>)}</div>)}
                         {Utils.checkPermission(userRole, 'controladoria') && (<div className="group mt-2">
         <button onClick={() => isSidebarOpen && toggleModule('controladoria')} className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-colors ${!isSidebarOpen ? 'justify-center' : 'bg-slate-800/40 text-slate-100 hover:bg-slate-800'}`}>
             <div className="flex items-center gap-3"><Icons.BarChart2 />{isSidebarOpen && <span className="font-semibold text-sm fade-enter">Controladoria</span>}</div>
@@ -2283,6 +2283,137 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
         </>
     );
 };
+        const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(false);
+    
+    // Mês selecionado (YYYY-MM) para o cálculo
+    const [mesAno, setMesAno] = useState(new Date().toISOString().slice(0, 7));
+
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const { data: res, error } = await supabaseClient.rpc('get_terceirizacao_turnover', {
+                p_mes_ano: mesAno,
+                p_filial: filters.filial // Usa o filtro global de filial
+            });
+            if (error) throw error;
+            setData(res);
+        } catch (e) {
+            onNotify("Erro Turnover: " + e.message, "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, [mesAno, filters.filial]);
+
+    if (!data) return <div className="p-10 text-center"><div className="loader mx-auto"></div> Calculando Turnover...</div>;
+
+    return (
+        <div className="space-y-6 animate-enter pb-10">
+            {/* Header / Filtro Específico */}
+            <div className="flex justify-between items-end mb-4 no-print">
+                <div>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">Indicadores de Turnover</h2>
+                    <p className="text-sm text-slate-500">Análise de rotatividade da frota terceirizada</p>
+                </div>
+                <div className="glass-card px-4 py-2 flex items-center gap-3">
+                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Mês de Análise:</span>
+                    <input 
+                        type="month" 
+                        className="bg-transparent border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-slate-700 dark:text-white outline-none"
+                        value={mesAno}
+                        onChange={(e) => setMesAno(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            {/* KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card 
+                    title="Frota Inicial" 
+                    value={data.headcount_inicial} 
+                    iconName="truck" 
+                    color="blue" 
+                    subtext="Ativos no dia 01"
+                />
+                <Card 
+                    title="Admissões (Novos)" 
+                    value={data.admissoes} 
+                    iconName="user" 
+                    color="emerald" 
+                    subtext="Contratos novos"
+                />
+                <Card 
+                    title="Demissões (Saídas)" 
+                    value={data.demissoes} 
+                    iconName="logOut" 
+                    color="red" 
+                    subtext="Sem renovação"
+                />
+                <Card 
+                    title="Taxa de Turnover" 
+                    value={data.turnover_perc.toFixed(2) + "%"} 
+                    iconName="activity" 
+                    color={data.turnover_perc > 5 ? "red" : "purple"} 
+                    subtext="(Adm + Dem) / Inicial"
+                />
+            </div>
+
+            {/* Detalhamento */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Lista de Admitidos */}
+                <div className="glass-card overflow-hidden">
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/30 flex justify-between">
+                        <h3 className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">Entradas / Admissões</h3>
+                        <span className="text-xs font-bold bg-white dark:bg-slate-800 px-2 rounded text-emerald-600">{data.admissoes}</span>
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <table className="w-full text-xs text-left">
+                            <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500"><tr><th className="p-2">Data</th><th className="p-2">Fornecedor</th><th className="p-2">Veículo</th></tr></thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
+                                {data.lista_admitidos.map((item, i) => (
+                                    <tr key={i} className="hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10">
+                                        <td className="p-2">{Utils.date.formatNice(item.data_inicial)}</td>
+                                        <td className="p-2 font-bold">{item.fornecedor}</td>
+                                        <td className="p-2">{item.equipamento}</td>
+                                    </tr>
+                                ))}
+                                {data.lista_admitidos.length === 0 && <tr><td colSpan="3" className="p-4 text-center italic text-slate-400">Nenhuma admissão no período.</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Lista de Demitidos */}
+                <div className="glass-card overflow-hidden">
+                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800/30 flex justify-between">
+                        <h3 className="font-bold text-red-700 dark:text-red-400 text-sm">Saídas / Desligamentos</h3>
+                        <span className="text-xs font-bold bg-white dark:bg-slate-800 px-2 rounded text-red-600">{data.demissoes}</span>
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <table className="w-full text-xs text-left">
+                            <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500"><tr><th className="p-2">Data Fim</th><th className="p-2">Fornecedor</th><th className="p-2">Veículo</th></tr></thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
+                                {data.lista_demitidos.map((item, i) => (
+                                    <tr key={i} className="hover:bg-red-50/50 dark:hover:bg-red-900/10">
+                                        <td className="p-2">{Utils.date.formatNice(item.data_final)}</td>
+                                        <td className="p-2 font-bold">{item.fornecedor}</td>
+                                        <td className="p-2">{item.equipamento}</td>
+                                    </tr>
+                                ))}
+                                {data.lista_demitidos.length === 0 && <tr><td colSpan="3" className="p-4 text-center italic text-slate-400">Nenhum desligamento no período.</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
         const App = () => {
             
             const [supabaseClient, setSupabaseClient] = useState(null);
@@ -2589,7 +2720,7 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
         conflictColumns = 'n_documento, fornecedor, data_documento'; 
     } else if (type === 'concessao') {
         // Assumindo Equipamento + Data Inicial
-        conflictColumns = 'equipamento, data_inicial';
+        conflictColumns = 'equipamento, fornecedor, data_inicial';
     }
 
     const mapRow = (row) => {
@@ -2598,17 +2729,14 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
             return key ? row[key] : "";
         };
 
-        if (type === 'apuracao') return {
-            filial_prod: get('Filial Prod.'),
-            n_viagem: get('N° Viagem'),
-            terceiro: get('Terceiro'),
-            placa: get('Placa'),
-            valor_base: Utils.formatters.parseBrl(get('Valor Base')),
-            volume: Utils.formatters.parseBrl(get('Volume')),
-            total: Utils.formatters.parseBrl(get('Total')),
-            classe: Utils.normalizeClass(get('Classe')),
-            dt_viagem: Utils.formatters.parseDate(get('Dt. Viagem')),
-            tipo_lancamento: get('Tipo Lancamento')
+        if(type === 'concessao') return { 
+            equipamento: get('Equipamento'),
+            material: get('Material'),
+            data_inicial: Utils.formatters.parseDate(get('Data Inicial')),
+            data_final: Utils.formatters.parseDate(get('Data Final')), // Pode vir vazio
+            fornecedor: get('Fornecedor'),
+            centro: get('Centro'),
+            valor_base: Utils.formatters.parseBrl(get('Valor Base'))
         };
 
         if(type === 'pagamentos') return { 
@@ -2893,6 +3021,7 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
