@@ -2956,7 +2956,16 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
                                             <span>até</span>
                                             <input type="date" className="border p-1 rounded" value={filters.dateFim} onChange={e => setFilters({...filters, dateFim: e.target.value})} />
                                         </div>
-                                
+                                {view === 'terceirizacao_turnover' && (
+        <div className="space-y-6 animate-enter pb-10">
+            {/* Componente de Turnover renderizado aqui */}
+            <TerceirizacaoTurnover 
+                supabaseClient={supabaseClient} 
+                filters={filters} 
+                onNotify={addLog} 
+            />
+        </div>
+    )}
                                         <TerceirizacaoPagamentos 
                                             supabaseClient={supabaseClient} 
                                             filters={filters} 
@@ -3021,6 +3030,7 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
