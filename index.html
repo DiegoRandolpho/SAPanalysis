@@ -2453,7 +2453,7 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
     );
 };
         // ============================================================================
-// COMPONENTE: CADASTRO DE TERCEIROS
+// COMPONENTE: CADASTRO DE TERCEIROS (CORRIGIDO)
 // ============================================================================
 const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
     const [terceiros, setTerceiros] = useState([]);
@@ -2484,7 +2484,7 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
             const { data, error } = await supabaseClient
                 .from('terceiros')
                 .select('*')
-                .order('apelido', { ascending: true }); // Ordena por apelido
+                .order('apelido', { ascending: true });
             
             if (error) throw error;
             setTerceiros(data || []);
@@ -2542,8 +2542,8 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
         }
     };
 
-    // 4. Filtragem Local
-    const filteredData = thirds = terceiros.filter(t => {
+    // 4. Filtragem Local (AQUI ESTAVA O ERRO, AGORA CORRIGIDO)
+    const filteredData = terceiros.filter(t => {
         const search = searchTerm.toLowerCase();
         return (
             (t.apelido || '').toLowerCase().includes(search) ||
@@ -2623,10 +2623,10 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
                                             <div className="font-bold text-slate-800 dark:text-slate-200">{row.apelido || row.nome_completo || row.razao_social}</div>
                                             <div className="text-xs text-slate-400">{row.tipo_pessoa === 'Física' ? row.nome_completo : row.razao_social}</div>
                                         </td>
-                                        <td className="px-6 py-3 font-mono text-xs bg-slate-50/50 dark:bg-slate-800/50 w-fit rounded">{row.cod_sap}</td>
+                                        <td className="px-6 py-3 font-mono text-xs"><span className="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">{row.cod_sap}</span></td>
                                         <td className="px-6 py-3">{row.cpf || row.cnpj || '-'}</td>
                                         <td className="px-6 py-3 text-xs">
-                                            {row.telefone && <div className="flex items-center gap-1"><Icons.Phone width={12}/> {row.telefone}</div>}
+                                            {row.telefone && <div className="flex items-center gap-1 mb-1"><Icons.Phone width={12}/> {row.telefone}</div>}
                                             {row.email && <div className="flex items-center gap-1 text-blue-500"><Icons.Mail width={12}/> {row.email}</div>}
                                         </td>
                                         <td className="px-6 py-3 text-right">
@@ -3422,6 +3422,7 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
