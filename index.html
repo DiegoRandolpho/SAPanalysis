@@ -2796,18 +2796,40 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
     );
 };
         // ============================================================================
-// COMPONENTE: RELATÓRIO DE ATIVOS (FROTA VIGENTE)
+// COMPONENTE: RELATÓRIO DE ATIVOS (MULTI-SELECT CORRIGIDO)
 // ============================================================================
-const TerceirizacaoRelatorioAtivos = ({ supabaseClient, filters, onNotify }) => {
+const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
+    
+    // Filtros Locais
+    const [filiaisOptions, setFiliaisOptions] = useState([]);
+    const [selectedFiliais, setSelectedFiliais] = useState(['Todas']);
 
-    // Buscar dados
+    // 1. Buscar lista de filiais disponíveis (Para o filtro não ficar vazio)
+    const fetchFiliais = async () => {
+        try {
+            const { data, error } = await supabaseClient
+                .from('concessao')
+                .select('centro')
+                .not('centro', 'is', null);
+            
+            if (error) throw error;
+
+            // Remove duplicadas e ordena
+            const uniqueBranchs = [...new Set(data.map(item => item.centro))].sort();
+            setFiliaisOptions(uniqueBranchs);
+        } catch (e) {
+            console.error("Erro ao buscar filiais:", e);
+        }
+    };
+
+    // 2. Buscar Dados do Relatório
     const fetchData = async () => {
         setLoading(true);
         try {
             const { data: res, error } = await supabaseClient.rpc('get_relatorio_ativos', {
-                p_filial: filters.filial || 'Todas'
+                p_filiais: selectedFiliais
             });
 
             if (error) throw error;
@@ -2819,9 +2841,15 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, filters, onNotify }) => 
         }
     };
 
+    // Inicialização
+    useEffect(() => {
+        fetchFiliais();
+    }, []);
+
+    // Recarrega quando muda o filtro
     useEffect(() => {
         fetchData();
-    }, [filters.filial]);
+    }, [selectedFiliais]);
 
     // Exportar Excel
     const handleExport = () => {
@@ -2846,29 +2874,43 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, filters, onNotify }) => 
         XLSX.writeFile(wb, `Frota_Ativa_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
-    if (loading) return <div className="p-10 text-center text-slate-400">Carregando frota ativa...</div>;
-    if (!data) return null;
-
-    const { kpis, lista } = data;
+    if (loading && !data) return <div className="p-10 text-center text-slate-400">Carregando frota ativa...</div>;
+    
+    // Fallback seguro se data for null
+    const kpis = data?.kpis || { total_ativos: 0, frota_distinta: 0, custo_mensal: 0 };
+    const lista = data?.lista || [];
 
     return (
         <div className="space-y-6 animate-enter pb-10">
-            {/* Header e Ações */}
-            <div className="flex justify-between items-end mb-2 no-print">
+            {/* Header e Filtros */}
+            <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                         <Icons.CheckCircle className="text-emerald-500" /> Relatório de Ativos
                     </h2>
                     <p className="text-sm text-slate-500 mt-1">
-                        Terceiros com contrato vigente na filial: <strong>{filters.filial}</strong>
+                        Terceiros com contrato vigente.
                     </p>
                 </div>
-                <button 
-                    onClick={handleExport}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all"
-                >
-                    <Icons.Download width={16} /> Exportar Excel
-                </button>
+                
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    {/* Componente MultiSelect (Já existente no seu código) */}
+                    <div className="w-full md:w-64">
+                        <MultiSelectDropdown 
+                            label="Filtrar Filiais"
+                            options={filiaisOptions}
+                            selected={selectedFiliais}
+                            onChange={setSelectedFiliais}
+                        />
+                    </div>
+
+                    <button 
+                        onClick={handleExport}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all h-[38px] mt-auto"
+                    >
+                        <Icons.Download width={16} /> Excel
+                    </button>
+                </div>
             </div>
 
             {/* KPIs */}
@@ -2931,7 +2973,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, filters, onNotify }) => 
                                         <div className="text-[10px] text-slate-400 font-mono">SAP: {row.cod_sap} | Doc: {row.cnpj || '-'}</div>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <div className="font-medium">{row.filial}</div>
+                                        <div className="font-medium bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded inline-block text-[10px] border border-slate-200 dark:border-slate-700">{row.filial}</div>
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-2">
@@ -2951,7 +2993,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, filters, onNotify }) => 
                             {lista.length === 0 && (
                                 <tr>
                                     <td colSpan="6" className="p-10 text-center italic text-slate-400">
-                                        Nenhum terceiro ativo encontrado nesta filial.
+                                        Nenhum terceiro ativo encontrado para os filtros selecionados.
                                     </td>
                                 </tr>
                             )}
@@ -3649,6 +3691,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, filters, onNotify }) => 
     </script>
 </body>
 </html>
+
 
 
 
