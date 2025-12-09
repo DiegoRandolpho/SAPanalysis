@@ -1864,6 +1864,11 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
         const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
+    
+    // Estados para o Drill-down (Modal)
+    const [selectedProvider, setSelectedProvider] = useState(null); // Guarda { codigo, nome }
+    const [drillData, setDrillData] = useState(null);
+    const [drillLoading, setDrillLoading] = useState(false);
 
     const fetchData = async () => {
         setLoading(true);
@@ -1882,6 +1887,28 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
         }
     };
 
+    // Função que carrega o detalhe ao clicar na linha
+    const handleRowClick = async (provider) => {
+        setSelectedProvider(provider);
+        setDrillLoading(true);
+        setDrillData(null);
+
+        try {
+            const { data: res, error } = await supabaseClient.rpc('get_detalhe_pagamentos_terceiro', {
+                p_data_ini: filters.dateIni,
+                p_data_fim: filters.dateFim,
+                p_codigo_sap: provider.sap_code
+            });
+
+            if (error) throw error;
+            setDrillData(res);
+        } catch (e) {
+            onNotify("Erro ao detalhar: " + e.message, "error");
+        } finally {
+            setDrillLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (filters.dateIni && filters.dateFim) {
             fetchData();
@@ -1892,8 +1919,124 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
 
     const { kpis, lista } = data;
 
+    // --- SUB-COMPONENTE: MODAL DE DETALHES ---
+    const DetalheModal = () => {
+        if (!selectedProvider) return null;
+
+        const totalCred = drillData?.creditos.reduce((acc, curr) => acc + (curr.valor || 0), 0) || 0;
+        const totalDeb = drillData?.debitos.reduce((acc, curr) => acc + (Math.abs(curr.valor) || 0), 0) || 0;
+        const saldoModal = totalCred - totalDeb;
+
+        return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-enter" onClick={() => setSelectedProvider(null)}>
+                <div className="bg-white dark:bg-slate-900 w-full max-w-6xl h-[85vh] rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                    
+                    {/* Header Modal */}
+                    <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                <Icons.Search className="text-blue-500" /> Extrato: {selectedProvider.nome_terceiro}
+                            </h3>
+                            <p className="text-xs text-slate-500 font-mono">Cód SAP: {selectedProvider.sap_code}</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className={`px-3 py-1 rounded border text-sm font-bold ${saldoModal > 0.05 ? 'bg-red-50 text-red-600 border-red-200' : (saldoModal < -0.05 ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-green-50 text-green-600 border-green-200')}`}>
+                                Saldo: {Utils.formatters.currency(saldoModal)}
+                            </div>
+                            <button onClick={() => setSelectedProvider(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500">
+                                <Icons.X />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Conteúdo (Duas Tabelas) */}
+                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                        
+                        {/* LADO ESQUERDO: CRÉDITOS (Apuração) */}
+                        <div className="flex-1 flex flex-col border-r border-slate-200 dark:border-slate-700">
+                            <div className="p-2 bg-blue-50/50 dark:bg-blue-900/10 text-center font-bold text-blue-700 dark:text-blue-400 text-xs uppercase border-b border-blue-100 dark:border-blue-900/20">
+                                Créditos (Apuração)
+                            </div>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
+                                {drillLoading ? <div className="p-4 text-center text-xs">Carregando...</div> : (
+                                    <table className="w-full text-xs text-left">
+                                        <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500">
+                                            <tr>
+                                                <th className="p-2">Data</th>
+                                                <th className="p-2">Viagem</th>
+                                                <th className="p-2">Placa</th>
+                                                <th className="p-2 text-right">Valor</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
+                                            {drillData?.creditos.map((c, i) => (
+                                                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                                    <td className="p-2">{Utils.date.formatNice(c.data)}</td>
+                                                    <td className="p-2">{c.n_viagem}</td>
+                                                    <td className="p-2">{c.placa}</td>
+                                                    <td className="p-2 text-right font-medium">{Utils.formatters.currency(c.valor)}</td>
+                                                </tr>
+                                            ))}
+                                            {(!drillData?.creditos || drillData.creditos.length === 0) && (
+                                                <tr><td colSpan="4" className="p-4 text-center text-slate-400 italic">Nenhum crédito encontrado.</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                            <div className="p-2 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-right font-bold text-xs">
+                                Total Crédito: {Utils.formatters.currency(totalCred)}
+                            </div>
+                        </div>
+
+                        {/* LADO DIREITO: DÉBITOS (Pagamentos) */}
+                        <div className="flex-1 flex flex-col">
+                            <div className="p-2 bg-emerald-50/50 dark:bg-emerald-900/10 text-center font-bold text-emerald-700 dark:text-emerald-400 text-xs uppercase border-b border-emerald-100 dark:border-emerald-900/20">
+                                Débitos (Pagamentos Realizados)
+                            </div>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
+                                {drillLoading ? <div className="p-4 text-center text-xs">Carregando...</div> : (
+                                    <table className="w-full text-xs text-left">
+                                        <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500">
+                                            <tr>
+                                                <th className="p-2">Data Doc.</th>
+                                                <th className="p-2">Nº Doc</th>
+                                                <th className="p-2">Texto/Obs</th>
+                                                <th className="p-2 text-right">Valor</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
+                                            {drillData?.debitos.map((d, i) => (
+                                                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                                    <td className="p-2">{Utils.date.formatNice(d.data)}</td>
+                                                    <td className="p-2" title={`Usuário: ${d.usuario}`}>{d.n_documento}</td>
+                                                    <td className="p-2 truncate max-w-[150px]" title={d.texto}>{d.texto}</td>
+                                                    <td className="p-2 text-right font-medium text-emerald-600 dark:text-emerald-400">{Utils.formatters.currency(Math.abs(d.valor))}</td>
+                                                </tr>
+                                            ))}
+                                            {(!drillData?.debitos || drillData.debitos.length === 0) && (
+                                                <tr><td colSpan="4" className="p-4 text-center text-slate-400 italic">Nenhum pagamento encontrado.</td></tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                            <div className="p-2 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-right font-bold text-xs">
+                                Total Débito: {Utils.formatters.currency(totalDeb)}
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="space-y-6 animate-enter pb-10">
+            <DetalheModal />
+
+            {/* Header Impressão */}
             <div className="hidden print:block mb-4 border-b border-black pb-2">
                 <h1 className="text-xl font-bold">Relatório de Conciliação de Pagamentos</h1>
                 <p className="text-xs">Período: {Utils.date.formatNice(filters.dateIni)} à {Utils.date.formatNice(filters.dateFim)}</p>
@@ -1911,11 +2054,14 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
             <div className="glass-card overflow-hidden print:border-slate-300">
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center print:bg-slate-100">
                     <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
-                        <Icons.Table className="w-4 h-4" /> Conciliação (Cruzamento por Cód. SAP)
+                        <Icons.Table className="w-4 h-4" /> Conciliação Analítica
                     </h3>
-                    <button onClick={() => window.print()} className="text-xs font-bold text-blue-600 hover:underline no-print flex items-center gap-1">
-                        <Icons.Download className="w-3 h-3" /> Imprimir
-                    </button>
+                    <div className="flex gap-2">
+                        <span className="text-[10px] text-slate-400 font-bold self-center no-print mr-2">Clique na linha para detalhar</span>
+                        <button onClick={() => window.print()} className="text-xs font-bold text-blue-600 hover:underline no-print flex items-center gap-1">
+                            <Icons.Download className="w-3 h-3" /> Imprimir
+                        </button>
+                    </div>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300">
@@ -1932,9 +2078,14 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                             {lista.map((row, i) => (
-                                <tr key={i} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 ${i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-800/20'}`}>
-                                    <td className="px-4 py-2 font-bold">{row.nome_terceiro}</td>
-                                    <td className="px-4 py-2 text-center font-mono text-slate-500 bg-slate-50 dark:bg-slate-800 rounded">{row.sap_code}</td>
+                                <tr 
+                                    key={i} 
+                                    onClick={() => handleRowClick(row)}
+                                    className={`cursor-pointer transition-colors ${i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-800/20'} hover:bg-blue-50 dark:hover:bg-blue-900/30 group`}
+                                    title="Clique para ver extrato detalhado"
+                                >
+                                    <td className="px-4 py-2 font-bold group-hover:text-blue-600">{row.nome_terceiro}</td>
+                                    <td className="px-4 py-2 text-center font-mono text-slate-500 bg-slate-50 dark:bg-slate-800 rounded group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50">{row.sap_code}</td>
                                     <td className="px-4 py-2 text-right">{Utils.formatters.currency(row.v_credito)}</td>
                                     <td className="px-4 py-2 text-right text-slate-500">{Utils.formatters.currency(row.v_debito)}</td>
                                     <td className={`px-4 py-2 text-right font-bold ${row.saldo > 0.05 ? 'text-red-500' : (row.saldo < -0.05 ? 'text-blue-500' : 'text-slate-300')}`}>
@@ -2569,6 +2720,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
