@@ -1865,10 +1865,15 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     
-    // Estados para o Drill-down (Modal)
-    const [selectedProvider, setSelectedProvider] = useState(null); // Guarda { codigo, nome }
+    // Estados Modal e Ajustes
+    const [selectedProvider, setSelectedProvider] = useState(null);
     const [drillData, setDrillData] = useState(null);
     const [drillLoading, setDrillLoading] = useState(false);
+    const [ajustesData, setAjustesData] = useState([]);
+    
+    // Form Ajuste
+    const [newAjuste, setNewAjuste] = useState({ tipo: 'ISS', valor: '', obs: '' });
+    const [savingAjuste, setSavingAjuste] = useState(false);
 
     const fetchData = async () => {
         setLoading(true);
@@ -1881,149 +1886,194 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
             setData(result);
         } catch (e) {
             console.error(e);
-            onNotify("Erro ao carregar pagamentos: " + e.message, "error");
+            onNotify("Erro: " + e.message, "error");
         } finally {
             setLoading(false);
         }
     };
 
-    // Função que carrega o detalhe ao clicar na linha
-    const handleRowClick = async (provider) => {
-        setSelectedProvider(provider);
+    const fetchDetalhes = async (providerCode) => {
         setDrillLoading(true);
-        setDrillData(null);
-
         try {
-            const { data: res, error } = await supabaseClient.rpc('get_detalhe_pagamentos_terceiro', {
-                p_data_ini: filters.dateIni,
-                p_data_fim: filters.dateFim,
-                p_codigo_sap: provider.sap_code
+            // 1. Busca detalhes de operação (Crédito/Débito)
+            const { data: resOps, error: errOps } = await supabaseClient.rpc('get_detalhe_pagamentos_terceiro', {
+                p_data_ini: filters.dateIni, p_data_fim: filters.dateFim, p_codigo_sap: providerCode
             });
+            if (errOps) throw errOps;
+            setDrillData(resOps);
 
-            if (error) throw error;
-            setDrillData(res);
+            // 2. Busca Ajustes já lançados
+            const { data: resAj, error: errAj } = await supabaseClient.rpc('get_ajustes_terceiro', {
+                p_data_ini: filters.dateIni, p_data_fim: filters.dateFim, p_codigo_sap: providerCode
+            });
+            if (errAj) throw errAj;
+            setAjustesData(resAj || []);
+
         } catch (e) {
-            onNotify("Erro ao detalhar: " + e.message, "error");
+            onNotify("Erro detalhe: " + e.message, "error");
         } finally {
             setDrillLoading(false);
         }
     };
 
-    useEffect(() => {
-        if (filters.dateIni && filters.dateFim) {
-            fetchData();
+    const handleRowClick = (provider) => {
+        setSelectedProvider(provider);
+        setNewAjuste({ tipo: 'ISS', valor: '', obs: '' }); // Reset form
+        fetchDetalhes(provider.sap_code);
+    };
+
+    const handleSaveAjuste = async (e) => {
+        e.preventDefault();
+        if (!newAjuste.valor || !selectedProvider) return;
+        setSavingAjuste(true);
+        try {
+            const { error } = await supabaseClient.from('ajustes_conciliacao').insert({
+                terceiro_codigo: selectedProvider.sap_code,
+                data_referencia: filters.dateFim, // Usa a data fim do filtro como referência
+                tipo: newAjuste.tipo,
+                valor: Utils.formatters.parseBrl(newAjuste.valor),
+                observacao: newAjuste.obs,
+                usuario: 'Sistema' // Pode pegar da sessão se quiser
+            });
+            if (error) throw error;
+            
+            onNotify("Ajuste lançado!", "success");
+            setNewAjuste({ tipo: 'ISS', valor: '', obs: '' });
+            
+            // Recarrega detalhes e a tabela principal para atualizar o saldo
+            await fetchDetalhes(selectedProvider.sap_code);
+            fetchData(); 
+        } catch (err) {
+            onNotify("Erro ao salvar: " + err.message, "error");
+        } finally {
+            setSavingAjuste(false);
         }
+    };
+
+    const handleDeleteAjuste = async (id) => {
+        if(!confirm("Excluir este ajuste?")) return;
+        try {
+            await supabaseClient.from('ajustes_conciliacao').delete().eq('id', id);
+            fetchDetalhes(selectedProvider.sap_code);
+            fetchData();
+        } catch(e) { onNotify(e.message, "error"); }
+    }
+
+    useEffect(() => {
+        if (filters.dateIni && filters.dateFim) fetchData();
     }, [filters.dateIni, filters.dateFim]);
 
     if (!data) return <div className="p-10 text-center text-slate-400">Carregando conciliação...</div>;
-
     const { kpis, lista } = data;
 
-    // --- SUB-COMPONENTE: MODAL DE DETALHES ---
+    // --- MODAL COM 3 COLUNAS ---
     const DetalheModal = () => {
         if (!selectedProvider) return null;
 
-        const totalCred = drillData?.creditos.reduce((acc, curr) => acc + (curr.valor || 0), 0) || 0;
-        const totalDeb = drillData?.debitos.reduce((acc, curr) => acc + (Math.abs(curr.valor) || 0), 0) || 0;
-        const saldoModal = totalCred - totalDeb;
+        const totalCred = drillData?.creditos.reduce((acc, c) => acc + (c.valor || 0), 0) || 0;
+        const totalDeb = drillData?.debitos.reduce((acc, d) => acc + (Math.abs(d.valor) || 0), 0) || 0;
+        const totalAj = ajustesData.reduce((acc, a) => acc + (a.valor || 0), 0) || 0;
+        
+        // Saldo = Crédito - (Débito + Ajustes)
+        const saldoModal = totalCred - (totalDeb + totalAj);
 
         return (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-enter" onClick={() => setSelectedProvider(null)}>
-                <div className="bg-white dark:bg-slate-900 w-full max-w-6xl h-[85vh] rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="bg-white dark:bg-slate-900 w-full max-w-7xl h-[90vh] rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                     
-                    {/* Header Modal */}
+                    {/* Header */}
                     <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
                         <div>
                             <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                <Icons.Search className="text-blue-500" /> Extrato: {selectedProvider.nome_terceiro}
+                                <Icons.Search className="text-blue-500" /> Conciliação: {selectedProvider.nome_terceiro}
                             </h3>
                             <p className="text-xs text-slate-500 font-mono">Cód SAP: {selectedProvider.sap_code}</p>
                         </div>
                         <div className="flex items-center gap-4">
-                            <div className={`px-3 py-1 rounded border text-sm font-bold ${saldoModal > 0.05 ? 'bg-red-50 text-red-600 border-red-200' : (saldoModal < -0.05 ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-green-50 text-green-600 border-green-200')}`}>
-                                Saldo: {Utils.formatters.currency(saldoModal)}
+                            <div className={`px-4 py-2 rounded border text-sm font-bold shadow-sm ${Math.abs(saldoModal) <= 1.00 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
+                                Saldo Final: {Utils.formatters.currency(saldoModal)}
                             </div>
-                            <button onClick={() => setSelectedProvider(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500">
-                                <Icons.X />
-                            </button>
+                            <button onClick={() => setSelectedProvider(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-slate-500"><Icons.X /></button>
                         </div>
                     </div>
 
-                    {/* Conteúdo (Duas Tabelas) */}
-                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                    {/* Conteúdo - 3 Colunas */}
+                    <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
                         
-                        {/* LADO ESQUERDO: CRÉDITOS (Apuração) */}
-                        <div className="flex-1 flex flex-col border-r border-slate-200 dark:border-slate-700">
-                            <div className="p-2 bg-blue-50/50 dark:bg-blue-900/10 text-center font-bold text-blue-700 dark:text-blue-400 text-xs uppercase border-b border-blue-100 dark:border-blue-900/20">
-                                Créditos (Apuração)
+                        {/* 1. CRÉDITOS */}
+                        <div className="flex-1 flex flex-col border-r dark:border-slate-700">
+                            <div className="p-2 bg-blue-50/50 dark:bg-blue-900/10 text-center font-bold text-blue-700 text-xs border-b">APURAÇÃO (CRÉDITOS)</div>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                <table className="w-full text-xs text-left">
+                                    <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500"><tr><th className="p-2">Data</th><th className="p-2">Placa</th><th className="p-2 text-right">Valor</th></tr></thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
+                                        {drillData?.creditos.map((c, i) => (
+                                            <tr key={i}><td className="p-2">{Utils.date.formatNice(c.data)}</td><td className="p-2">{c.placa}</td><td className="p-2 text-right font-medium">{Utils.formatters.currency(c.valor)}</td></tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
-                            <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
-                                {drillLoading ? <div className="p-4 text-center text-xs">Carregando...</div> : (
-                                    <table className="w-full text-xs text-left">
-                                        <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500">
-                                            <tr>
-                                                <th className="p-2">Data</th>
-                                                <th className="p-2">Viagem</th>
-                                                <th className="p-2">Placa</th>
-                                                <th className="p-2 text-right">Valor</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
-                                            {drillData?.creditos.map((c, i) => (
-                                                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                                    <td className="p-2">{Utils.date.formatNice(c.data)}</td>
-                                                    <td className="p-2">{c.n_viagem}</td>
-                                                    <td className="p-2">{c.placa}</td>
-                                                    <td className="p-2 text-right font-medium">{Utils.formatters.currency(c.valor)}</td>
-                                                </tr>
-                                            ))}
-                                            {(!drillData?.creditos || drillData.creditos.length === 0) && (
-                                                <tr><td colSpan="4" className="p-4 text-center text-slate-400 italic">Nenhum crédito encontrado.</td></tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                )}
-                            </div>
-                            <div className="p-2 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-right font-bold text-xs">
-                                Total Crédito: {Utils.formatters.currency(totalCred)}
-                            </div>
+                            <div className="p-2 bg-slate-50 dark:bg-slate-800 border-t text-right font-bold text-xs">Total: {Utils.formatters.currency(totalCred)}</div>
                         </div>
 
-                        {/* LADO DIREITO: DÉBITOS (Pagamentos) */}
-                        <div className="flex-1 flex flex-col">
-                            <div className="p-2 bg-emerald-50/50 dark:bg-emerald-900/10 text-center font-bold text-emerald-700 dark:text-emerald-400 text-xs uppercase border-b border-emerald-100 dark:border-emerald-900/20">
-                                Débitos (Pagamentos Realizados)
+                        {/* 2. DÉBITOS */}
+                        <div className="flex-1 flex flex-col border-r dark:border-slate-700">
+                            <div className="p-2 bg-emerald-50/50 dark:bg-emerald-900/10 text-center font-bold text-emerald-700 text-xs border-b">PAGAMENTOS (DÉBITOS)</div>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                <table className="w-full text-xs text-left">
+                                    <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500"><tr><th className="p-2">Doc</th><th className="p-2">Texto</th><th className="p-2 text-right">Valor</th></tr></thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
+                                        {drillData?.debitos.map((d, i) => (
+                                            <tr key={i}><td className="p-2">{d.n_documento}</td><td className="p-2 truncate max-w-[100px]">{d.texto}</td><td className="p-2 text-right font-medium text-emerald-600">{Utils.formatters.currency(Math.abs(d.valor))}</td></tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
-                            <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
-                                {drillLoading ? <div className="p-4 text-center text-xs">Carregando...</div> : (
-                                    <table className="w-full text-xs text-left">
-                                        <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500">
-                                            <tr>
-                                                <th className="p-2">Data Doc.</th>
-                                                <th className="p-2">Nº Doc</th>
-                                                <th className="p-2">Texto/Obs</th>
-                                                <th className="p-2 text-right">Valor</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
-                                            {drillData?.debitos.map((d, i) => (
-                                                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                                    <td className="p-2">{Utils.date.formatNice(d.data)}</td>
-                                                    <td className="p-2" title={`Usuário: ${d.usuario}`}>{d.n_documento}</td>
-                                                    <td className="p-2 truncate max-w-[150px]" title={d.texto}>{d.texto}</td>
-                                                    <td className="p-2 text-right font-medium text-emerald-600 dark:text-emerald-400">{Utils.formatters.currency(Math.abs(d.valor))}</td>
-                                                </tr>
-                                            ))}
-                                            {(!drillData?.debitos || drillData.debitos.length === 0) && (
-                                                <tr><td colSpan="4" className="p-4 text-center text-slate-400 italic">Nenhum pagamento encontrado.</td></tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                )}
+                            <div className="p-2 bg-slate-50 dark:bg-slate-800 border-t text-right font-bold text-xs">Total: {Utils.formatters.currency(totalDeb)}</div>
+                        </div>
+
+                        {/* 3. AJUSTES (NOVO) */}
+                        <div className="flex-1 flex flex-col bg-slate-50/30 dark:bg-slate-900">
+                            <div className="p-2 bg-orange-50/50 dark:bg-orange-900/10 text-center font-bold text-orange-700 text-xs border-b">IMPOSTOS / AJUSTES</div>
+                            
+                            {/* Lista de Ajustes */}
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
+                                {ajustesData.map(aj => (
+                                    <div key={aj.id} className="bg-white dark:bg-slate-800 p-2 rounded border border-slate-200 dark:border-slate-700 text-xs flex justify-between items-center shadow-sm">
+                                        <div>
+                                            <span className="font-bold text-slate-700 dark:text-slate-200">{aj.tipo}</span>
+                                            <span className="mx-2 text-slate-400">|</span>
+                                            <span className="text-slate-500">{aj.observacao || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-orange-600">{Utils.formatters.currency(aj.valor)}</span>
+                                            <button onClick={() => handleDeleteAjuste(aj.id)} className="text-red-400 hover:text-red-600"><Icons.Trash2 width={12} /></button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {ajustesData.length === 0 && <div className="text-center text-slate-400 italic text-xs mt-4">Nenhum ajuste lançado.</div>}
                             </div>
-                            <div className="p-2 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-right font-bold text-xs">
-                                Total Débito: {Utils.formatters.currency(totalDeb)}
+
+                            {/* Formulário Novo Ajuste */}
+                            <div className="p-3 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                                <form onSubmit={handleSaveAjuste} className="space-y-2">
+                                    <div className="flex gap-2">
+                                        <select className="border rounded px-2 py-1 text-xs bg-transparent dark:text-white dark:border-slate-600 w-1/3" value={newAjuste.tipo} onChange={e=>setNewAjuste({...newAjuste, tipo:e.target.value})}>
+                                            <option value="ISS">ISS</option>
+                                            <option value="IRRF">IRRF</option>
+                                            <option value="PCC">PCC</option>
+                                            <option value="INSS">INSS</option>
+                                            <option value="OUTROS">Outros</option>
+                                        </select>
+                                        <input type="text" placeholder="Valor (R$)" className="border rounded px-2 py-1 text-xs bg-transparent dark:text-white dark:border-slate-600 w-1/3" value={newAjuste.valor} onChange={e=>setNewAjuste({...newAjuste, valor:e.target.value})} required />
+                                        <button type="submit" disabled={savingAjuste} className="bg-blue-600 text-white rounded px-3 py-1 text-xs font-bold w-1/3 hover:bg-blue-700 transition-colors disabled:opacity-50">
+                                            {savingAjuste ? '...' : 'Adicionar'}
+                                        </button>
+                                    </div>
+                                    <input type="text" placeholder="Observação (Opcional)" className="border rounded px-2 py-1 text-xs w-full bg-transparent dark:text-white dark:border-slate-600" value={newAjuste.obs} onChange={e=>setNewAjuste({...newAjuste, obs:e.target.value})} />
+                                </form>
                             </div>
+                            <div className="p-2 bg-slate-50 dark:bg-slate-800 border-t text-right font-bold text-xs text-orange-600">Total Ajustes: {Utils.formatters.currency(totalAj)}</div>
                         </div>
 
                     </div>
@@ -2035,71 +2085,54 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
     return (
         <div className="space-y-6 animate-enter pb-10">
             <DetalheModal />
-
-            {/* Header Impressão */}
+            {/* ... (O resto do componente, KPIs e Tabela Principal, mantém igual ao anterior) ... */}
+            {/* Vou repetir o return principal para garantir que não falte nada */}
             <div className="hidden print:block mb-4 border-b border-black pb-2">
                 <h1 className="text-xl font-bold">Relatório de Conciliação de Pagamentos</h1>
                 <p className="text-xs">Período: {Utils.date.formatNice(filters.dateIni)} à {Utils.date.formatNice(filters.dateFim)}</p>
             </div>
 
-            {/* KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 no-print">
-                <Card title="Apurado (Crédito)" value={Utils.formatters.currency(kpis.valor_apurado_total)} iconName="fileText" color="blue" subtext="Total vindo da Apuração" />
-                <Card title="Pago (Débito)" value={Utils.formatters.currency(kpis.valor_pago_total)} iconName="dollarSign" color="emerald" subtext={`${kpis.total_notas} notas lançadas`} />
-                <Card title="Com Diferença" value={kpis.qtd_diferenca} iconName="alertCircle" color="orange" subtext="Cod SAP divergente" />
-                <Card title="Pendentes" value={kpis.qtd_pendente} iconName="clock" color="red" subtext="Sem pagamento" />
+                <Card title="Apurado (Crédito)" value={Utils.formatters.currency(kpis.valor_apurado_total)} iconName="fileText" color="blue" />
+                <Card title="Pago (Débito)" value={Utils.formatters.currency(kpis.valor_pago_total)} iconName="dollarSign" color="emerald" />
+                <Card title="Ajustes/Impostos" value={Utils.formatters.currency(kpis.valor_ajustado_total)} iconName="activity" color="purple" subtext="Adicionados manualmente" />
+                <Card title="Pendentes/Divergentes" value={kpis.qtd_diferenca + kpis.qtd_pendente} iconName="alertCircle" color="red" />
             </div>
 
-            {/* Tabela de Conciliação */}
             <div className="glass-card overflow-hidden print:border-slate-300">
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center print:bg-slate-100">
                     <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
                         <Icons.Table className="w-4 h-4" /> Conciliação Analítica
                     </h3>
                     <div className="flex gap-2">
-                        <span className="text-[10px] text-slate-400 font-bold self-center no-print mr-2">Clique na linha para detalhar</span>
-                        <button onClick={() => window.print()} className="text-xs font-bold text-blue-600 hover:underline no-print flex items-center gap-1">
-                            <Icons.Download className="w-3 h-3" /> Imprimir
-                        </button>
+                        <span className="text-[10px] text-slate-400 font-bold self-center no-print mr-2">Clique na linha para conciliar</span>
+                        <button onClick={() => window.print()} className="text-xs font-bold text-blue-600 hover:underline no-print flex items-center gap-1"><Icons.Download className="w-3 h-3" /> Imprimir</button>
                     </div>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300">
                         <thead className="uppercase bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 font-bold text-slate-500">
                             <tr>
-                                <th className="px-4 py-3">Terceiro / Fornecedor</th>
-                                <th className="px-4 py-3 text-center">Cód. SAP</th>
-                                <th className="px-4 py-3 text-right">Vlr. Apurado</th>
-                                <th className="px-4 py-3 text-right">Vlr. Pago</th>
+                                <th className="px-4 py-3">Fornecedor</th>
+                                <th className="px-4 py-3 text-center">SAP</th>
+                                <th className="px-4 py-3 text-right">Apurado</th>
+                                <th className="px-4 py-3 text-right">Pago</th>
+                                <th className="px-4 py-3 text-right">Ajustes</th>
                                 <th className="px-4 py-3 text-right">Saldo</th>
-                                <th className="px-4 py-3 text-center">Notas</th>
                                 <th className="px-4 py-3 text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                             {lista.map((row, i) => (
-                                <tr 
-                                    key={i} 
-                                    onClick={() => handleRowClick(row)}
-                                    className={`cursor-pointer transition-colors ${i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-800/20'} hover:bg-blue-50 dark:hover:bg-blue-900/30 group`}
-                                    title="Clique para ver extrato detalhado"
-                                >
-                                    <td className="px-4 py-2 font-bold group-hover:text-blue-600">{row.nome_terceiro}</td>
-                                    <td className="px-4 py-2 text-center font-mono text-slate-500 bg-slate-50 dark:bg-slate-800 rounded group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50">{row.sap_code}</td>
+                                <tr key={i} onClick={() => handleRowClick(row)} className={`cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 ${i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-800/20'}`}>
+                                    <td className="px-4 py-2 font-bold">{row.nome_terceiro}</td>
+                                    <td className="px-4 py-2 text-center font-mono text-slate-500">{row.sap_code}</td>
                                     <td className="px-4 py-2 text-right">{Utils.formatters.currency(row.v_credito)}</td>
-                                    <td className="px-4 py-2 text-right text-slate-500">{Utils.formatters.currency(row.v_debito)}</td>
-                                    <td className={`px-4 py-2 text-right font-bold ${row.saldo > 0.05 ? 'text-red-500' : (row.saldo < -0.05 ? 'text-blue-500' : 'text-slate-300')}`}>
-                                        {Utils.formatters.currency(row.saldo)}
-                                    </td>
-                                    <td className="px-4 py-2 text-center">{row.notas}</td>
+                                    <td className="px-4 py-2 text-right text-slate-500">{Utils.formatters.currency(row.v_pago_real)}</td>
+                                    <td className="px-4 py-2 text-right text-purple-600 font-medium">{Utils.formatters.currency(row.v_ajuste)}</td>
+                                    <td className={`px-4 py-2 text-right font-bold ${Math.abs(row.saldo) > 1.00 ? 'text-red-500' : 'text-green-600'}`}>{Utils.formatters.currency(row.saldo)}</td>
                                     <td className="px-4 py-2 text-center">
-                                        <span className={`px-2 py-1 rounded text-[10px] font-bold border ${
-                                            row.status === 'PAGO TOTAL' ? 'bg-green-100 text-green-700 border-green-200' :
-                                            row.status === 'DIFERENÇA' ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                                            'bg-red-100 text-red-700 border-red-200'
-                                        }`}>
-                                            {row.status}
-                                        </span>
+                                        <span className={`px-2 py-1 rounded text-[10px] font-bold border ${row.status === 'PAGO TOTAL' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>{row.status}</span>
                                     </td>
                                 </tr>
                             ))}
@@ -2720,6 +2753,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
