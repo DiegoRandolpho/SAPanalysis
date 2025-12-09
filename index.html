@@ -2153,20 +2153,93 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
             };
 
             const confirmImportTerceirizacao = async () => {
-                if(!confirmData) return; const { type, data } = confirmData; setConfirmData(null); setLoading(true);
-                const mapRow = (row) => {
-                    const get = (k) => { const key = Object.keys(row).find(x => Utils.normalizeKey(x) === Utils.normalizeKey(k)); return key ? row[key] : ""; };
-                    if(type==='apuracao') return { filial_prod: get('Filial Prod.'), n_viagem: get('N° Viagem'), terceiro: get('Terceiro'), placa: get('Placa'), valor_base: Utils.formatters.parseBrl(get('Valor Base')), volume: Utils.formatters.parseBrl(get('Volume')), total: Utils.formatters.parseBrl(get('Total')), classe: Utils.normalizeClass(get('Classe')), dt_viagem: Utils.formatters.parseDate(get('Dt. Viagem')), tipo_lancamento: get('Tipo Lancamento') };
-                    if(type==='pagamentos') return { n_documento: get('Nº documento'), montante: Utils.formatters.parseBrl(get('Montante em moeda interna')), fornecedor: get('Fornecedor'), data_documento: Utils.formatters.parseDate(get('Data do documento')) };
-                    if(type==='concessao') return { equipamento: get('Equipamento'), valor_base: Utils.formatters.parseBrl(get('Valor Base')), data_inicial: Utils.formatters.parseDate(get('Data Inicial')) };
-                    return null;
-                };
-                try {
-                    const batch = data.map(mapRow).filter(Boolean);
-                    for(let i=0; i<batch.length; i+=100) await supabaseClient.from(type).insert(batch.slice(i, i+100));
-                    addLog("Importado com sucesso!", "success");
-                } catch(e) { addLog("Erro DB: "+e.message, 'error'); } finally { setLoading(false); }
-            };
+    if (!confirmData) return;
+    const { type, data } = confirmData;
+    setConfirmData(null);
+    setLoading(true);
+
+    // 1. Define quais colunas tornam o registro único (para ignorar repetidos)
+    let conflictColumns = '';
+    if (type === 'apuracao') {
+        // Tem que bater com a Constraint criada no SQL
+        conflictColumns = 'filial_prod, dt_viagem, n_viagem, placa, tipo_lancamento, valor_base';
+    } else if (type === 'pagamentos') {
+        // Assumindo que o Nº Documento + Fornecedor é único
+        conflictColumns = 'n_documento, fornecedor'; 
+    } else if (type === 'concessao') {
+        // Assumindo Equipamento + Data Inicial
+        conflictColumns = 'equipamento, data_inicial';
+    }
+
+    const mapRow = (row) => {
+        const get = (k) => {
+            const key = Object.keys(row).find(x => Utils.normalizeKey(x) === Utils.normalizeKey(k));
+            return key ? row[key] : "";
+        };
+
+        if (type === 'apuracao') return {
+            filial_prod: get('Filial Prod.'),
+            n_viagem: get('N° Viagem'),
+            terceiro: get('Terceiro'),
+            placa: get('Placa'),
+            valor_base: Utils.formatters.parseBrl(get('Valor Base')),
+            volume: Utils.formatters.parseBrl(get('Volume')),
+            total: Utils.formatters.parseBrl(get('Total')),
+            classe: Utils.normalizeClass(get('Classe')),
+            dt_viagem: Utils.formatters.parseDate(get('Dt. Viagem')),
+            tipo_lancamento: get('Tipo Lancamento')
+        };
+
+        if (type === 'pagamentos') return {
+            n_documento: get('Nº documento'),
+            montante: Utils.formatters.parseBrl(get('Montante em moeda interna')),
+            fornecedor: get('Fornecedor'),
+            data_documento: Utils.formatters.parseDate(get('Data do documento'))
+        };
+
+        if (type === 'concessao') return {
+            equipamento: get('Equipamento'),
+            valor_base: Utils.formatters.parseBrl(get('Valor Base')),
+            data_inicial: Utils.formatters.parseDate(get('Data Inicial'))
+        };
+
+        return null;
+    };
+
+    try {
+        const batch = data.map(mapRow).filter(Boolean);
+        let novosCount = 0;
+
+        // Processa em lotes de 100
+        for (let i = 0; i < batch.length; i += 100) {
+            const chunk = batch.slice(i, i + 100);
+
+            // UPSERT COM IGNORE DUPLICATES
+            // Tenta inserir. Se a chave bater com existente, ignora e segue.
+            const { data: inserted, error } = await supabaseClient
+                .from(type)
+                .upsert(chunk, { 
+                    onConflict: conflictColumns, 
+                    ignoreDuplicates: true,
+                    select: true // Retorna os que foram inseridos de fato (opcional)
+                }); [cite_start]// [cite: 60, 483]
+
+            if (error) {
+                // Se o erro for de coluna unique não encontrada, avisa
+                if (error.code === '42P10') {
+                    throw new Error("Erro de configuração: Faltou criar a regra UNIQUE no banco de dados.");
+                }
+                throw error;
+            }
+        }
+
+        addLog(`Processo finalizado! O arquivo foi processado e apenas novos registros foram salvos.`, "success");
+    } catch (e) {
+        addLog("Erro na importação: " + e.message, 'error');
+    } finally {
+        setLoading(false);
+    }
+};
 
             const handleImport = async (file, type, period) => {
                 if(type === 'controladoria') processControladoriaFile(file, period);
@@ -2368,6 +2441,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
