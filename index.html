@@ -2357,7 +2357,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
                     onConflict: conflictColumns, 
                     ignoreDuplicates: true,
                     select: true // Retorna os que foram inseridos de fato (opcional)
-                }); [cite_start]// [cite: 60, 483]
+                });
 
             if (error) {
                 // Se o erro for de coluna unique não encontrada, avisa
@@ -2593,6 +2593,7 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
