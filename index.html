@@ -1,50 +1,4 @@
-{view === 'terceirizacao_turnover' && (
-    <div className="space-y-6 animate-enter pb-10">
-        {/* Barra de Filtros Padronizada */}
-        <div className="glass-card p-4 flex gap-4 items-center no-print">
-            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                <Icons.Filter /> Período:
-            </div>
-            
-            <input 
-                type="date" 
-                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-cyan-500 outline-none"
-                value={filters.dateIni} 
-                onChange={e => setFilters({...filters, dateIni: e.target.value})} 
-            />
-            
-            <span className="text-slate-400 text-xs">até</span>
-            
-            <input 
-                type="date" 
-                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-cyan-500 outline-none"
-                value={filters.dateFim} 
-                onChange={e => setFilters({...filters, dateFim: e.target.value})} 
-            />
-
-            {/* Divisor */}
-            <div className="h-6 w-px bg-slate-300 dark:bg-slate-700 mx-2"></div>
-
-            {/* Filtro de Filial (Opcional, mas útil) */}
-            <select 
-                className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 min-w-[150px]" 
-                value={filters.filial} 
-                onChange={e => setFilters(prev => ({...prev, filial: e.target.value}))}
-            >
-                <option value="Todas">🏭 Todas as Filiais</option>
-                {/* Reutiliza a lista de filiais do dashboard se disponível, senão apenas 'Todas' */}
-                {(dashboardData.lista_filiais || []).map(f => (<option key={f.name} value={f.name}>{f.name}</option>))}
-            </select>
-        </div>
-
-        {/* Componente Turnover */}
-        <TerceirizacaoTurnover 
-            supabaseClient={supabaseClient} 
-            filters={filters} 
-            onNotify={addLog} 
-        />
-    </div>
-)}<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -3468,6 +3422,7 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
