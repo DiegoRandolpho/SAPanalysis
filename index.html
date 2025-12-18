@@ -3319,26 +3319,26 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
             return key ? row[key] : "";
         };
 
-        if(type === 'concessao') return { 
-            equipamento: get('Equipamento'),
-            material: get('Material'),
-            data_inicial: Utils.formatters.parseDate(get('Data Inicial')),
-            data_final: Utils.formatters.parseDate(get('Data Final')), // Pode vir vazio
-            fornecedor: get('Fornecedor'),
-            centro: get('Centro'),
-            valor_base: Utils.formatters.parseBrl(get('Valor Base'))
-        };
+        // --- CORREÇÃO AQUI: Adicionado o bloco para 'apuracao' ---
+        if (type === 'apuracao') {
+            return {
+                filial_prod: get('Filial') || get('Filial Produção'), // Ajuste conforme o cabeçalho do seu Excel
+                dt_viagem: Utils.formatters.parseDate(get('Data') || get('Data Viagem')),
+                n_viagem: get('Viagem') || get('Nº Viagem') || get('Numero Viagem'),
+                placa: get('Placa') || get('Veículo'),
+                tipo_lancamento: get('Tipo') || get('Tipo Lançamento') || 'Viagem',
+                valor_base: Utils.formatters.parseBrl(get('Valor') || get('Valor Total') || get('Total'))
+            };
+        }
+        // ---------------------------------------------------------
 
         if(type === 'pagamentos') return { 
-            // Colunas vindas do SAP / Planilha
             n_documento: get('Nº documento'), 
             referencia: get('Referência'),
             tipo_documento: get('Tipo de documento'),
             data_documento: Utils.formatters.parseDate(get('Data do documento')),
             vencimento_liquido: Utils.formatters.parseDate(get('Vencimento líquido')),
             data_compensacao: Utils.formatters.parseDate(get('Data de compensação')),
-            // Montante geralmente vem com sinal negativo no SAP para pagamentos, ou positivo dependendo da extração.
-            // ParseBrl converte string BR para float.
             montante: Utils.formatters.parseBrl(get('Montante em moeda interna')),
             doc_compensacao: get('Doc.compensação'),
             nome_1: get('Nome 1'),
@@ -3347,13 +3347,17 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
             data_lancamento: Utils.formatters.parseDate(get('Data de lançamento')),
             loc_negocios: get('Loc.negócios'),
             data_pagamento: Utils.formatters.parseDate(get('Data de pagamento')),
-            usuario: get('Nome do usuário') || get('Nome do Usuário') // Tenta variações
+            usuario: get('Nome do usuário') || get('Nome do Usuário')
         };
 
-        if (type === 'concessao') return {
+        if(type === 'concessao') return {
             equipamento: get('Equipamento'),
-            valor_base: Utils.formatters.parseBrl(get('Valor Base')),
-            data_inicial: Utils.formatters.parseDate(get('Data Inicial'))
+            material: get('Material'),
+            data_inicial: Utils.formatters.parseDate(get('Data Inicial')),
+            data_final: Utils.formatters.parseDate(get('Data Final')),
+            fornecedor: get('Fornecedor'),
+            centro: get('Centro'),
+            valor_base: Utils.formatters.parseBrl(get('Valor Base'))
         };
 
         return null;
@@ -3691,6 +3695,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
