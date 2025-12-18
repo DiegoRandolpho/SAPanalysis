@@ -3323,27 +3323,24 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
         // --- BLOCO NOVO PARA APURAÇÃO ---
         if (type === 'apuracao') {
             return {
-                // Mapeamento exato com seus headers
-                tipo_lancamento: get('Tipo Lancamento'),
+                // Coluna Banco : Coluna Excel
                 filial_prod: get('Filial Prod.'),
                 n_viagem: get('N° Viagem'),
-                // Campos opcionais (depende das colunas do seu banco Supabase)
-                terceiro_codigo: get('Terceiro'),
-                terceiro_nome: get('Nome Terceiro'),
+                terceiro: get('Terceiro'),
+                nome_terceiro: get('Nome Terceiro'),
                 placa: get('Placa'),
                 cidade: get('Cidade'),
                 regiao: get('Região'),
-                valor_base: Utils.formatters.parseBrl(get('Valor Base')), // Converte "R$ 1.000,00" para 1000.00
+                valor_base: Utils.formatters.parseBrl(get('Valor Base')),
                 material: get('Material'),
                 volume: Utils.formatters.parseBrl(get('Volume')),
-                valor_total: Utils.formatters.parseBrl(get('Total')),
+                total: Utils.formatters.parseBrl(get('Total')),
                 classe: get('Classe'),
-                dt_viagem: Utils.formatters.parseDate(get('Dt. Viagem')), // Converte data Excel/Texto para YYYY-MM-DD
-                usuario: get('Usuário'),
-                observacao: get('Obs.')
+                dt_viagem: Utils.formatters.parseDate(get('Dt. Viagem')),
+                tipo_lancamento: get('Tipo Lancamento'),
+                manual: get('Manual')
             };
         }
-        // -------------------------------
 
         if(type === 'pagamentos') return { 
             n_documento: get('Nº documento'), 
@@ -3708,6 +3705,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
