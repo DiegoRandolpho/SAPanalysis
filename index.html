@@ -3314,23 +3314,36 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     }
 
     const mapRow = (row) => {
+        // Função auxiliar para normalizar e buscar a chave ignorando maiúsculas/acentos
         const get = (k) => {
             const key = Object.keys(row).find(x => Utils.normalizeKey(x) === Utils.normalizeKey(k));
             return key ? row[key] : "";
         };
 
-        // --- CORREÇÃO AQUI: Adicionado o bloco para 'apuracao' ---
+        // --- BLOCO NOVO PARA APURAÇÃO ---
         if (type === 'apuracao') {
             return {
-                filial_prod: get('Filial') || get('Filial Produção'), // Ajuste conforme o cabeçalho do seu Excel
-                dt_viagem: Utils.formatters.parseDate(get('Data') || get('Data Viagem')),
-                n_viagem: get('Viagem') || get('Nº Viagem') || get('Numero Viagem'),
-                placa: get('Placa') || get('Veículo'),
-                tipo_lancamento: get('Tipo') || get('Tipo Lançamento') || 'Viagem',
-                valor_base: Utils.formatters.parseBrl(get('Valor') || get('Valor Total') || get('Total'))
+                // Mapeamento exato com seus headers
+                tipo_lancamento: get('Tipo Lancamento'),
+                filial_prod: get('Filial Prod.'),
+                n_viagem: get('N° Viagem'),
+                // Campos opcionais (depende das colunas do seu banco Supabase)
+                terceiro_codigo: get('Terceiro'),
+                terceiro_nome: get('Nome Terceiro'),
+                placa: get('Placa'),
+                cidade: get('Cidade'),
+                regiao: get('Região'),
+                valor_base: Utils.formatters.parseBrl(get('Valor Base')), // Converte "R$ 1.000,00" para 1000.00
+                material: get('Material'),
+                volume: Utils.formatters.parseBrl(get('Volume')),
+                valor_total: Utils.formatters.parseBrl(get('Total')),
+                classe: get('Classe'),
+                dt_viagem: Utils.formatters.parseDate(get('Dt. Viagem')), // Converte data Excel/Texto para YYYY-MM-DD
+                usuario: get('Usuário'),
+                observacao: get('Obs.')
             };
         }
-        // ---------------------------------------------------------
+        // -------------------------------
 
         if(type === 'pagamentos') return { 
             n_documento: get('Nº documento'), 
@@ -3695,6 +3708,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
