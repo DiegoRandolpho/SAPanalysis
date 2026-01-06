@@ -3114,9 +3114,13 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                     supabaseClient.auth.getSession().then(({ data: { session } }) => {
                         if(session) { setSession(session); checkUserRole(session.user.id, session.user.email); }
                     });
-                    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+                    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
                         setSession(session);
-                        if(session) checkUserRole(session.user.id, session.user.email); else setUserRole(null);
+                        f(session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+                             checkUserRole(session.user.id, session.user.email);
+                        } 
+                        else if (!session) { 
+                            setUserRole(null);
                     });
                     return () => subscription.unsubscribe();
                 }
@@ -3705,6 +3709,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
