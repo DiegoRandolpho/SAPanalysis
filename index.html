@@ -3219,29 +3219,20 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
             };
 
             const fetchDieselData = async () => {
-    // 1. Verifica se tem filtro selecionado
-    if (!filters.dieselPeriodo) return;
-    
+    if(!filters.dieselPeriodo) return;
     setLoading(true);
-    try {
-        console.log("Buscando dados para o período:", filters.dieselPeriodo); // Debug no Console
-
-        // 2. Chama a função RPC nova passando o período do filtro
+    try { 
         const { data, error } = await supabaseClient.rpc('get_diesel_dashboard', { 
             p_periodo: filters.dieselPeriodo 
         });
-
+        
         if (error) throw error;
-
-        // 3. Atualiza o estado
-        console.log("Dados recebidos:", data); // Debug para ver se veio zerado
-        setDieselData(data || { macro: {}, lista: [] });
-
-    } catch(e) {
-        addLog("Erro Diesel: " + e.message, 'error');
-        console.error(e);
-    } finally {
-        setLoading(false);
+        // Se vier nulo, inicia objeto vazio para não quebrar a tela
+        setDieselData(data || { macro: {}, lista: [] }); 
+    } catch(e) { 
+        addLog("Erro SQL: " + e.message, 'error');
+    } finally { 
+        setLoading(false); 
     }
 };
             const fetchControladoriaAnalitico = async () => {
@@ -3765,6 +3756,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
