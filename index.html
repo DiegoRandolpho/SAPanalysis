@@ -1159,7 +1159,9 @@
 
       const DieselDashboard = ({ data, loading, periodo, isDark }) => {
             const [sortConfig, setSortConfig] = useState({ key: 'variacao_calc', direction: 'asc' });
-            const safeData = data || [];
+            
+            // --- BLINDAGEM 1: Garantir que safeData mude se o data mudar ---
+            const safeData = useMemo(() => data || [], [data]);
 
             const requestSort = (key) => {
                 let direction = 'asc';
@@ -1169,6 +1171,7 @@
                 setSortConfig({ key, direction });
             };
 
+            // --- Formatação ---
             const fmt = {
                 vol: (val) => (val || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
                 money: (val) => (val || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -1187,22 +1190,46 @@
             };
             const { ini: dataInicialTxt, fim: dataFinalTxt } = getDateRange(periodo);
 
+            // --- BLINDAGEM 2: Função Auxiliar para converter TUDO para número ---
+            // Isso evita erros se o Supabase mandar "1000" (string) ao invés de 1000 (number)
+            const safeFloat = (val) => {
+                if (val === null || val === undefined) return 0;
+                const parsed = parseFloat(val);
+                return isNaN(parsed) ? 0 : parsed;
+            };
+
+            // --- Cálculos MACRO ---
+            // Adicionado 'periodo' na dependência para forçar recálculo na troca de mês
             const macro = useMemo(() => {
                 const totals = safeData.reduce((acc, curr) => {
-                    const cm = parseFloat(curr.custo_medio) || 0;
-                    const volAntesAjuste = (curr.vol_final || 0) - (curr.ajuste_vol || 0);
+                    // Converter tudo para número antes de calcular
+                    const cm = safeFloat(curr.custo_medio);
+                    const v_ini = safeFloat(curr.vol_inicial);
+                    const v_ent = safeFloat(curr.entradas);
+                    const v_sai = safeFloat(curr.saidas);
+                    const v_fin = safeFloat(curr.vol_final);
+                    const v_aju = safeFloat(curr.ajuste_vol);
+                    const vlr_fin_db = safeFloat(curr.vlr_final);
+
+                    // Lógica Custo Pós Ajuste
+                    const volAntesAjuste = v_fin - v_aju;
                     const valFinanceiroTeorico = volAntesAjuste * cm;
 
                     return {
-                        vol_inicial: acc.vol_inicial + (curr.vol_inicial || 0),
-                        entradas: acc.entradas + (curr.entradas || 0),
-                        saidas: acc.saidas + (curr.saidas || 0),
-                        vol_final: acc.vol_final + (curr.vol_final || 0),
-                        ajuste_vol: acc.ajuste_vol + (curr.ajuste_vol || 0),
-                        vlr_inicial: acc.vlr_inicial + ((curr.vol_inicial || 0) * cm),
-                        vlr_entradas: acc.vlr_entradas + ((curr.entradas || 0) * cm),
-                        vlr_saidas: acc.vlr_saidas + ((curr.saidas || 0) * cm),
-                        vlr_final: acc.vlr_final + (curr.vlr_final || 0),
+                        vol_inicial: acc.vol_inicial + v_ini,
+                        entradas: acc.entradas + v_ent,
+                        saidas: acc.saidas + v_sai,
+                        vol_final: acc.vol_final + v_fin,
+                        ajuste_vol: acc.ajuste_vol + v_aju,
+                        
+                        // Recalculando Financeiro Linha a Linha (Volume * Custo da Linha)
+                        vlr_inicial: acc.vlr_inicial + (v_ini * cm),
+                        vlr_entradas: acc.vlr_entradas + (v_ent * cm),
+                        vlr_saidas: acc.vlr_saidas + (v_sai * cm),
+                        
+                        // Valor Final (geralmente vem do DB, mas garantimos que é número)
+                        vlr_final: acc.vlr_final + vlr_fin_db,
+
                         vlr_teorico_acumulado: acc.vlr_teorico_acumulado + valFinanceiroTeorico
                     };
                 }, { 
@@ -1212,23 +1239,42 @@
 
                 const custoMedioGeral = totals.vol_final > 0 ? totals.vlr_final / totals.vol_final : 0;
                 const custoMedioPosAjuste = totals.vol_final > 0 ? totals.vlr_teorico_acumulado / totals.vol_final : 0;
+                
                 const divisorVar = totals.entradas + totals.vol_inicial;
                 const variacaoPerc = divisorVar > 0 ? (totals.ajuste_vol / divisorVar) * 100 : 0;
+
                 const diffEstoque = totals.vol_final - totals.vol_inicial;
                 const varEstoquePerc = totals.vol_inicial > 0 ? (diffEstoque / totals.vol_inicial) * 100 : 0;
 
                 return { ...totals, custoMedioGeral, custoMedioPosAjuste, variacaoPerc, varEstoquePerc, diffEstoque };
-            }, [safeData]);
+            }, [safeData, periodo]); // <--- Dependência crítica adicionada
 
+            // --- Preparação MICRO ---
             const microData = useMemo(() => {
                 let processed = safeData.map(row => {
-                    const divisor = (row.entradas || 0) + (row.vol_inicial || 0);
-                    const variacao = divisor > 0 ? ((row.ajuste_vol || 0) / divisor) * 100 : 0;
-                    const cm = parseFloat(row.custo_medio) || 0;
-                    const volAntesAjuste = (row.vol_final || 0) - (row.ajuste_vol || 0);
+                    // Converter tudo para número
+                    const v_ini = safeFloat(row.vol_inicial);
+                    const v_ent = safeFloat(row.entradas);
+                    const v_sai = safeFloat(row.saidas);
+                    const v_fin = safeFloat(row.vol_final);
+                    const v_aju = safeFloat(row.ajuste_vol);
+                    const cm = safeFloat(row.custo_medio);
+
+                    const divisor = v_ent + v_ini;
+                    const variacao = divisor > 0 ? (v_aju / divisor) * 100 : 0;
+                    
+                    const volAntesAjuste = v_fin - v_aju;
                     const valTeorico = volAntesAjuste * cm;
-                    const custoPos = (row.vol_final && row.vol_final > 0) ? (valTeorico / row.vol_final) : cm;
-                    return { ...row, variacao_calc: variacao, custo_pos_calc: custoPos };
+                    
+                    const custoPos = (v_fin > 0) ? (valTeorico / v_fin) : cm;
+
+                    return { 
+                        ...row, 
+                        // Atualizamos os valores no objeto para garantir que a tabela mostre números limpos
+                        vol_inicial: v_ini, entradas: v_ent, saidas: v_sai, vol_final: v_fin, ajuste_vol: v_aju, custo_medio: cm,
+                        variacao_calc: variacao, 
+                        custo_pos_calc: custoPos 
+                    };
                 });
 
                 if (sortConfig.key) {
@@ -1243,15 +1289,20 @@
                     });
                 }
                 return processed;
-            }, [safeData, sortConfig]);
+            }, [safeData, sortConfig, periodo]); // <--- Dependência crítica adicionada
 
-            if (!data || data.length === 0) return <div className="p-8 text-center text-slate-400">Sem dados para o período {periodo}.</div>;
+            if (loading) {
+                return <div className="p-8 text-center text-slate-400 font-bold animate-pulse">Carregando dados...</div>;
+            }
 
-            const topCustos = [...safeData].sort((a, b) => b.custo_medio - a.custo_medio).slice(0, 10);
+            if (!data || data.length === 0) {
+                return <div className="p-8 text-center text-slate-400">Sem dados para o período {periodo}.</div>;
+            }
+
+            const topCustos = [...safeData].map(d => ({...d, custo_medio: safeFloat(d.custo_medio)})).sort((a, b) => b.custo_medio - a.custo_medio).slice(0, 10);
             const topAjustesPerc = [...microData].filter(d => Math.abs(d.variacao_calc) > 0).sort((a, b) => Math.abs(b.variacao_calc) - Math.abs(a.variacao_calc)).slice(0, 10);
+            
             const barColors = { blue: "#3b82f6", orange: "#f59e0b" };
-
-            // Configuração de estilo gráfico
             const chartTextStyle = { fontSize: 10, fontWeight: 'bold', fill: '#0f172a' }; 
 
             const SortableHeader = ({ label, sortKey, align = "right" }) => (
@@ -1364,14 +1415,13 @@
                         </div>
                     </div>
 
-                    {/* --- GRÁFICOS (COM CORREÇÃO DE ATUALIZAÇÃO VIA KEY) --- */}
+                    {/* --- GRÁFICOS --- */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 avoid-break">
                         <div className="glass-card overflow-hidden flex flex-col h-[280px]">
                             <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-2 print-header">
                                 <h3 className="font-bold text-slate-800 dark:text-slate-200 text-[10px] uppercase">Top 10 Custo Médio (R$/L)</h3>
                             </div>
                             <div className="p-2 flex-1">
-                                {/* ADICIONADO KEY PARA FORÇAR RENDERIZAÇÃO */}
                                 <ResponsiveContainer width="100%" height="100%" key={'custo-' + periodo}>
                                     <BarChart layout="vertical" data={topCustos} margin={{top: 0, right: 30, left: 35, bottom: 0}}>
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
@@ -1389,7 +1439,6 @@
                                 <h3 className="font-bold text-slate-800 dark:text-slate-200 text-[10px] uppercase">Top 10 Variação Ajuste (%)</h3>
                             </div>
                             <div className="p-2 flex-1">
-                                {/* ADICIONADO KEY PARA FORÇAR RENDERIZAÇÃO */}
                                 <ResponsiveContainer width="100%" height="100%" key={'ajuste-' + periodo}>
                                     <BarChart data={topAjustesPerc} margin={{top: 15, right: 0, left: 0, bottom: 0}}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -3791,6 +3840,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
