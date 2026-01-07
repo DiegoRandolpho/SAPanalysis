@@ -1251,8 +1251,8 @@
             const topAjustesPerc = [...microData].filter(d => Math.abs(d.variacao_calc) > 0).sort((a, b) => Math.abs(b.variacao_calc) - Math.abs(a.variacao_calc)).slice(0, 10);
             const barColors = { blue: "#3b82f6", orange: "#f59e0b" };
 
-            // --- CONFIGURAÇÃO DE ESTILO GRÁFICO (Alto Contraste) ---
-            const chartTextStyle = { fontSize: 10, fontWeight: 'bold', fill: '#0f172a' }; // Slate 900 (Quase preto)
+            // Configuração de estilo gráfico
+            const chartTextStyle = { fontSize: 10, fontWeight: 'bold', fill: '#0f172a' }; 
 
             const SortableHeader = ({ label, sortKey, align = "right" }) => (
                 <th className={`px-2 py-1 text-${align} cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors select-none group border-r border-slate-200 dark:border-slate-700 last:border-0`} onClick={() => requestSort(sortKey)}>
@@ -1364,21 +1364,20 @@
                         </div>
                     </div>
 
-                    {/* --- GRÁFICOS (ESTILIZADOS PARA IMPRESSÃO) --- */}
+                    {/* --- GRÁFICOS (COM CORREÇÃO DE ATUALIZAÇÃO VIA KEY) --- */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 avoid-break">
                         <div className="glass-card overflow-hidden flex flex-col h-[280px]">
                             <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-2 print-header">
                                 <h3 className="font-bold text-slate-800 dark:text-slate-200 text-[10px] uppercase">Top 10 Custo Médio (R$/L)</h3>
                             </div>
                             <div className="p-2 flex-1">
-                                <ResponsiveContainer width="100%" height="100%">
+                                {/* ADICIONADO KEY PARA FORÇAR RENDERIZAÇÃO */}
+                                <ResponsiveContainer width="100%" height="100%" key={'custo-' + periodo}>
                                     <BarChart layout="vertical" data={topCustos} margin={{top: 0, right: 30, left: 35, bottom: 0}}>
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                                         <XAxis type="number" hide />
-                                        {/* Fonte mais escura e maior nos Eixos */}
                                         <YAxis dataKey="usina" type="category" width={40} tick={chartTextStyle} />
                                         <Tooltip content={<CustomGraphTooltip />} />
-                                        {/* Fonte mais escura e maior nos Rótulos de Dados */}
                                         <Bar dataKey="custo_medio" fill={barColors.blue} radius={[0, 4, 4, 0]} barSize={14} label={{ position: 'right', ...chartTextStyle, formatter: (v) => fmt.money(v) }} />
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -1390,14 +1389,13 @@
                                 <h3 className="font-bold text-slate-800 dark:text-slate-200 text-[10px] uppercase">Top 10 Variação Ajuste (%)</h3>
                             </div>
                             <div className="p-2 flex-1">
-                                <ResponsiveContainer width="100%" height="100%">
+                                {/* ADICIONADO KEY PARA FORÇAR RENDERIZAÇÃO */}
+                                <ResponsiveContainer width="100%" height="100%" key={'ajuste-' + periodo}>
                                     <BarChart data={topAjustesPerc} margin={{top: 15, right: 0, left: 0, bottom: 0}}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                        {/* Fonte mais escura e maior nos Eixos */}
                                         <XAxis dataKey="usina" tick={chartTextStyle} interval={0} height={20} />
                                         <Tooltip content={<CustomGraphTooltip />} />
                                         <ReferenceLine y={0} stroke="#94a3b8" />
-                                        {/* Fonte mais escura e maior nos Rótulos de Dados */}
                                         <Bar dataKey="variacao_calc" fill={barColors.orange} radius={[2, 2, 0, 0]} barSize={25} label={{ position: 'top', ...chartTextStyle, formatter: (v) => fmt.perc(v) }} />
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -3793,6 +3791,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
