@@ -1157,8 +1157,9 @@
             );
         };
 
-        const DieselDashboard = ({ data, loading, periodo, isDark }) => {
-            const [sortConfig, setSortConfig] = useState({ key: 'usina', direction: 'asc' });
+       const DieselDashboard = ({ data, loading, periodo, isDark }) => {
+            // ALTERAÇÃO 1: Default agora é 'variacao_calc'
+            const [sortConfig, setSortConfig] = useState({ key: 'variacao_calc', direction: 'asc' });
             const safeData = data || [];
 
             const requestSort = (key) => {
@@ -1176,7 +1177,7 @@
                 perc: (val) => (val || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'
             };
 
-            // --- Helpers de Data (Para o Cabeçalho) ---
+            // --- Helpers de Data ---
             const getDateRange = (periodoStr) => {
                 if (!periodoStr) return { ini: '-', fim: '-' };
                 const [y, m] = periodoStr.split('-');
@@ -1194,7 +1195,6 @@
                 const totals = safeData.reduce((acc, curr) => {
                     const cm = parseFloat(curr.custo_medio) || 0;
                     
-                    // Lógica para Custo Pós Ajuste
                     const volAntesAjuste = (curr.vol_final || 0) - (curr.ajuste_vol || 0);
                     const valFinanceiroTeorico = volAntesAjuste * cm;
 
@@ -1205,7 +1205,6 @@
                         vol_final: acc.vol_final + (curr.vol_final || 0),
                         ajuste_vol: acc.ajuste_vol + (curr.ajuste_vol || 0),
                         
-                        // Valores Monetários
                         vlr_inicial: acc.vlr_inicial + ((curr.vol_inicial || 0) * cm),
                         vlr_entradas: acc.vlr_entradas + ((curr.entradas || 0) * cm),
                         vlr_saidas: acc.vlr_saidas + ((curr.saidas || 0) * cm),
@@ -1265,10 +1264,8 @@
                 return <div className="p-8 text-center text-slate-400">Sem dados para o período {periodo}.</div>;
             }
 
-            // Gráficos
             const topCustos = [...safeData].sort((a, b) => b.custo_medio - a.custo_medio).slice(0, 10);
             
-            // Top 10 Ajustes por Variação % (Absoluta)
             const topAjustesPerc = [...microData]
                 .filter(d => Math.abs(d.variacao_calc) > 0)
                 .sort((a, b) => Math.abs(b.variacao_calc) - Math.abs(a.variacao_calc))
@@ -1287,7 +1284,6 @@
                 </th>
             );
 
-            // StatItem INVERTIDO: Valor (R$) grande, Volume (L) pequeno
             const StatItem = ({ label, value, sub, colorClass, borderClass }) => (
                 <div className={`flex flex-col p-3 border rounded bg-white dark:bg-slate-800 ${borderClass}`}>
                     <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider mb-1 truncate">{label}</span>
@@ -1320,7 +1316,17 @@
 
             return (
                 <div className="w-full report-container pb-10">
-                    {/* Cabeçalho Impressão (DATA INI e FIM CORRIGIDAS) */}
+                    {/* ALTERAÇÃO 2: Estilo forçado para impressão de cores de fundo */}
+                    <style>{`
+                        @media print {
+                            * {
+                                -webkit-print-color-adjust: exact !important;
+                                print-color-adjust: exact !important;
+                            }
+                        }
+                    `}</style>
+
+                    {/* Cabeçalho Impressão */}
                     <div className="hidden print:flex justify-between items-center mb-4 border-b-2 border-black pb-2">
                         <div>
                             <h1 className="text-xl font-extrabold text-black uppercase tracking-tight">Relatório de Diesel</h1>
@@ -1345,7 +1351,6 @@
                             <Icons.LayoutDashboard className="w-4 h-4" /> Visão Geral Financeira
                         </h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {/* Inversão: R$ como principal, Litros como Sub */}
                             <StatItem 
                                 label="Estoque Inicial" 
                                 value={`R$ ${fmt.money(macro.vlr_inicial)}`} 
@@ -1375,7 +1380,6 @@
                                 borderClass="border-blue-100 dark:border-slate-700 border-l-4 border-l-blue-500" 
                             />
                             
-                            {/* Custo Médio Original */}
                             <StatItem 
                                 label="Custo Médio Geral" 
                                 value={`R$ ${fmt.money(macro.custoMedioGeral)}`}
@@ -1384,7 +1388,6 @@
                                 borderClass="border-slate-200 dark:border-slate-700 border-l-4 border-l-slate-400" 
                             />
 
-                            {/* Custo Médio PÓS AJUSTE */}
                             <div className={`flex flex-col p-3 border rounded bg-white dark:bg-slate-800 border-l-4 dark:border-slate-700 ${macro.custoMedioPosAjuste > macro.custoMedioGeral ? 'border-red-100 border-l-red-500' : (macro.custoMedioPosAjuste < macro.custoMedioGeral ? 'border-emerald-100 border-l-emerald-500' : 'border-slate-100 border-l-slate-400')}`}>
                                 <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider mb-1 truncate">Custo Médio (Pós Ajuste)</span>
                                 <div className="flex flex-col">
@@ -1431,7 +1434,7 @@
                         </div>
                     </div>
 
-                    {/* --- 2. GRÁFICOS (Atualizado para Variação %) --- */}
+                    {/* --- 2. GRÁFICOS --- */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 avoid-break">
                         <div className="glass-card overflow-hidden flex flex-col h-[280px]">
                             <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-2 print-header">
@@ -1456,7 +1459,6 @@
                             </div>
                             <div className="p-2 flex-1">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    {/* Alterado para usar dados de % (topAjustesPerc) */}
                                     <BarChart data={topAjustesPerc} margin={{top: 15, right: 0, left: 0, bottom: 0}}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                                         <XAxis dataKey="usina" tick={{fontSize: 8, fill: '#64748b'}} interval={0} height={20} />
@@ -1469,7 +1471,7 @@
                         </div>
                     </div>
 
-                    {/* --- 3. TABELA ANALÍTICA (Com Highlight de Ajustes) --- */}
+                    {/* --- 3. TABELA ANALÍTICA --- */}
                     <div className="avoid-break">
                         <div className="glass-card overflow-hidden print:border-slate-300">
                             <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-2 flex justify-between items-center print-header">
@@ -1495,16 +1497,12 @@
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                                         {microData.map((row, i) => {
-                                            // Lógica de Highlight: Se houver ajuste (diferente de zero), aplica cor
                                             const hasAjuste = Math.abs(row.ajuste_vol) > 0.01;
                                             
-                                            // Classes CSS
                                             let rowClass = "";
                                             if (hasAjuste) {
-                                                // Cor Amarela/Laranja para destacar
                                                 rowClass = "bg-orange-50 dark:bg-orange-900/20 border-l-4 border-l-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/30";
                                             } else {
-                                                // Padrão Zebrado
                                                 rowClass = `hover:bg-slate-50 dark:hover:bg-slate-800/50 ${i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-800/20'}`;
                                             }
 
@@ -3862,6 +3860,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
