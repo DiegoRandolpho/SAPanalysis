@@ -3219,18 +3219,34 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
             };
 
             const fetchDieselData = async () => {
-    if(!filters.dieselPeriodo) return;
+    // Se não tiver filtro, limpa a tela e sai
+    if (!filters.dieselPeriodo) {
+        setDieselData({ macro: {}, lista: [] });
+        return;
+    }
+    
     setLoading(true);
-    try { 
+    // LIMPEZA PREVENTIVA: Garante que dados antigos não fiquem na tela enquanto carrega
+    // Se preferir manter os dados enquanto carrega, pode remover a linha abaixo, mas ela ajuda a ver que algo mudou.
+    // setDieselData({ macro: {}, lista: [] }); 
+
+    try {
+        console.log("Buscando Diesel para:", filters.dieselPeriodo); // Debug
+
+        // Chama a função SQL passando o parâmetro p_periodo
         const { data, error } = await supabaseClient.rpc('get_diesel_dashboard', { 
             p_periodo: filters.dieselPeriodo 
         });
         
         if (error) throw error;
-        // Se vier nulo, inicia objeto vazio para não quebrar a tela
+        
+        // Atualiza com os novos dados ou objeto vazio se vier null
         setDieselData(data || { macro: {}, lista: [] }); 
+        
     } catch(e) { 
-        addLog("Erro SQL: " + e.message, 'error');
+        addLog("Erro Diesel: " + e.message, 'error');
+        // Em caso de erro, limpa os dados para não mostrar informações enganosas
+        setDieselData({ macro: {}, lista: [] });
     } finally { 
         setLoading(false); 
     }
@@ -3756,6 +3772,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
