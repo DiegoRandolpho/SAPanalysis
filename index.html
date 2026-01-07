@@ -1176,15 +1176,26 @@
                 perc: (val) => (val || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'
             };
 
+            // --- Helpers de Data (Para o Cabeçalho) ---
+            const getDateRange = (periodoStr) => {
+                if (!periodoStr) return { ini: '-', fim: '-' };
+                const [y, m] = periodoStr.split('-');
+                const dateIni = new Date(y, m - 1, 1);
+                const dateFim = new Date(y, m, 0);
+                return {
+                    ini: dateIni.toLocaleDateString('pt-BR'),
+                    fim: dateFim.toLocaleDateString('pt-BR')
+                };
+            };
+            const { ini: dataInicialTxt, fim: dataFinalTxt } = getDateRange(periodo);
+
             // --- Cálculos MACRO ---
             const macro = useMemo(() => {
                 const totals = safeData.reduce((acc, curr) => {
                     const cm = parseFloat(curr.custo_medio) || 0;
                     
-                    // Lógica para Custo Pós Ajuste (Preservando Valor Financeiro Anterior)
-                    // Volume Teórico Antes do Ajuste = Final - Ajuste
+                    // Lógica para Custo Pós Ajuste
                     const volAntesAjuste = (curr.vol_final || 0) - (curr.ajuste_vol || 0);
-                    // Valor Financeiro Teórico = Volume Antes * Custo Médio Original
                     const valFinanceiroTeorico = volAntesAjuste * cm;
 
                     return {
@@ -1194,13 +1205,12 @@
                         vol_final: acc.vol_final + (curr.vol_final || 0),
                         ajuste_vol: acc.ajuste_vol + (curr.ajuste_vol || 0),
                         
-                        // Valores Monetários Reais (Baseados no Custo Médio Original)
+                        // Valores Monetários
                         vlr_inicial: acc.vlr_inicial + ((curr.vol_inicial || 0) * cm),
                         vlr_entradas: acc.vlr_entradas + ((curr.entradas || 0) * cm),
                         vlr_saidas: acc.vlr_saidas + ((curr.saidas || 0) * cm),
                         vlr_final: acc.vlr_final + (curr.vlr_final || 0),
 
-                        // Acumulador para o Custo Médio Pós Ajuste Global
                         vlr_teorico_acumulado: acc.vlr_teorico_acumulado + valFinanceiroTeorico
                     };
                 }, { 
@@ -1209,8 +1219,6 @@
                 });
 
                 const custoMedioGeral = totals.vol_final > 0 ? totals.vlr_final / totals.vol_final : 0;
-                
-                // Custo Médio Pós Ajuste Global = Valor Teórico Total / Volume Final Total
                 const custoMedioPosAjuste = totals.vol_final > 0 ? totals.vlr_teorico_acumulado / totals.vol_final : 0;
 
                 const divisorVar = totals.entradas + totals.vol_inicial;
@@ -1228,12 +1236,10 @@
                     const divisor = (row.entradas || 0) + (row.vol_inicial || 0);
                     const variacao = divisor > 0 ? ((row.ajuste_vol || 0) / divisor) * 100 : 0;
                     
-                    // Cálculo linha a linha do Custo Pós Ajuste
                     const cm = parseFloat(row.custo_medio) || 0;
                     const volAntesAjuste = (row.vol_final || 0) - (row.ajuste_vol || 0);
                     const valTeorico = volAntesAjuste * cm;
                     
-                    // Se vol_final for 0, mantemos o custo original para não dividir por zero
                     const custoPos = (row.vol_final && row.vol_final > 0) 
                         ? (valTeorico / row.vol_final) 
                         : cm;
@@ -1259,8 +1265,15 @@
                 return <div className="p-8 text-center text-slate-400">Sem dados para o período {periodo}.</div>;
             }
 
+            // Gráficos
             const topCustos = [...safeData].sort((a, b) => b.custo_medio - a.custo_medio).slice(0, 10);
-            const topAjustes = [...safeData].filter(d => Math.abs(d.ajuste_vol) > 0).sort((a, b) => Math.abs(b.ajuste_vol) - Math.abs(a.ajuste_vol)).slice(0, 10);
+            
+            // Top 10 Ajustes por Variação % (Absoluta)
+            const topAjustesPerc = [...microData]
+                .filter(d => Math.abs(d.variacao_calc) > 0)
+                .sort((a, b) => Math.abs(b.variacao_calc) - Math.abs(a.variacao_calc))
+                .slice(0, 10);
+
             const barColors = { blue: "#3b82f6", orange: "#f59e0b" };
 
             const SortableHeader = ({ label, sortKey, align = "right" }) => (
@@ -1274,11 +1287,12 @@
                 </th>
             );
 
+            // StatItem INVERTIDO: Valor (R$) grande, Volume (L) pequeno
             const StatItem = ({ label, value, sub, colorClass, borderClass }) => (
                 <div className={`flex flex-col p-3 border rounded bg-white dark:bg-slate-800 ${borderClass}`}>
                     <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider mb-1 truncate">{label}</span>
                     <div className="flex flex-col">
-                        <span className={`text-lg font-bold leading-none ${colorClass}`}>{value} <span className="text-xs text-slate-400 font-normal">{label.includes('%') || label.includes('Variação') || label.includes('Evolução') || label.includes('Custo') ? '' : 'L'}</span></span>
+                        <span className={`text-lg font-bold leading-none ${colorClass}`}>{value}</span>
                         {sub && <span className="text-xs text-slate-500 dark:text-slate-400 font-mono font-medium mt-1">{sub}</span>}
                     </div>
                 </div>
@@ -1286,10 +1300,18 @@
 
             const CustomGraphTooltip = ({ active, payload, label }) => {
                 if (active && payload && payload.length) {
+                    const dataKey = payload[0].dataKey;
+                    let val = payload[0].value;
+                    let prefix = '';
+                    
+                    if (dataKey === 'custo_medio') { prefix = 'R$ '; val = fmt.money(val); }
+                    else if (dataKey === 'variacao_calc') { prefix = ''; val = fmt.perc(val); }
+                    else { prefix = ''; val = fmt.vol(val); }
+
                     return (
                         <div className="bg-white p-2 border border-slate-300 shadow-lg text-xs text-slate-800">
                             <p className="font-bold">{label}</p>
-                            <p>{payload[0].name}: {payload[0].name.includes('Custo') ? 'R$ ' + fmt.money(payload[0].value) : fmt.vol(payload[0].value)}</p>
+                            <p>{payload[0].name}: {prefix}{val}</p>
                         </div>
                     );
                 }
@@ -1298,11 +1320,11 @@
 
             return (
                 <div className="w-full report-container pb-10">
-                    {/* Cabeçalho Impressão */}
+                    {/* Cabeçalho Impressão (DATA INI e FIM CORRIGIDAS) */}
                     <div className="hidden print:flex justify-between items-center mb-4 border-b-2 border-black pb-2">
                         <div>
                             <h1 className="text-xl font-extrabold text-black uppercase tracking-tight">Relatório de Diesel</h1>
-                            <p className="text-xs text-black">Competência: <strong>{periodo}</strong></p>
+                            <p className="text-xs text-black">Período: <strong>{dataInicialTxt} à {dataFinalTxt}</strong></p>
                         </div>
                         <div className="text-right">
                             <div className="text-[10px] font-bold text-black border border-black px-2 py-0.5 inline-block mb-1">SAP ANALYTICS</div>
@@ -1317,37 +1339,38 @@
                         </button>
                     </div>
 
-                    {/* --- 1. RESUMO MACRO (GRID 4 Colunas) --- */}
+                    {/* --- 1. RESUMO MACRO --- */}
                     <div className="mb-4 avoid-break">
                         <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-2 text-xs uppercase tracking-wide no-print">
-                            <Icons.LayoutDashboard className="w-4 h-4" /> Visão Geral
+                            <Icons.LayoutDashboard className="w-4 h-4" /> Visão Geral Financeira
                         </h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            {/* Inversão: R$ como principal, Litros como Sub */}
                             <StatItem 
                                 label="Estoque Inicial" 
-                                value={fmt.vol(macro.vol_inicial)} 
-                                sub={`R$ ${fmt.money(macro.vlr_inicial)}`} 
+                                value={`R$ ${fmt.money(macro.vlr_inicial)}`} 
+                                sub={`${fmt.vol(macro.vol_inicial)} L`} 
                                 colorClass="text-slate-700 dark:text-slate-200" 
                                 borderClass="border-slate-200 dark:border-slate-700 border-l-4 border-l-slate-400" 
                             />
                             <StatItem 
                                 label="Entradas" 
-                                value={fmt.vol(macro.entradas)} 
-                                sub={`R$ ${fmt.money(macro.vlr_entradas)}`} 
+                                value={`R$ ${fmt.money(macro.vlr_entradas)}`} 
+                                sub={`${fmt.vol(macro.entradas)} L`} 
                                 colorClass="text-green-600 dark:text-green-400" 
                                 borderClass="border-green-100 dark:border-slate-700 border-l-4 border-l-green-500" 
                             />
                             <StatItem 
                                 label="Saídas" 
-                                value={fmt.vol(macro.saidas)} 
-                                sub={`R$ ${fmt.money(macro.vlr_saidas)}`} 
+                                value={`R$ ${fmt.money(macro.vlr_saidas)}`} 
+                                sub={`${fmt.vol(macro.saidas)} L`} 
                                 colorClass="text-orange-600 dark:text-orange-400" 
                                 borderClass="border-orange-100 dark:border-slate-700 border-l-4 border-l-orange-500" 
                             />
                             <StatItem 
                                 label="Estoque Final" 
-                                value={fmt.vol(macro.vol_final)} 
-                                sub={`R$ ${fmt.money(macro.vlr_final)}`} 
+                                value={`R$ ${fmt.money(macro.vlr_final)}`} 
+                                sub={`${fmt.vol(macro.vol_final)} L`} 
                                 colorClass="text-blue-600 dark:text-blue-400" 
                                 borderClass="border-blue-100 dark:border-slate-700 border-l-4 border-l-blue-500" 
                             />
@@ -1361,7 +1384,7 @@
                                 borderClass="border-slate-200 dark:border-slate-700 border-l-4 border-l-slate-400" 
                             />
 
-                            {/* Custo Médio PÓS AJUSTE (Novo Card) */}
+                            {/* Custo Médio PÓS AJUSTE */}
                             <div className={`flex flex-col p-3 border rounded bg-white dark:bg-slate-800 border-l-4 dark:border-slate-700 ${macro.custoMedioPosAjuste > macro.custoMedioGeral ? 'border-red-100 border-l-red-500' : (macro.custoMedioPosAjuste < macro.custoMedioGeral ? 'border-emerald-100 border-l-emerald-500' : 'border-slate-100 border-l-slate-400')}`}>
                                 <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider mb-1 truncate">Custo Médio (Pós Ajuste)</span>
                                 <div className="flex flex-col">
@@ -1386,7 +1409,6 @@
                                 borderClass={`dark:border-slate-700 ${Math.abs(macro.variacaoPerc) > 0.5 ? 'border-red-100 border-l-4 border-l-red-500' : 'border-blue-100 border-l-4 border-l-blue-500'}`} 
                             />
 
-                            {/* Evolução Estoque */}
                             <div className={`flex flex-col p-3 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 border-l-4 ${macro.varEstoquePerc >= 0 ? 'border-indigo-100 border-l-indigo-500' : 'border-orange-100 border-l-orange-500'}`}>
                                 <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider mb-1 truncate flex items-center gap-1">
                                     <Icons.Activity width={12}/> Evolução (Fim x Ini)
@@ -1409,7 +1431,7 @@
                         </div>
                     </div>
 
-                    {/* --- 2. GRÁFICOS --- */}
+                    {/* --- 2. GRÁFICOS (Atualizado para Variação %) --- */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 avoid-break">
                         <div className="glass-card overflow-hidden flex flex-col h-[280px]">
                             <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-2 print-header">
@@ -1430,23 +1452,24 @@
 
                         <div className="glass-card overflow-hidden flex flex-col h-[280px]">
                             <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-2 print-header">
-                                <h3 className="font-bold text-slate-700 dark:text-slate-200 text-[10px] uppercase">Top 10 Ajustes de Volume (L)</h3>
+                                <h3 className="font-bold text-slate-700 dark:text-slate-200 text-[10px] uppercase">Top 10 Variação Ajuste (%)</h3>
                             </div>
                             <div className="p-2 flex-1">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={topAjustes} margin={{top: 15, right: 0, left: 0, bottom: 0}}>
+                                    {/* Alterado para usar dados de % (topAjustesPerc) */}
+                                    <BarChart data={topAjustesPerc} margin={{top: 15, right: 0, left: 0, bottom: 0}}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                                         <XAxis dataKey="usina" tick={{fontSize: 8, fill: '#64748b'}} interval={0} height={20} />
                                         <Tooltip content={<CustomGraphTooltip />} />
                                         <ReferenceLine y={0} stroke="#94a3b8" />
-                                        <Bar dataKey="ajuste_vol" fill={barColors.orange} radius={[2, 2, 0, 0]} barSize={25} label={{ position: 'top', fontSize: 8, fontWeight: 'bold', formatter: (v) => fmt.vol(v) }} />
+                                        <Bar dataKey="variacao_calc" fill={barColors.orange} radius={[2, 2, 0, 0]} barSize={25} label={{ position: 'top', fontSize: 8, fontWeight: 'bold', formatter: (v) => fmt.perc(v) }} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
                     </div>
 
-                    {/* --- 3. TABELA ANALÍTICA --- */}
+                    {/* --- 3. TABELA ANALÍTICA (Com Highlight de Ajustes) --- */}
                     <div className="avoid-break">
                         <div className="glass-card overflow-hidden print:border-slate-300">
                             <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-2 flex justify-between items-center print-header">
@@ -1471,28 +1494,42 @@
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                        {microData.map((row, i) => (
-                                            <tr key={i} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 ${i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-800/20'}`}>
-                                                <td className="px-2 py-1 font-bold text-slate-700 dark:text-slate-200 border-r border-slate-50 dark:border-slate-800">{row.usina}</td>
-                                                <td className="px-2 py-1 text-right text-slate-600 dark:text-slate-400">{fmt.vol(row.vol_inicial)}</td>
-                                                <td className="px-2 py-1 text-right text-slate-600 dark:text-slate-400">{fmt.vol(row.entradas)}</td>
-                                                <td className="px-2 py-1 text-right text-slate-600 dark:text-slate-400">{fmt.vol(row.saidas)}</td>
-                                                <td className={`px-2 py-1 text-right font-medium ${row.ajuste_vol < 0 ? 'text-red-600 dark:text-red-400' : (row.ajuste_vol > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300')}`}>
-                                                    {fmt.vol(row.ajuste_vol)}
-                                                </td>
-                                                <td className="px-2 py-1 text-right font-bold text-slate-700 dark:text-white border-l border-slate-50 dark:border-slate-800">{fmt.vol(row.vol_final)}</td>
-                                                <td className="px-2 py-1 text-right">
-                                                    <span className={`px-1 py-0.5 rounded text-[9px] font-bold ${Math.abs(row.variacao_calc) > 0.5 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>
-                                                        {fmt.perc(row.variacao_calc)}
-                                                    </span>
-                                                </td>
-                                                <td className="px-2 py-1 text-right font-mono text-slate-600 dark:text-slate-400">R$ {fmt.money(row.custo_medio)}</td>
-                                                {/* NOVA COLUNA: Custo Pós Ajuste */}
-                                                <td className={`px-2 py-1 text-right font-mono font-bold border-l border-slate-50 dark:border-slate-700 ${row.custo_pos_calc > row.custo_medio ? 'text-red-600' : (row.custo_pos_calc < row.custo_medio ? 'text-emerald-600' : 'text-slate-600 dark:text-slate-400')}`}>
-                                                    R$ {fmt.money(row.custo_pos_calc)}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {microData.map((row, i) => {
+                                            // Lógica de Highlight: Se houver ajuste (diferente de zero), aplica cor
+                                            const hasAjuste = Math.abs(row.ajuste_vol) > 0.01;
+                                            
+                                            // Classes CSS
+                                            let rowClass = "";
+                                            if (hasAjuste) {
+                                                // Cor Amarela/Laranja para destacar
+                                                rowClass = "bg-orange-50 dark:bg-orange-900/20 border-l-4 border-l-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/30";
+                                            } else {
+                                                // Padrão Zebrado
+                                                rowClass = `hover:bg-slate-50 dark:hover:bg-slate-800/50 ${i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-800/20'}`;
+                                            }
+
+                                            return (
+                                                <tr key={i} className={rowClass}>
+                                                    <td className={`px-2 py-1 font-bold text-slate-700 dark:text-slate-200 border-r border-slate-50 dark:border-slate-800 ${hasAjuste ? 'pl-1' : ''}`}>{row.usina}</td>
+                                                    <td className="px-2 py-1 text-right text-slate-600 dark:text-slate-400">{fmt.vol(row.vol_inicial)}</td>
+                                                    <td className="px-2 py-1 text-right text-slate-600 dark:text-slate-400">{fmt.vol(row.entradas)}</td>
+                                                    <td className="px-2 py-1 text-right text-slate-600 dark:text-slate-400">{fmt.vol(row.saidas)}</td>
+                                                    <td className={`px-2 py-1 text-right font-medium ${row.ajuste_vol < 0 ? 'text-red-600 dark:text-red-400' : (row.ajuste_vol > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300')}`}>
+                                                        {fmt.vol(row.ajuste_vol)}
+                                                    </td>
+                                                    <td className="px-2 py-1 text-right font-bold text-slate-700 dark:text-white border-l border-slate-50 dark:border-slate-800">{fmt.vol(row.vol_final)}</td>
+                                                    <td className="px-2 py-1 text-right">
+                                                        <span className={`px-1 py-0.5 rounded text-[9px] font-bold ${Math.abs(row.variacao_calc) > 0.5 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>
+                                                            {fmt.perc(row.variacao_calc)}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-2 py-1 text-right font-mono text-slate-600 dark:text-slate-400">R$ {fmt.money(row.custo_medio)}</td>
+                                                    <td className={`px-2 py-1 text-right font-mono font-bold border-l border-slate-50 dark:border-slate-700 ${row.custo_pos_calc > row.custo_medio ? 'text-red-600' : (row.custo_pos_calc < row.custo_medio ? 'text-emerald-600' : 'text-slate-600 dark:text-slate-400')}`}>
+                                                        R$ {fmt.money(row.custo_pos_calc)}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -3825,6 +3862,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
