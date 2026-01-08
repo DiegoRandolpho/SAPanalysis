@@ -3207,6 +3207,10 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
             const [userRole, setUserRole] = useState(null);
             const [loading, setLoading] = useState(false);
             const [logs, setLogs] = useState([]);
+            
+            // --- CORREÇÃO: Ref para travar o redirecionamento automático ---
+            const authInitialized = useRef(false);
+
             const [isDark, setIsDark] = useState(() => {
                 if (typeof window !== 'undefined') {
                     return localStorage.getItem('theme') === 'dark' || 
@@ -3241,15 +3245,45 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                 }
             }, []);
 
+            // --- CORREÇÃO: useEffect de Autenticação Blindado ---
+            useEffect(() => {
+                if (supabaseClient) {
+                    // 1. Checagem inicial
+                    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                        if (session && !authInitialized.current) {
+                            setSession(session);
+                            checkUserRole(session.user.id, session.user.email);
+                            authInitialized.current = true;
+                        }
+                    });
+
+                    // 2. Listener de eventos
+                    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
+                        setSession(session);
+                        
+                        if (event === 'SIGNED_OUT') {
+                            setUserRole(null);
+                            authInitialized.current = false;
+                        } 
+                        // Só redireciona se for um LOGIN explícito e ainda não tiver inicializado
+                        else if (event === 'SIGNED_IN' && session && !authInitialized.current) {
+                            checkUserRole(session.user.id, session.user.email);
+                            authInitialized.current = true;
+                        }
+                    });
+                    return () => subscription.unsubscribe();
+                }
+            }, [supabaseClient]);
+
             const [isSidebarOpen, setIsSidebarOpen] = useState(true);
             const [expandedModules, setExpandedModules] = useState({ terceirizacao: false, controladoria: false, diesel: false });
             const [view, setView] = useState('dashboard');
             const [subView, setSubView] = useState('dash');
             const [dashboardData, setDashboardData] = useState({ kpis: { total_vol: 0, total_val: 0, vol_bomba: 0, vol_transp: 0 }, chart_class: [], chart_plate: [], chart_evo: [], chart_branch: [] });
             
-            // --- NOVOS STATES (Diesel e Ativos) ---
+            // --- STATES NOVOS ---
             const [dieselData, setDieselData] = useState({ macro: {}, lista: [] });
-            const [ativosData, setAtivosData] = useState(null); // Novo State para Ativos
+            const [ativosData, setAtivosData] = useState(null);
             
             const [controladoriaAnalise, setControladoriaAnalise] = useState([]);
             const [controladoriaRaw, setControladoriaRaw] = useState([]);
@@ -3309,40 +3343,13 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                     }
                 };
                 loadLatestCtrl();
-                if (supabaseClient) {
-                    supabaseClient.auth.getSession().then(({ data: { session } }) => {
-                        if(session) { 
-                            setSession(session); 
-                            checkUserRole(session.user.id, session.user.email); 
-                        }
-                    });
-
-                    // 2. Listener de eventos (Login, Logout, Refresh)
-                    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
-                        setSession(session);
-                        
-                        // CORREÇÃO: Só busca a role e redireciona se for um LOGIN explícito.
-                        // Ignora 'TOKEN_REFRESHED' e 'USER_UPDATED' para não resetar a tela.
-                        if (event === 'SIGNED_IN') {
-                            if (session) checkUserRole(session.user.id, session.user.email);
-                        } 
-                        else if (event === 'SIGNED_OUT') {
-                            setUserRole(null);
-                        }
-                    });
-                    
-                    return () => subscription.unsubscribe();
-                }
             }, [supabaseClient]);
 
             useEffect(() => {
                 if(!session) return;
                 
-                // Rotas de Carregamento
                 if(view === 'dashboard') fetchDashboard();
-                // Reutilizamos o fetchDashboard para popular o filtro de filiais na tela de ativos
                 if(view === 'terceirizacao_ativos') { fetchDashboard(); fetchAtivos(); }
-                
                 if(view === 'reports') fetchReport();
                 if(view === 'controladoria') {
                     if(subView === 'dash') { fetchControladoriaAnalitico(); fetchControladoriaFiliais(); }
@@ -3395,7 +3402,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                 } catch(e) { addLog(e.message, "error"); } finally { setLoading(false); }
             };
 
-            // --- NOVA FUNÇÃO FETCH DIESEL (RPC) ---
+            // --- FETCH DIESEL (RPC) ---
             const fetchDieselData = async () => {
                 if (!filters.dieselPeriodo) {
                     setDieselData({ macro: {}, lista: [] });
@@ -3416,21 +3423,17 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                 }
             };
 
-            // --- NOVA FUNÇÃO FETCH ATIVOS ---
+            // --- FETCH ATIVOS (RPC) ---
             const fetchAtivos = async () => {
                 setLoading(true);
                 try {
-                    // Prepara o filtro de filiais
                     const filiaisFiltro = filters.filial === 'Todas' ? null : [filters.filial];
-                    
                     const { data, error } = await supabaseClient.rpc('get_relatorio_ativos', { 
                         p_filiais: filiaisFiltro 
                     });
-
                     if (error) throw error;
                     setAtivosData(data);
                 } catch (error) {
-                    console.error("Erro ao carregar ativos:", error);
                     addLog("Erro ao carregar ativos: " + error.message, 'error');
                 } finally {
                     setLoading(false);
@@ -3708,7 +3711,6 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                                     </div>
                                 )}
                                 
-                                {/* --- NOVA TELA DE ATIVOS --- */}
                                 {view === 'terceirizacao_ativos' && (
                                     <div className="space-y-6 animate-enter pb-10">
                                         <div className="glass-card p-4 flex gap-4 items-center no-print">
@@ -3768,8 +3770,6 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                                         <UploadCard type="apuracao" iconName="fileText" onAnalyze={(f)=>handleImport(f,'apuracao')} isAnalyzing={loading} progress={0} />
                                         <UploadCard type="pagamentos" iconName="dollar" onAnalyze={(f)=>handleImport(f,'pagamentos')} isAnalyzing={loading} progress={0} />
                                         <UploadCard type="concessao" iconName="truck" onAnalyze={(f)=>handleImport(f,'concessao')} isAnalyzing={loading} progress={0} />
-                                        
-                                        {/* CARD DE TERCEIRIZAÇÃO ADICIONADO */}
                                         <UploadCard type="terceirizacao" iconName="users" onAnalyze={(f) => handleImport(f, 'terceirizacao')} isAnalyzing={loading} progress={0} />
                                     </div>
                                 )}
@@ -3788,6 +3788,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
