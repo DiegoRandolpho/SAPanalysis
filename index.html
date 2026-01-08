@@ -3311,12 +3311,26 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                 loadLatestCtrl();
                 if (supabaseClient) {
                     supabaseClient.auth.getSession().then(({ data: { session } }) => {
-                        if(session) { setSession(session); checkUserRole(session.user.id, session.user.email); }
+                        if(session) { 
+                            setSession(session); 
+                            checkUserRole(session.user.id, session.user.email); 
+                        }
                     });
-                    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+
+                    // 2. Listener de eventos (Login, Logout, Refresh)
+                    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
                         setSession(session);
-                        if(session) checkUserRole(session.user.id, session.user.email); else setUserRole(null);
+                        
+                        // CORREÇÃO: Só busca a role e redireciona se for um LOGIN explícito.
+                        // Ignora 'TOKEN_REFRESHED' e 'USER_UPDATED' para não resetar a tela.
+                        if (event === 'SIGNED_IN') {
+                            if (session) checkUserRole(session.user.id, session.user.email);
+                        } 
+                        else if (event === 'SIGNED_OUT') {
+                            setUserRole(null);
+                        }
                     });
+                    
                     return () => subscription.unsubscribe();
                 }
             }, [supabaseClient]);
@@ -3774,6 +3788,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
