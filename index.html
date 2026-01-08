@@ -3085,14 +3085,128 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                 </div>
             );
         };
-        const App = () => {
+        const ActiveAssets = ({ data, loading }) => {
+            if (loading) return <div className="p-8 text-center text-slate-400 font-bold animate-pulse">Carregando dados...</div>;
             
+            // Garante que lista e kpis existam para evitar crash
+            const safeData = data || { kpis: {}, lista: [] };
+            const { kpis, lista } = safeData;
+
+            // Função de Exportação atualizada para incluir os novos campos
+            const handleExport = () => {
+                if (!lista || lista.length === 0) return;
+                
+                // Mapeia os dados para deixar o Excel bonito e organizado
+                const exportData = lista.map(item => ({
+                    "Código SAP": item.cod_sap,
+                    "Nome / Razão Social": item.nome,
+                    "CNPJ": item.cnpj,
+                    "E-mail": item.email,           // Novo
+                    "Logradouro": item.logradouro,  // Novo
+                    "Bairro": item.bairro,          // Novo
+                    "Cidade": item.cidade,          // Novo
+                    "UF": item.uf,                  // Novo
+                    "Filial": item.filial,
+                    "Veículo/Equipamento": item.veiculo,
+                    "Início Contrato": new Date(item.data_inicial).toLocaleDateString('pt-BR'),
+                    "Dias Ativo": item.dias_ativo,
+                    "Valor Base (R$)": item.valor_base
+                }));
+
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Ativos");
+                XLSX.writeFile(wb, "Relatorio_Terceiros_Ativos.xlsx");
+            };
+
+            return (
+                <div className="space-y-6">
+                    {/* Header com Botão de Exportar */}
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-lg font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                            <Icons.CheckCircle className="text-green-500" /> Terceiros Ativos
+                        </h2>
+                        <button 
+                            onClick={handleExport}
+                            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition-all"
+                        >
+                            <Icons.Download className="w-4 h-4" /> Baixar Excel Completo
+                        </button>
+                    </div>
+
+                    {/* KPIs - REMOVIDO O CARD DE CUSTO MENSAL */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="glass-card p-4 flex items-center justify-between border-l-4 border-blue-500">
+                            <div>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase">Total Contratos Ativos</p>
+                                <p className="text-2xl font-bold text-slate-800 dark:text-white">{kpis.total_ativos || 0}</p>
+                            </div>
+                            <Icons.FileText className="text-blue-500 w-8 h-8 opacity-50" />
+                        </div>
+                        <div className="glass-card p-4 flex items-center justify-between border-l-4 border-purple-500">
+                            <div>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase">Frota Distinta</p>
+                                <p className="text-2xl font-bold text-slate-800 dark:text-white">{kpis.frota_distinta || 0}</p>
+                            </div>
+                            <Icons.Truck className="text-purple-500 w-8 h-8 opacity-50" />
+                        </div>
+                    </div>
+
+                    {/* Tabela de Listagem */}
+                    <div className="glass-card overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase font-bold text-xs">
+                                    <tr>
+                                        <th className="px-4 py-3">Cod. SAP</th>
+                                        <th className="px-4 py-3">Nome</th>
+                                        <th className="px-4 py-3">CNPJ</th>
+                                        <th className="px-4 py-3">Filial</th>
+                                        <th className="px-4 py-3">Veículo</th>
+                                        <th className="px-4 py-3">Início</th>
+                                        <th className="px-4 py-3 text-center">Dias</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                    {lista.map((item, i) => (
+                                        <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                            <td className="px-4 py-3 font-mono text-slate-600 dark:text-slate-400">{item.cod_sap}</td>
+                                            <td className={`px-4 py-3 font-bold ${item.nome.includes('PENDENTE') ? 'text-orange-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                {item.nome}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.cnpj}</td>
+                                            <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.filial}</td>
+                                            <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-300">{item.veiculo}</td>
+                                            <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                                                {new Date(item.data_inicial).toLocaleDateString('pt-BR')}
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded text-xs font-bold">
+                                                    {item.dias_ativo} dias
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {lista.length === 0 && (
+                                        <tr>
+                                            <td colSpan="7" className="px-4 py-8 text-center text-slate-400">
+                                                Nenhum ativo encontrado para os filtros selecionados.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        const App = () => {
             const [supabaseClient, setSupabaseClient] = useState(null);
             const [session, setSession] = useState(null);
             const [userRole, setUserRole] = useState(null);
             const [loading, setLoading] = useState(false);
             const [logs, setLogs] = useState([]);
-            
             const [isDark, setIsDark] = useState(() => {
                 if (typeof window !== 'undefined') {
                     return localStorage.getItem('theme') === 'dark' || 
@@ -3100,14 +3214,13 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                 }
                 return false;
             });
-            
             const chartColors = getChartColors(isDark);
             const currentYear = new Date().getFullYear();
             const [drePeriodoIni, setDrePeriodoIni] = useState(`${currentYear}-01`);
             const [drePeriodoFim, setDrePeriodoFim] = useState(`${currentYear}-12`);
             const [dreUsinas, setDreUsinas] = useState(['Todas']);
             const [mappings, setMappings] = useState([]);
-            
+
             useEffect(() => {
                 if (isDark) {
                     document.documentElement.classList.add('dark');
@@ -3133,14 +3246,20 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
             const [view, setView] = useState('dashboard');
             const [subView, setSubView] = useState('dash');
             const [dashboardData, setDashboardData] = useState({ kpis: { total_vol: 0, total_val: 0, vol_bomba: 0, vol_transp: 0 }, chart_class: [], chart_plate: [], chart_evo: [], chart_branch: [] });
-            const [dieselData, setDieselData] = useState([]);
+            
+            // --- NOVOS STATES (Diesel e Ativos) ---
+            const [dieselData, setDieselData] = useState({ macro: {}, lista: [] });
+            const [ativosData, setAtivosData] = useState(null); // Novo State para Ativos
+            
             const [controladoriaAnalise, setControladoriaAnalise] = useState([]);
             const [controladoriaRaw, setControladoriaRaw] = useState([]);
             const [resumoData, setResumoData] = useState([]);
             const [confirmData, setConfirmData] = useState(null);
+            
             const today = new Date();
             const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
             const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+            
             const [filters, setFilters] = useState({ month: 'Todos', filial: 'Todas', cidade: 'Todas', ctrlPeriodo: '', ctrlPeriodoComp: '', ctrlUsina: 'Todas', ctrlTipo: 'Despesa', dieselPeriodo: '', dateIni: firstDay, dateFim: lastDay });
             const [selectedReportPeriods, setSelectedReportPeriods] = useState([]);
             const [drillDownConta, setDrillDownConta] = useState(null);
@@ -3172,14 +3291,13 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
 
             useEffect(() => {
                 const today = new Date();
-                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-                const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
                 const m = (today.getMonth() + 1).toString().padStart(2, '0');
                 const y = today.getFullYear();
                 const cur = `${y}-${m}`;
                 const prevDate = new Date(today); prevDate.setMonth(prevDate.getMonth() - 1);
                 const pm = prevDate.getMonth() + 1; const py = prevDate.getFullYear();
                 const defaultPrevPeriod = `${py}-${pm.toString().padStart(2, '0')}`;
+                
                 setFilters(prev => ({...prev, dieselPeriodo: cur}));
                 const loadLatestCtrl = async () => {
                     if (!supabaseClient) return;
@@ -3205,7 +3323,12 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
 
             useEffect(() => {
                 if(!session) return;
+                
+                // Rotas de Carregamento
                 if(view === 'dashboard') fetchDashboard();
+                // Reutilizamos o fetchDashboard para popular o filtro de filiais na tela de ativos
+                if(view === 'terceirizacao_ativos') { fetchDashboard(); fetchAtivos(); }
+                
                 if(view === 'reports') fetchReport();
                 if(view === 'controladoria') {
                     if(subView === 'dash') { fetchControladoriaAnalitico(); fetchControladoriaFiliais(); }
@@ -3214,6 +3337,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                     if(subView === 'dre') { fetchControladoriaFiliais(); fetchDREData(); }
                 }
                 if(view === 'diesel' && (subView === 'dash' || subView === 'report')) fetchDieselData();
+                
             }, [view, subView, filters, session, drePeriodoIni, drePeriodoFim]);
 
             const checkUserRole = async (userId, email) => {
@@ -3226,30 +3350,28 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
             };
 
             const handleSetView = (v, sv) => { 
-                setView(v); 
+                setView(v);
                 if(sv) setSubView(sv); 
                 setSelectedReportPeriods([]);
             };
 
             const fetchDashboard = async () => {
-    setLoading(true);
-    try {
-        // Chamada RPC atualizada com data_ini e data_fim
-        const { data, error } = await supabaseClient.rpc('get_dashboard_stats', { 
-            p_data_ini: filters.dateIni, 
-            p_data_fim: filters.dateFim, 
-            selected_branch: filters.filial 
-        });
-
-        if(error) throw error; 
-        if(data) setDashboardData(data);
-    } catch(e) { 
-        console.error(e); 
-        addLog("Erro ao carregar dashboard: " + e.message, 'error');
-    } finally { 
-        setLoading(false);
-    }
-};
+                setLoading(true);
+                try {
+                    const { data, error } = await supabaseClient.rpc('get_dashboard_stats', { 
+                        p_data_ini: filters.dateIni, 
+                        p_data_fim: filters.dateFim, 
+                        selected_branch: filters.filial 
+                    });
+                    if(error) throw error; 
+                    if(data) setDashboardData(data);
+                } catch(e) { 
+                    console.error(e);
+                    addLog("Erro ao carregar dashboard: " + e.message, 'error');
+                } finally { 
+                    setLoading(false);
+                }
+            };
 
             const fetchReport = async () => {
                 setLoading(true);
@@ -3259,39 +3381,48 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                 } catch(e) { addLog(e.message, "error"); } finally { setLoading(false); }
             };
 
+            // --- NOVA FUNÇÃO FETCH DIESEL (RPC) ---
             const fetchDieselData = async () => {
-    // Se não tiver filtro, limpa a tela e sai
-    if (!filters.dieselPeriodo) {
-        setDieselData({ macro: {}, lista: [] });
-        return;
-    }
-    
-    setLoading(true);
-    // LIMPEZA PREVENTIVA: Garante que dados antigos não fiquem na tela enquanto carrega
-    // Se preferir manter os dados enquanto carrega, pode remover a linha abaixo, mas ela ajuda a ver que algo mudou.
-    // setDieselData({ macro: {}, lista: [] }); 
+                if (!filters.dieselPeriodo) {
+                    setDieselData({ macro: {}, lista: [] });
+                    return;
+                }
+                setLoading(true);
+                try { 
+                    const { data, error } = await supabaseClient.rpc('get_diesel_dashboard', { 
+                        p_periodo: filters.dieselPeriodo 
+                    });
+                    if (error) throw error;
+                    setDieselData(data || { macro: {}, lista: [] }); 
+                } catch(e) { 
+                    addLog("Erro Diesel: " + e.message, 'error');
+                    setDieselData({ macro: {}, lista: [] });
+                } finally { 
+                    setLoading(false); 
+                }
+            };
 
-    try {
-        console.log("Buscando Diesel para:", filters.dieselPeriodo); // Debug
+            // --- NOVA FUNÇÃO FETCH ATIVOS ---
+            const fetchAtivos = async () => {
+                setLoading(true);
+                try {
+                    // Prepara o filtro de filiais
+                    const filiaisFiltro = filters.filial === 'Todas' ? null : [filters.filial];
+                    
+                    const { data, error } = await supabaseClient.rpc('get_relatorio_ativos', { 
+                        p_filiais: filiaisFiltro 
+                    });
 
-        // Chama a função SQL passando o parâmetro p_periodo
-        const { data, error } = await supabaseClient.rpc('get_diesel_dashboard', { 
-            p_periodo: filters.dieselPeriodo 
-        });
-        
-        if (error) throw error;
-        
-        // Atualiza com os novos dados ou objeto vazio se vier null
-        setDieselData(data || { macro: {}, lista: [] }); 
-        
-    } catch(e) { 
-        addLog("Erro Diesel: " + e.message, 'error');
-        // Em caso de erro, limpa os dados para não mostrar informações enganosas
-        setDieselData({ macro: {}, lista: [] });
-    } finally { 
-        setLoading(false); 
-    }
-};
+                    if (error) throw error;
+                    setAtivosData(data);
+                } catch (error) {
+                    console.error("Erro ao carregar ativos:", error);
+                    addLog("Erro ao carregar ativos: " + error.message, 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
             const fetchControladoriaAnalitico = async () => {
                 if(!filters.ctrlPeriodo) return;
                 setLoading(true);
@@ -3338,13 +3469,15 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                 } catch(e) { addLog("Erro DRE: " + e.message, 'error'); } finally { setLoading(false); }
             };
 
-            const fetchControladoriaFiliais = async () => { try { const { data } = await supabaseClient.from('controladoria_importacoes').select('usina'); const unique = [...new Set((data||[]).map(d => d.usina))].sort(); setControladoriaFiliais(unique); } catch(e) {} };
+            const fetchControladoriaFiliais = async () => { try { const { data } = await supabaseClient.from('controladoria_importacoes').select('usina');
+            const unique = [...new Set((data||[]).map(d => d.usina))].sort(); setControladoriaFiliais(unique); } catch(e) {} };
             const fetchControladoriaContasAmigaveis = async () => { try { const { data } = await supabaseClient.from('controladoria_de_para').select('friendly_name').eq('tipo', 'Despesa').order('friendly_name'); setControladoriaContas(data.map(d => d.friendly_name)); } catch(e) {} };
 
             const processDieselFile = (file, periodDate) => {
                 const XLSX = window.XLSX;
                 if (!XLSX) { addLog("XLSX lib not loaded", "error"); return; }
-                setLoading(true); const reader = new FileReader();
+                setLoading(true);
+                const reader = new FileReader();
                 reader.onload = async (e) => { try {
                     const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
                     const jsonData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]); 
@@ -3356,7 +3489,8 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                     if (batch.length === 0) throw new Error("Sem registros.");
                     await supabaseClient.from('diesel_estoque').delete().eq('periodo', periodDate);
                     await supabaseClient.from('diesel_estoque').insert(batch);
-                    addLog(`Importado!`, "success"); setFilters(prev => ({...prev, dieselPeriodo: periodDate})); fetchDieselData();
+                    addLog(`Importado!`, "success"); setFilters(prev => ({...prev, dieselPeriodo: periodDate}));
+                    fetchDieselData();
                 } catch (err) { addLog("Erro: " + err.message, "error"); } finally { setLoading(false); } };
                 reader.readAsArrayBuffer(file);
             };
@@ -3364,16 +3498,20 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
             const processControladoriaFile = (file, periodDate) => {
                 const XLSX = window.XLSX;
                 if (!XLSX) { addLog("XLSX lib not loaded", "error"); return; }
-                setLoading(true); const reader = new FileReader();
+                setLoading(true);
+                const reader = new FileReader();
                 reader.onload = async (e) => { try {
                     const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
                     const rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1}); 
                     if (rawData.length < 4) throw new Error("Arquivo inválido.");
-                    const headers = rawData[0]; const batch = [];
+                    const headers = rawData[0];
+                    const batch = [];
                     for (let i = 3; i < rawData.length; i++) {
-                        const row = rawData[i]; const rawUsina = row[0];
+                        const row = rawData[i];
+                        const rawUsina = row[0];
                         if (rawUsina && typeof rawUsina === 'string') {
-                            const usinaCode = rawUsina.substring(0, 4).toUpperCase(); let custoTotal = 0; let volTotal = 0; const detalhes = {};
+                            const usinaCode = rawUsina.substring(0, 4).toUpperCase();
+                            let custoTotal = 0; let volTotal = 0; const detalhes = {};
                             headers.forEach((h, colIdx) => {
                                 if(!h || colIdx === 0) return; const val = parseFloat(row[colIdx]) || 0; const hStr = h.toString().trim(); detalhes[hStr] = val; 
                                 if (hStr.toLowerCase().includes('tot. custos')) custoTotal = val; else if (hStr.toLowerCase().includes('qtd.transp') || hStr.toLowerCase().includes('qtd.bomb')) volTotal += val;
@@ -3383,7 +3521,8 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                     }
                     await supabaseClient.rpc('limpar_periodo_controladoria', { p_periodo: periodDate });
                     for (let i = 0; i < batch.length; i += 100) await supabaseClient.from('controladoria_importacoes').insert(batch.slice(i, i + 100));
-                    addLog(`Sucesso!`, "success"); setFilters(prev => ({...prev, ctrlPeriodo: periodDate}));
+                    addLog(`Sucesso!`, "success");
+                    setFilters(prev => ({...prev, ctrlPeriodo: periodDate}));
                 } catch (err) { addLog("Erro: " + err.message, "error"); } finally { setLoading(false); } };
                 reader.readAsArrayBuffer(file);
             };
@@ -3403,140 +3542,65 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
             };
 
             const confirmImportTerceirizacao = async () => {
-    if (!confirmData) return;
-    const { type, data } = confirmData;
-    setConfirmData(null);
-    setLoading(true);
+                if (!confirmData) return;
+                const { type, data } = confirmData;
+                setConfirmData(null);
+                setLoading(true);
 
-    // 1. Define quais colunas tornam o registro único (para ignorar repetidos)
-    let conflictColumns = '';
-    if (type === 'apuracao') {
-        // Tem que bater com a Constraint criada no SQL
-        conflictColumns = 'filial_prod, dt_viagem, n_viagem, placa, tipo_lancamento, valor_base';
-    } else if (type === 'pagamentos') {
-        // Assumindo que o Nº Documento + Fornecedor é único
-        conflictColumns = 'n_documento, fornecedor, data_documento'; 
-    } else if (type === 'concessao') {
-        // Assumindo Equipamento + Data Inicial
-        conflictColumns = 'equipamento, fornecedor, data_inicial';
-    }
+                let conflictColumns = '';
+                if (type === 'apuracao') conflictColumns = 'filial_prod, dt_viagem, n_viagem, placa, tipo_lancamento, valor_base';
+                else if (type === 'pagamentos') conflictColumns = 'n_documento, fornecedor, data_documento';
+                else if (type === 'concessao') conflictColumns = 'equipamento, fornecedor, data_inicial';
 
-    const mapRow = (row) => {
-        // Função auxiliar para normalizar e buscar a chave ignorando maiúsculas/acentos
-        const get = (k) => {
-            const key = Object.keys(row).find(x => Utils.normalizeKey(x) === Utils.normalizeKey(k));
-            return key ? row[key] : "";
-        };
+                const mapRow = (row) => {
+                    const get = (k) => {
+                        const key = Object.keys(row).find(x => Utils.normalizeKey(x) === Utils.normalizeKey(k));
+                        return key ? row[key] : "";
+                    };
 
-        // --- BLOCO NOVO PARA APURAÇÃO ---
-        if (type === 'apuracao') {
-            return {
-                // Coluna Banco : Coluna Excel
-                filial_prod: get('Filial Prod.'),
-                n_viagem: get('N° Viagem'),
-                terceiro: get('Terceiro'),
-                nome_terceiro: get('Nome Terceiro'),
-                placa: get('Placa'),
-                cidade: get('Cidade'),
-                regiao: get('Região'),
-                valor_base: Utils.formatters.parseBrl(get('Valor Base')),
-                material: get('Material'),
-                volume: Utils.formatters.parseBrl(get('Volume')),
-                total: Utils.formatters.parseBrl(get('Total')),
-                classe: get('Classe'),
-                dt_viagem: Utils.formatters.parseDate(get('Dt. Viagem')),
-                tipo_lancamento: get('Tipo Lancamento'),
-                manual: get('Manual')
+                    if (type === 'apuracao') {
+                        return {
+                            filial_prod: get('Filial Prod.'), n_viagem: get('N° Viagem'), terceiro: get('Terceiro'), nome_terceiro: get('Nome Terceiro'),
+                            placa: get('Placa'), cidade: get('Cidade'), regiao: get('Região'), valor_base: Utils.formatters.parseBrl(get('Valor Base')),
+                            material: get('Material'), volume: Utils.formatters.parseBrl(get('Volume')), total: Utils.formatters.parseBrl(get('Total')),
+                            classe: get('Classe'), dt_viagem: Utils.formatters.parseDate(get('Dt. Viagem')), tipo_lancamento: get('Tipo Lancamento'), manual: get('Manual')
+                        };
+                    }
+                    if(type === 'pagamentos') return { 
+                        n_documento: get('Nº documento'), referencia: get('Referência'), tipo_documento: get('Tipo de documento'),
+                        data_documento: Utils.formatters.parseDate(get('Data do documento')), vencimento_liquido: Utils.formatters.parseDate(get('Vencimento líquido')),
+                        data_compensacao: Utils.formatters.parseDate(get('Data de compensação')), montante: Utils.formatters.parseBrl(get('Montante em moeda interna')),
+                        doc_compensacao: get('Doc.compensação'), nome_1: get('Nome 1'), fornecedor: get('Fornecedor'), texto: get('Texto'),
+                        data_lancamento: Utils.formatters.parseDate(get('Data de lançamento')), loc_negocios: get('Loc.negócios'), data_pagamento: Utils.formatters.parseDate(get('Data de pagamento')),
+                        usuario: get('Nome do usuário') || get('Nome do Usuário')
+                    };
+                    if(type === 'concessao') return {
+                        equipamento: get('Equipamento'), material: get('Material'), data_inicial: Utils.formatters.parseDate(get('Data Inicial')),
+                        data_final: Utils.formatters.parseDate(get('Data Final')), fornecedor: get('Fornecedor'), centro: get('Centro'),
+                        valor_base: Utils.formatters.parseBrl(get('Valor Base'))
+                    };
+                    return null;
+                };
+
+                try {
+                    const batch = data.map(mapRow).filter(Boolean);
+                    for (let i = 0; i < batch.length; i += 100) {
+                        const chunk = batch.slice(i, i + 100);
+                        const { error } = await supabaseClient.from(type).upsert(chunk, { onConflict: conflictColumns, ignoreDuplicates: true });
+                        if (error) { if (error.code === '42P10') throw new Error("Erro de configuração de chaves únicas."); throw error; }
+                    }
+                    addLog(`Importação concluída.`, "success");
+                } catch (e) { addLog("Erro na importação: " + e.message, 'error'); } finally { setLoading(false); }
             };
-        }
-
-        if(type === 'pagamentos') return { 
-            n_documento: get('Nº documento'), 
-            referencia: get('Referência'),
-            tipo_documento: get('Tipo de documento'),
-            data_documento: Utils.formatters.parseDate(get('Data do documento')),
-            vencimento_liquido: Utils.formatters.parseDate(get('Vencimento líquido')),
-            data_compensacao: Utils.formatters.parseDate(get('Data de compensação')),
-            montante: Utils.formatters.parseBrl(get('Montante em moeda interna')),
-            doc_compensacao: get('Doc.compensação'),
-            nome_1: get('Nome 1'),
-            fornecedor: get('Fornecedor'),
-            texto: get('Texto'),
-            data_lancamento: Utils.formatters.parseDate(get('Data de lançamento')),
-            loc_negocios: get('Loc.negócios'),
-            data_pagamento: Utils.formatters.parseDate(get('Data de pagamento')),
-            usuario: get('Nome do usuário') || get('Nome do Usuário')
-        };
-
-        if(type === 'concessao') return {
-            equipamento: get('Equipamento'),
-            material: get('Material'),
-            data_inicial: Utils.formatters.parseDate(get('Data Inicial')),
-            data_final: Utils.formatters.parseDate(get('Data Final')),
-            fornecedor: get('Fornecedor'),
-            centro: get('Centro'),
-            valor_base: Utils.formatters.parseBrl(get('Valor Base'))
-        };
-
-        return null;
-    };
-
-    try {
-        const batch = data.map(mapRow).filter(Boolean);
-        let novosCount = 0;
-
-        // Processa em lotes de 100
-        for (let i = 0; i < batch.length; i += 100) {
-            const chunk = batch.slice(i, i + 100);
-
-            // UPSERT COM IGNORE DUPLICATES
-            // Tenta inserir. Se a chave bater com existente, ignora e segue.
-            const { data: inserted, error } = await supabaseClient
-                .from(type)
-                .upsert(chunk, { 
-                    onConflict: conflictColumns, 
-                    ignoreDuplicates: true,
-                    select: true // Retorna os que foram inseridos de fato (opcional)
-                });
-
-            if (error) {
-                // Se o erro for de coluna unique não encontrada, avisa
-                if (error.code === '42P10') {
-                    throw new Error("Erro de configuração: Faltou criar a regra UNIQUE no banco de dados.");
-                }
-                throw error;
-            }
-        }
-
-        addLog(`Processo finalizado! O arquivo foi processado e apenas novos registros foram salvos.`, "success");
-    } catch (e) {
-        addLog("Erro na importação: " + e.message, 'error');
-    } finally {
-        setLoading(false);
-    }
-};
 
             const handleImport = async (file, type, period) => {
                 if(type === 'controladoria') processControladoriaFile(file, period);
                 else if(type === 'diesel') processDieselFile(file, period);
                 else handleUploadTerceirizacao(file, type);
             };
+            const batchExport = async (tableName, fileName) => { addLog("Exportação iniciada...", "info"); };
 
-            const batchExport = async (tableName, fileName) => {
-                addLog("Exportação iniciada...", "info");
-            };
-
-            if (!supabaseClient) {
-                return (
-                    <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
-                        <div className="text-center">
-                            <div className="loader h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent mx-auto mb-4"></div>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">Inicializando sistema...</p>
-                        </div>
-                    </div>
-                );
-            }
-
+            if (!supabaseClient) return <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-900"><div className="text-center"><div className="loader h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent mx-auto mb-4"></div><p className="text-sm text-slate-500 dark:text-slate-400">Inicializando...</p></div></div>;
             if (!session) return <LoginScreen onLogin={(e,p) => supabaseClient.auth.signInWithPassword({email:e, password:p})} loading={loading} />;
 
             return (
@@ -3577,79 +3641,21 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                         <main className="p-8 max-w-[1600px] mx-auto pb-20">
                             <ErrorBoundary>
                                 {view === 'dashboard' && (
-    <div className="space-y-8">
-        {/* Barra de Filtros Range de Datas */}
-        <div className="glass-card p-4 flex gap-4 flex-wrap items-center relative z-30 no-print">
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
-                <Icons.Filter /> Período:
-            </div>
-
-            {/* Data Inicial */}
-            <input 
-                type="date"
-                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
-                value={filters.dateIni}
-                onChange={e => {
-                    const newVal = e.target.value;
-                    setFilters(prev => ({...prev, dateIni: newVal}));
-                    // Atualização imediata
-                    if (supabaseClient && newVal && filters.dateFim) {
-                         setLoading(true);
-                         supabaseClient.rpc('get_dashboard_stats', { p_data_ini: newVal, p_data_fim: filters.dateFim, selected_branch: filters.filial })
-                            .then(({ data }) => { setDashboardData(data); setLoading(false); });
-                    }
-                }}
-            />
-
-            <span className="text-slate-400 text-xs">até</span>
-
-            {/* Data Final */}
-            <input 
-                type="date"
-                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
-                value={filters.dateFim}
-                onChange={e => {
-                    const newVal = e.target.value;
-                    setFilters(prev => ({...prev, dateFim: newVal}));
-                    if (supabaseClient && filters.dateIni && newVal) {
-                         setLoading(true);
-                         supabaseClient.rpc('get_dashboard_stats', { p_data_ini: filters.dateIni, p_data_fim: newVal, selected_branch: filters.filial })
-                            .then(({ data }) => { setDashboardData(data); setLoading(false); });
-                    }
-                }}
-            />
-
-            {/* Divisor */}
-            <div className="h-6 w-px bg-slate-300 dark:bg-slate-700 mx-2"></div>
-
-            {/* Filtro de Filial */}
-            <select 
-                className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 min-w-[150px]" 
-                value={filters.filial} 
-                onChange={e => {
-                    const newVal = e.target.value;
-                    setFilters(prev => ({...prev, filial: newVal}));
-                    if (supabaseClient) {
-                         setLoading(true);
-                         supabaseClient.rpc('get_dashboard_stats', { p_data_ini: filters.dateIni, p_data_fim: filters.dateFim, selected_branch: newVal })
-                            .then(({ data }) => { setDashboardData(data); setLoading(false); });
-                    }
-                }}
-            >
-                <option value="Todas">🏭 Todas as Filiais</option>
-               {(dashboardData.lista_filiais || dashboardData.chart_usina || []).map(f => (<option key={f.name} value={f.name}>{f.name}</option>))}
-            </select>
-        </div>
-
-        <TerceirizacaoDashboard 
-            data={dashboardData} 
-            loading={loading} 
-            isDark={isDark} 
-            filters={filters} // Passa os filtros para exibir alertas corretos
-            supabaseClient={supabaseClient}
-        />
-    </div>
-)}
+                                    <div className="space-y-8">
+                                        <div className="glass-card p-4 flex gap-4 flex-wrap items-center relative z-30 no-print">
+                                            <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400"><Icons.Filter /> Período:</div>
+                                            <input type="date" className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" value={filters.dateIni} onChange={e => { const newVal = e.target.value; setFilters(prev => ({...prev, dateIni: newVal})); if (supabaseClient && newVal && filters.dateFim) { setLoading(true); supabaseClient.rpc('get_dashboard_stats', { p_data_ini: newVal, p_data_fim: filters.dateFim, selected_branch: filters.filial }).then(({ data }) => { setDashboardData(data); setLoading(false); }); } }} />
+                                            <span className="text-slate-400 text-xs">até</span>
+                                            <input type="date" className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" value={filters.dateFim} onChange={e => { const newVal = e.target.value; setFilters(prev => ({...prev, dateFim: newVal})); if (supabaseClient && filters.dateIni && newVal) { setLoading(true); supabaseClient.rpc('get_dashboard_stats', { p_data_ini: filters.dateIni, p_data_fim: newVal, selected_branch: filters.filial }).then(({ data }) => { setDashboardData(data); setLoading(false); }); } }} />
+                                            <div className="h-6 w-px bg-slate-300 dark:bg-slate-700 mx-2"></div>
+                                            <select className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 min-w-[150px]" value={filters.filial} onChange={e => { const newVal = e.target.value; setFilters(prev => ({...prev, filial: newVal})); if (supabaseClient) { setLoading(true); supabaseClient.rpc('get_dashboard_stats', { p_data_ini: filters.dateIni, p_data_fim: filters.dateFim, selected_branch: newVal }).then(({ data }) => { setDashboardData(data); setLoading(false); }); } }}>
+                                                <option value="Todas">🏭 Todas as Filiais</option>
+                                                {(dashboardData.lista_filiais || dashboardData.chart_usina || []).map(f => (<option key={f.name} value={f.name}>{f.name}</option>))}
+                                            </select>
+                                        </div>
+                                        <TerceirizacaoDashboard data={dashboardData} loading={loading} isDark={isDark} filters={filters} supabaseClient={supabaseClient} />
+                                    </div>
+                                )}
                                 {view === 'reports' && (
                                     <div className="space-y-6">
                                         <div className="glass-card p-4 mb-6 flex gap-4 items-end relative z-30">
@@ -3659,103 +3665,53 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                                         <DataTable data={filteredReportData} onNotify={addLog} onExportAll={() => batchExport('resumo_mensal', 'Relatorio_Geral_Completo')} />
                                     </div>
                                 )}
-                                {view === 'terceirizacao_cadastros' && (
-                                    <div className="space-y-6 animate-enter pb-10">
-                                        <TerceirizacaoCadastros 
-                                            supabaseClient={supabaseClient} 
-                                            onNotify={addLog} 
-                                        />
+                                {view === 'terceirizacao_cadastros' && <TerceirizacaoCadastros supabaseClient={supabaseClient} onNotify={addLog} />}
+                                {view === 'terceirizacao_pagamentos' && (
+                                    <div className="space-y-8">
+                                        <div className="glass-card p-4 flex gap-4 items-center no-print">
+                                            <div className="flex items-center gap-2 text-sm text-slate-600"><Icons.Filter /> Período:</div>
+                                            <input type="date" className="border p-1 rounded" value={filters.dateIni} onChange={e => setFilters({...filters, dateIni: e.target.value})} />
+                                            <span>até</span>
+                                            <input type="date" className="border p-1 rounded" value={filters.dateFim} onChange={e => setFilters({...filters, dateFim: e.target.value})} />
+                                        </div>
+                                        <TerceirizacaoPagamentos supabaseClient={supabaseClient} filters={filters} onNotify={addLog} />
                                     </div>
                                 )}
-                                {view === 'terceirizacao_pagamentos' && (
-                                        <div className="space-y-8">
-                                            <div className="glass-card p-4 flex gap-4 items-center no-print">
-                                                <div className="flex items-center gap-2 text-sm text-slate-600"><Icons.Filter /> Período:</div>
-                                                <input type="date" className="border p-1 rounded" value={filters.dateIni} onChange={e => setFilters({...filters, dateIni: e.target.value})} />
-                                                <span>até</span>
-                                                <input type="date" className="border p-1 rounded" value={filters.dateFim} onChange={e => setFilters({...filters, dateFim: e.target.value})} />
-                                            </div>
-                                            <TerceirizacaoPagamentos 
-                                                supabaseClient={supabaseClient} 
-                                                filters={filters} 
-                                                onNotify={addLog} 
-                                            />
+                                {view === 'terceirizacao_turnover' && (
+                                    <div className="space-y-6 animate-enter pb-10">
+                                        <div className="glass-card p-4 flex gap-4 items-center no-print">
+                                            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400"><Icons.Filter /> Período:</div>
+                                            <input type="date" className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-cyan-500 outline-none" value={filters.dateIni} onChange={e => setFilters({...filters, dateIni: e.target.value})} />
+                                            <span className="text-slate-400 text-xs">até</span>
+                                            <input type="date" className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-cyan-500 outline-none" value={filters.dateFim} onChange={e => setFilters({...filters, dateFim: e.target.value})} />
+                                            <div className="h-6 w-px bg-slate-300 dark:bg-slate-700 mx-2"></div>
+                                            <select className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 min-w-[150px]" value={filters.filial} onChange={e => setFilters(prev => ({...prev, filial: e.target.value}))}>
+                                                <option value="Todas">🏭 Todas as Filiais</option>
+                                                {(dashboardData.lista_filiais || []).map(f => (<option key={f.name} value={f.name}>{f.name}</option>))}
+                                            </select>
                                         </div>
-                                    )}
-                                    
-                                    {view === 'terceirizacao_turnover' && (
-    <div className="space-y-6 animate-enter pb-10">
-        {/* Barra de Filtros Padronizada */}
-        <div className="glass-card p-4 flex gap-4 items-center no-print">
-            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                <Icons.Filter /> Período:
-            </div>
-            
-            <input 
-                type="date" 
-                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-cyan-500 outline-none"
-                value={filters.dateIni} 
-                onChange={e => setFilters({...filters, dateIni: e.target.value})} 
-            />
-            
-            <span className="text-slate-400 text-xs">até</span>
-            
-            <input 
-                type="date" 
-                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-cyan-500 outline-none"
-                value={filters.dateFim} 
-                onChange={e => setFilters({...filters, dateFim: e.target.value})} 
-            />
-
-            {/* Divisor */}
-            <div className="h-6 w-px bg-slate-300 dark:bg-slate-700 mx-2"></div>
-
-            {/* Filtro de Filial (Opcional, mas útil) */}
-            <select 
-                className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 min-w-[150px]" 
-                value={filters.filial} 
-                onChange={e => setFilters(prev => ({...prev, filial: e.target.value}))}
-            >
-                <option value="Todas">🏭 Todas as Filiais</option>
-                {/* Reutiliza a lista de filiais do dashboard se disponível, senão apenas 'Todas' */}
-                {(dashboardData.lista_filiais || []).map(f => (<option key={f.name} value={f.name}>{f.name}</option>))}
-            </select>
-        </div>
-
-        {/* Componente Turnover */}
-        <TerceirizacaoTurnover 
-            supabaseClient={supabaseClient} 
-            filters={filters} 
-            onNotify={addLog} 
-        />
-    </div>
-)}
-                       {view === 'terceirizacao_ativos' && (
-    <div className="space-y-6 animate-enter pb-10">
-        {/* Barra de Filtros (Simples: Apenas Filial) */}
-        <div className="glass-card p-4 flex gap-4 items-center no-print">
-            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                <Icons.Filter /> Filtros:
-            </div>
-            
-            <select 
-                className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 min-w-[200px]" 
-                value={filters.filial} 
-                onChange={e => setFilters(prev => ({...prev, filial: e.target.value}))}
-            >
-                <option value="Todas">🏭 Todas as Filiais</option>
-                {/* Reutiliza a lista de filiais existente */}
-                {(dashboardData.lista_filiais || []).map(f => (<option key={f.name} value={f.name}>{f.name}</option>))}
-            </select>
-        </div>
-
-        <TerceirizacaoRelatorioAtivos 
-            supabaseClient={supabaseClient} 
-            filters={filters} 
-            onNotify={addLog} 
-        />
-    </div>
-)}         
+                                        <TerceirizacaoTurnover supabaseClient={supabaseClient} filters={filters} onNotify={addLog} />
+                                    </div>
+                                )}
+                                
+                                {/* --- NOVA TELA DE ATIVOS --- */}
+                                {view === 'terceirizacao_ativos' && (
+                                    <div className="space-y-6 animate-enter pb-10">
+                                        <div className="glass-card p-4 flex gap-4 items-center no-print">
+                                            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400"><Icons.Filter /> Filtros:</div>
+                                            <select 
+                                                className="bg-transparent text-sm font-medium focus:outline-none dark:text-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1.5 min-w-[200px]" 
+                                                value={filters.filial} 
+                                                onChange={e => setFilters(prev => ({...prev, filial: e.target.value}))}
+                                            >
+                                                <option value="Todas">🏭 Todas as Filiais</option>
+                                                {(dashboardData.lista_filiais || []).map(f => (<option key={f.name} value={f.name}>{f.name}</option>))}
+                                            </select>
+                                        </div>
+                                        <ActiveAssets data={ativosData} loading={loading} />
+                                    </div>
+                                )}         
+                                
                                 {view === 'controladoria' && (subView === 'dash' || subView === 'report') && (
                                     <>
                                         <div className="glass-card p-4 mb-6 flex gap-4 flex-wrap items-center relative z-30">
@@ -3783,24 +3739,29 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                                         <ControladoriaDRE rawData={controladoriaRaw} mappings={mappings} periodoIni={drePeriodoIni} periodoFim={drePeriodoFim} usinasSelecionadas={dreUsinas} isDark={isDark} />
                                     </div>
                                 )}
+                                
                                 {view === 'diesel' && subView === 'dash' && (
                                     <>
                                         <div className="glass-card p-4 mb-6 flex gap-4 relative z-30 no-print"><div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400"><Icons.Filter /> Filtros:</div><MonthPicker label="Mês" value={filters.dieselPeriodo} onChange={e=>setFilters({...filters, dieselPeriodo:e})} /></div>
                                         <DieselDashboard data={dieselData} loading={loading} periodo={filters.dieselPeriodo} isDark={isDark} />
                                     </>
                                 )}
-                                {view === 'diesel' && subView === 'report' && <DataTable data={dieselData} onNotify={addLog} title="Relatório Diesel" />}
+                                {view === 'diesel' && subView === 'report' && <DataTable data={dieselData.lista || []} onNotify={addLog} title="Relatório Diesel" />}
                                 {view === 'diesel' && subView === 'import' && <DieselImport onImport={(f,d)=>handleImport(f,'diesel',d)} loading={loading} />}
+                                
                                 {view === 'upload' && (
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                         <UploadCard type="apuracao" iconName="fileText" onAnalyze={(f)=>handleImport(f,'apuracao')} isAnalyzing={loading} progress={0} />
                                         <UploadCard type="pagamentos" iconName="dollar" onAnalyze={(f)=>handleImport(f,'pagamentos')} isAnalyzing={loading} progress={0} />
                                         <UploadCard type="concessao" iconName="truck" onAnalyze={(f)=>handleImport(f,'concessao')} isAnalyzing={loading} progress={0} />
+                                        
+                                        {/* CARD DE TERCEIRIZAÇÃO ADICIONADO */}
+                                        <UploadCard type="terceirizacao" iconName="users" onAnalyze={(f) => handleImport(f, 'terceirizacao')} isAnalyzing={loading} progress={0} />
                                     </div>
                                 )}
                                 {view === 'terceirizacao_depara' && (
-                    <TerceirizacaoDePara supabaseClient={supabaseClient} onNotify={addLog} />
-                )}
+                                    <TerceirizacaoDePara supabaseClient={supabaseClient} onNotify={addLog} />
+                                )}
                             </ErrorBoundary>
                         </main>
                     </div>
@@ -3813,6 +3774,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
