@@ -3446,7 +3446,71 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
                 } catch (err) { addLog("Erro: " + err.message, "error"); } finally { setLoading(false); } };
                 reader.readAsArrayBuffer(file);
             };
+            // --- NOVA FUNÇÃO: Importação de Equipamentos (Frota) ---
+            const processEquipamentosFile = (file) => {
+                const XLSX = window.XLSX;
+                if (!XLSX) { addLog("Biblioteca XLSX não carregada.", "error"); return; }
+                
+                setLoading(true);
+                const reader = new FileReader();
+                
+                reader.onload = async (e) => {
+                    try {
+                        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                        const sheetName = wb.SheetNames[0];
+                        const jsonData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" });
 
+                        if (jsonData.length === 0) throw new Error("A planilha está vazia.");
+
+                        // Mapeamento "De/Para" conforme solicitado
+                        const batch = jsonData.map(row => {
+                            // Função auxiliar para pegar valor independente de maiúscula/minúscula
+                            const getVal = (keyPart) => {
+                                const key = Object.keys(row).find(k => k.trim().toLowerCase() === keyPart.toLowerCase());
+                                return key ? String(row[key]).trim() : null;
+                            };
+
+                            const placa = getVal("Equipamento"); // Coluna "Equipamento" -> Placa
+
+                            // Pula linhas sem placa
+                            if (!placa) return null;
+
+                            return {
+                                placa: placa,
+                                marca: getVal("OBS") || "",         // Coluna "OBS" -> Marca
+                                classe: getVal("Classe") || "",     // Coluna "Classe"
+                                implemento: getVal("Tipo") || "",   // Coluna "Tipo" -> Implemento
+                                usuario_criacao: session?.user?.email || "sistema",
+                                created_at: new Date().toISOString()
+                            };
+                        }).filter(item => item !== null);
+
+                        if (batch.length === 0) throw new Error("Nenhum equipamento válido encontrado.");
+
+                        // UPSERT: Insere ou Atualiza baseado na constraint UNIQUE (placa, implemento)
+                        const { error } = await supabaseClient
+                            .from('equipamentos')
+                            .upsert(batch, { 
+                                onConflict: 'placa, implemento', // A chave de validação solicitada
+                                ignoreDuplicates: false // Se false, atualiza os outros campos (marca, classe) se já existir
+                            });
+
+                        if (error) throw error;
+
+                        addLog(`Sucesso! ${batch.length} equipamentos processados.`, "success");
+                        
+                        // Opcional: Recarregar alguma lista se houver
+                        
+                    } catch (err) {
+                        console.error(err);
+                        addLog("Erro na importação de Equipamentos: " + err.message, "error");
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+                
+                reader.readAsArrayBuffer(file);
+            };
             const processControladoriaFile = (file, periodDate) => {
                 const XLSX = window.XLSX;
                 if (!XLSX) { addLog("XLSX lib not loaded", "error"); return; }
@@ -3548,6 +3612,7 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
             const handleImport = async (file, type, period) => {
                 if(type === 'controladoria') processControladoriaFile(file, period);
                 else if(type === 'diesel') processDieselFile(file, period);
+                else if (type === 'equipamentos') processEquipamentosFile(file);
                 else handleUploadTerceirizacao(file, type);
             };
             const batchExport = async (tableName, fileName) => { addLog("Exportação iniciada...", "info"); };
@@ -3708,6 +3773,17 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
                                 
                                 {view === 'upload' && (
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        {/* ... outros cards existentes ... */}
+                                        
+                                        {/* NOVO CARD: EQUIPAMENTOS */}
+                                        <UploadCard 
+                                            type="equipamentos" 
+                                            iconName="truck" 
+                                            onAnalyze={(f) => handleImport(f, 'equipamentos')} 
+                                            isAnalyzing={loading} 
+                                            progress={0} 
+                                        />
+                                        
                                         <UploadCard type="apuracao" iconName="fileText" onAnalyze={(f)=>handleImport(f,'apuracao')} isAnalyzing={loading} progress={0} />
                                         <UploadCard type="pagamentos" iconName="dollar" onAnalyze={(f)=>handleImport(f,'pagamentos')} isAnalyzing={loading} progress={0} />
                                         <UploadCard type="concessao" iconName="truck" onAnalyze={(f)=>handleImport(f,'concessao')} isAnalyzing={loading} progress={0} />
@@ -3729,6 +3805,7 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
     </script>
 </body>
 </html>
+
 
 
 
