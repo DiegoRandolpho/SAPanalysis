@@ -3511,6 +3511,176 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
                 
                 reader.readAsArrayBuffer(file);
             };
+            // --- ROTINAS DE DIESEL (SHELL, TICKET, CTA) ---
+
+            // 1. Processamento SHELL
+            const processShellFile = (file) => {
+                const XLSX = window.XLSX;
+                if (!XLSX) { addLog("XLSX não carregado.", "error"); return; }
+                setLoading(true);
+
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                        const jsonData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+
+                        const batch = jsonData.map(row => {
+                            // Helper para pegar valor case-insensitive
+                            const get = (k) => row[Object.keys(row).find(key => key.toLowerCase().trim() === k.toLowerCase().trim())] || "";
+
+                            // Regra A: Filtros de Pré-processamento
+                            const status = String(get("Status"));
+                            const cnpj = String(get("CNPJ")).replace(/\D/g, ""); // Remove pontuação
+
+                            if (status.toLowerCase() !== "sucesso") return null; // Ignora falhas
+                            if (cnpj === "07015016000117") return null; // Ignora CNPJ administrativo
+
+                            // Parser de Data/Hora (Assumindo ISO ou texto padrão)
+                            let dataTransacao = get("Data/Hora transação");
+                            // Se vier num formato DD/MM/YYYY HH:MM, precisa converter. 
+                            // O Supabase aceita ISO string. Vamos tentar passar direto, se falhar, precisaremos de um parser customizado.
+
+                            return {
+                                cnpj: cnpj,
+                                status: status,
+                                data_hora_transacao: Utils.formatters.parseDate(dataTransacao), // Usa seu formatador existente
+                                cidade: get("Cidade do posto"),
+                                estado: get("Estado do posto"),
+                                placa: get("Placa"),
+                                combustivel: get("Combustível"), // Salva original (Shell)
+                                litros: Utils.formatters.parseBrl(get("Litros")),
+                                total_abastecimento: Utils.formatters.parseBrl(get("Total do Abastecimento")),
+                                rs_litro: Utils.formatters.parseBrl(get("R$/Litro")),
+                                nome_condutor: get("Nome do condutor"),
+                                nome_posto: get("Nome do posto"),
+                                arquivo_origem: file.name,
+                                usuario_criacao: session?.user?.email || "sistema"
+                            };
+                        }).filter(i => i !== null);
+
+                        if (batch.length === 0) throw new Error("Nenhum registro válido encontrado (verifique Status/CNPJ).");
+
+                        const { error } = await supabaseClient.from('shell_abastecimentos').insert(batch);
+                        if (error) throw error;
+                        
+                        addLog(`Shell: ${batch.length} abastecimentos importados.`, "success");
+                        // Trigger de Alertas seria chamado aqui futuramente
+
+                    } catch (err) { addLog("Erro Shell: " + err.message, "error"); } finally { setLoading(false); }
+                };
+                reader.readAsArrayBuffer(file);
+            };
+
+            // 2. Processamento TICKET
+            const processTicketFile = async (file) => {
+                const XLSX = window.XLSX;
+                if (!XLSX) { addLog("XLSX não carregado.", "error"); return; }
+                setLoading(true);
+
+                // Carrega mapeamento de combustíveis antes
+                let mapaCombustivel = {};
+                const { data: mapaData } = await supabaseClient.from('combustivel_mapeamento').select('*');
+                if (mapaData) mapaData.forEach(m => mapaCombustivel[m.nome_original.toUpperCase()] = m.nome_padronizado);
+
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                        const jsonData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+
+                        // Regra A: Remove Rodapé (última linha)
+                        if (jsonData.length > 0) jsonData.pop();
+
+                        const batch = jsonData.map(row => {
+                            const get = (k) => row[Object.keys(row).find(key => key.toLowerCase().trim() === k.toLowerCase().trim())] || "";
+
+                            // Regra C: Normalização de Combustível
+                            const combOriginal = String(get("TIPO COMBUSTIVEL")).trim();
+                            const combFinal = mapaCombustivel[combOriginal.toUpperCase()] || combOriginal;
+
+                            return {
+                                codigo_transacao: get("CODIGO TRANSACAO"),
+                                servico: get("SERVICO"),
+                                data_transacao: Utils.formatters.parseDate(get("DATA TRANSACAO")),
+                                placa: get("PLACA"),
+                                tipo_combustivel: combFinal, // Normalizado
+                                litros: Utils.formatters.parseBrl(get("LITROS")),
+                                vl_litro: Utils.formatters.parseBrl(get("VL/LITRO")),
+                                valor_emissao: Utils.formatters.parseBrl(get("VALOR EMISSAO")),
+                                nome_estabelecimento: get("NOME ESTABELECIMENTO"),
+                                cidade: get("CIDADE"),
+                                uf: get("UF"),
+                                info_adicional1: get("INFORMACAO ADICIONAL 1"),
+                                numero_cartao: get("NUMERO CARTAO"),
+                                arquivo_origem: file.name,
+                                usuario_criacao: session?.user?.email || "sistema"
+                            };
+                        });
+
+                        // Upsert para evitar duplicidade pelo Código Transação
+                        const { error } = await supabaseClient.from('ticket_abastecimentos').upsert(batch, { onConflict: 'codigo_transacao' });
+                        if (error) throw error;
+
+                        addLog(`Ticket: ${batch.length} abastecimentos processados.`, "success");
+
+                    } catch (err) { addLog("Erro Ticket: " + err.message, "error"); } finally { setLoading(false); }
+                };
+                reader.readAsArrayBuffer(file);
+            };
+
+            // 3. Processamento CTA (Interno)
+            const processCtaFile = (file) => {
+                const XLSX = window.XLSX;
+                if (!XLSX) { addLog("XLSX não carregado.", "error"); return; }
+                setLoading(true);
+
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                        const jsonData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+
+                        // Regra A: Remove Rodapé
+                        if (jsonData.length > 0) jsonData.pop();
+
+                        const batch = jsonData.map(row => {
+                            const get = (k) => row[Object.keys(row).find(key => key.toLowerCase().trim() === k.toLowerCase().trim())] || "";
+
+                            // Regra C: Conversão Data Excel (Serial Number)
+                            let rawData = get("Data/Hora início");
+                            let dataFinal = null;
+                            
+                            if (!isNaN(rawData) && Number(rawData) > 30000) {
+                                // É serial do Excel (ex: 45321.554)
+                                const excelDate = new Date((Number(rawData) - 25569) * 86400 * 1000);
+                                // Ajuste de fuso horário simples se necessário, ou usar ISO direto
+                                dataFinal = excelDate.toISOString();
+                            } else {
+                                dataFinal = Utils.formatters.parseDate(rawData);
+                            }
+
+                            return {
+                                data_hora_inicio: dataFinal,
+                                placa: get("Placa"),
+                                volume: Utils.formatters.parseBrl(get("Volume (l)")),
+                                custo_total: Utils.formatters.parseBrl(get("Custo Total (R$)")),
+                                cod_posto: get("Cod. do Posto"),
+                                cod_frentista: get("Cod. do Frentista"),
+                                arquivo_origem: file.name,
+                                usuario_criacao: session?.user?.email || "sistema"
+                            };
+                        });
+
+                        const { error } = await supabaseClient.from('cta_abastecimentos').insert(batch);
+                        if (error) throw error;
+
+                        addLog(`CTA: ${batch.length} abastecimentos internos importados.`, "success");
+
+                    } catch (err) { addLog("Erro CTA: " + err.message, "error"); } finally { setLoading(false); }
+                };
+                reader.readAsArrayBuffer(file);
+            };
             const processControladoriaFile = (file, periodDate) => {
                 const XLSX = window.XLSX;
                 if (!XLSX) { addLog("XLSX lib not loaded", "error"); return; }
@@ -3610,8 +3780,11 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
             };
 
             const handleImport = async (file, type, period) => {
-                if(type === 'controladoria') processControladoriaFile(file, period);
-                else if(type === 'diesel') processDieselFile(file, period);
+                if (type === 'controladoria') processControladoriaFile(file, period);
+                else if (type === 'diesel_estoque') processDieselFile(file, period); // Mudei o nome antigo 'diesel' para 'diesel_estoque' para não confundir
+                else if (type === 'shell') processShellFile(file);
+                else if (type === 'ticket') processTicketFile(file);
+                else if (type === 'cta') processCtaFile(file);
                 else if (type === 'equipamentos') processEquipamentosFile(file);
                 else handleUploadTerceirizacao(file, type);
             };
@@ -3772,22 +3945,33 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
                                 {view === 'diesel' && subView === 'import' && <DieselImport onImport={(f,d)=>handleImport(f,'diesel',d)} loading={loading} />}
                                 
                                 {view === 'upload' && (
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        {/* ... outros cards existentes ... */}
+                                    <div className="space-y-8 animate-enter">
                                         
-                                        {/* NOVO CARD: EQUIPAMENTOS */}
-                                        <UploadCard 
-                                            type="equipamentos" 
-                                            iconName="truck" 
-                                            onAnalyze={(f) => handleImport(f, 'equipamentos')} 
-                                            isAnalyzing={loading} 
-                                            progress={0} 
-                                        />
-                                        
-                                        <UploadCard type="apuracao" iconName="fileText" onAnalyze={(f)=>handleImport(f,'apuracao')} isAnalyzing={loading} progress={0} />
-                                        <UploadCard type="pagamentos" iconName="dollar" onAnalyze={(f)=>handleImport(f,'pagamentos')} isAnalyzing={loading} progress={0} />
-                                        <UploadCard type="concessao" iconName="truck" onAnalyze={(f)=>handleImport(f,'concessao')} isAnalyzing={loading} progress={0} />
-                                        <UploadCard type="terceirizacao" iconName="users" onAnalyze={(f) => handleImport(f, 'terceirizacao')} isAnalyzing={loading} progress={0} />
+                                        {/* SEÇÃO 1: DIESEL & FROTA */}
+                                        <div>
+                                            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                                <Icons.Truck className="text-orange-500" /> Diesel e Frota
+                                            </h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                                <UploadCard type="shell" iconName="droplet" onAnalyze={(f)=>handleImport(f,'shell')} isAnalyzing={loading} />
+                                                <UploadCard type="ticket" iconName="creditCard" onAnalyze={(f)=>handleImport(f,'ticket')} isAnalyzing={loading} />
+                                                <UploadCard type="cta" iconName="home" onAnalyze={(f)=>handleImport(f,'cta')} isAnalyzing={loading} />
+                                                <UploadCard type="equipamentos" iconName="truck" onAnalyze={(f) => handleImport(f, 'equipamentos')} isAnalyzing={loading} />
+                                            </div>
+                                        </div>
+
+                                        {/* SEÇÃO 2: FINANCEIRO E TERCEIROS */}
+                                        <div>
+                                            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                                <Icons.Briefcase className="text-blue-500" /> Administrativo
+                                            </h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                                <UploadCard type="apuracao" iconName="fileText" onAnalyze={(f)=>handleImport(f,'apuracao')} isAnalyzing={loading} />
+                                                <UploadCard type="pagamentos" iconName="dollar" onAnalyze={(f)=>handleImport(f,'pagamentos')} isAnalyzing={loading} />
+                                                <UploadCard type="concessao" iconName="checkCircle" onAnalyze={(f)=>handleImport(f,'concessao')} isAnalyzing={loading} />
+                                                <UploadCard type="terceirizacao" iconName="users" onAnalyze={(f) => handleImport(f, 'terceirizacao')} isAnalyzing={loading} />
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                                 {view === 'terceirizacao_depara' && (
@@ -3805,6 +3989,7 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
     </script>
 </body>
 </html>
+
 
 
 
