@@ -2497,7 +2497,7 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
     const [list, setList] = useState([]);
     const [formData, setFormData] = useState({
         cod_sap: '',
-        apelido: '', // Nome Fantasia / Razão Social
+        apelido: '',
         cnpj: '',
         email: '',
         rua: '',
@@ -2506,7 +2506,14 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
         estado: ''
     });
 
-    // Busca a lista de terceiros ao carregar
+    // --- CORREÇÃO DE ÍCONES (FALLBACKS) ---
+    // Isso previne o erro "got: undefined" se o ícone não existir na sua biblioteca
+    const IconSave = Icons.Save || Icons.Check || Icons.FileText; // Tenta Save, se não tiver usa Check
+    const IconUserPlus = Icons.UserPlus || Icons.Plus || Icons.User; 
+    const IconEdit = Icons.Edit || Icons.Edit2 || Icons.FileText;
+    const IconTrash = Icons.Trash || Icons.Trash2 || Icons.X;
+    // --------------------------------------
+
     useEffect(() => {
         fetchTerceiros();
     }, []);
@@ -2538,8 +2545,6 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
 
         setLoading(true);
         try {
-            // REMOVIDO: tipo_pessoa
-            // O objeto abaixo contém apenas o que existe no seu banco
             const payload = {
                 cod_sap: formData.cod_sap,
                 apelido: formData.apelido,
@@ -2551,9 +2556,6 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
                 estado: formData.estado
             };
 
-            // Upsert: Se existir o ID/CodSap atualiza, senão cria.
-            // Importante: O banco precisa ter 'cod_sap' como Primary Key ou Unique para o upsert funcionar perfeitamente pelo cod_sap.
-            // Se a chave for 'id' (autoincrement), a lógica mudaria um pouco, mas vamos tentar pelo cod_sap.
             const { error } = await supabaseClient
                 .from('terceiros')
                 .upsert(payload, { onConflict: 'cod_sap' });
@@ -2561,8 +2563,8 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
             if (error) throw error;
 
             onNotify("Terceiro salvo com sucesso!", "success");
-            setFormData({ cod_sap: '', apelido: '', cnpj: '', email: '', rua: '', bairro: '', cidade: '', estado: '' }); // Limpa form
-            fetchTerceiros(); // Atualiza lista
+            setFormData({ cod_sap: '', apelido: '', cnpj: '', email: '', rua: '', bairro: '', cidade: '', estado: '' });
+            fetchTerceiros();
         } catch (error) {
             onNotify("Erro ao salvar: " + error.message, "error");
         } finally {
@@ -2581,7 +2583,6 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
             cidade: item.cidade || '',
             estado: item.estado || ''
         });
-        // Rola a tela para o topo do formulário
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -2602,7 +2603,7 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
             {/* Formulário de Cadastro */}
             <div className="glass-card p-6">
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                    <Icons.UserPlus className="text-blue-500" /> Cadastro de Terceiro (PJ)
+                    <IconUserPlus className="text-blue-500" /> Cadastro de Terceiro (PJ)
                 </h3>
                 <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
@@ -2646,7 +2647,7 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
                             Limpar
                         </button>
                         <button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2">
-                            {loading ? 'Salvando...' : <><Icons.Save className="w-4 h-4" /> Salvar Cadastro</>}
+                            {loading ? 'Salvando...' : <><IconSave className="w-4 h-4" /> Salvar Cadastro</>}
                         </button>
                     </div>
                 </form>
@@ -2676,8 +2677,8 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
                                     <td className="px-4 py-2 text-xs text-slate-500">{item.cnpj}</td>
                                     <td className="px-4 py-2 text-xs">{item.cidade}/{item.estado}</td>
                                     <td className="px-4 py-2 text-right flex justify-end gap-2">
-                                        <button onClick={() => handleEdit(item)} className="text-blue-500 hover:text-blue-700" title="Editar"><Icons.Edit className="w-4 h-4" /></button>
-                                        <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:text-red-700" title="Excluir"><Icons.Trash className="w-4 h-4" /></button>
+                                        <button onClick={() => handleEdit(item)} className="text-blue-500 hover:text-blue-700" title="Editar"><IconEdit className="w-4 h-4" /></button>
+                                        <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:text-red-700" title="Excluir"><IconTrash className="w-4 h-4" /></button>
                                     </td>
                                 </tr>
                             ))}
@@ -2688,6 +2689,7 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
         </div>
     );
 };
+
         // ============================================================================
 // COMPONENTE: RELATÓRIO DE ATIVOS (MULTI-SELECT CORRIGIDO)
 // ============================================================================
@@ -3641,6 +3643,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
