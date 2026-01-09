@@ -3354,13 +3354,18 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
             };
 
             // --- FETCH ATIVOS (RPC) ---
+            // --- ATUALIZADO: FETCH ATIVOS COM DATA ---
             const fetchAtivos = async () => {
                 setLoading(true);
                 try {
                     const filiaisFiltro = filters.filial === 'Todas' ? null : [filters.filial];
+                    
+                    // Agora enviamos 'p_data_ref' usando filters.dateFim (que é a data de referência)
                     const { data, error } = await supabaseClient.rpc('get_relatorio_ativos', { 
-                        p_filiais: filiaisFiltro 
+                        p_filiais: filiaisFiltro,
+                        p_data_ref: filters.dateFim // <--- NOVA LINHA IMPRESCINDÍVEL
                     });
+
                     if (error) throw error;
                     setAtivosData(data);
                 } catch (error) {
@@ -3654,7 +3659,13 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
                                                 {(dashboardData.lista_filiais || []).map(f => (<option key={f.name} value={f.name}>{f.name}</option>))}
                                             </select>
                                         </div>
-                                        <ActiveAssets data={ativosData} loading={loading} />
+                                        {/* Passamos filters e setFilters para o componente controlar a data */}
+                                        <ActiveAssets 
+                                            data={ativosData} 
+                                            loading={loading} 
+                                            filters={filters} 
+                                            setFilters={setFilters} 
+                                        />
                                     </div>
                                 )}         
                                 
@@ -3718,6 +3729,7 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
     </script>
 </body>
 </html>
+
 
 
 
