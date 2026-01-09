@@ -3512,7 +3512,128 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
                 reader.readAsArrayBuffer(file);
             };
             // --- ROTINAS DE DIESEL (SHELL, TICKET, CTA) ---
+            // --- MOTOR DE ALERTAS (CORE) ---
+            const gerarAlertasEmLote = async (tipoImportacao, dadosImportados) => {
+                addLog("Iniciando motor de verificação de alertas...", "info");
+                
+                // Extrai placas e períodos únicos para otimizar consultas
+                const placasUnicas = [...new Set(dadosImportados.map(d => d.placa).filter(Boolean))];
+                const periodosUnicos = [...new Set(dadosImportados.map(d => {
+                    // Pega o mês/ano da transação (ex: "2023-10")
+                    const data = d.data_hora_transacao || d.data_transacao; // Shell ou Ticket
+                    return data ? data.substring(0, 7) : null;
+                }).filter(Boolean))];
 
+                const novosAlertas = [];
+
+                try {
+                    // 1. REGRA: PLACA NÃO ENCONTRADA [cite: 55-58]
+                    // Busca quais dessas placas existem no banco de equipamentos
+                    const { data: frotaExistente } = await supabaseClient
+                        .from('equipamentos')
+                        .select('placa')
+                        .in('placa', placasUnicas);
+                    
+                    const setFrota = new Set(frotaExistente?.map(f => f.placa) || []);
+                    
+                    dadosImportados.forEach(item => {
+                        if (item.placa && !setFrota.has(item.placa)) {
+                            novosAlertas.push({
+                                placa: item.placa,
+                                data_ocorrencia: item.data_hora_transacao || item.data_transacao,
+                                tipo_erro: "Placa não encontrada",
+                                detalhes: `Veículo não consta na base de equipamentos ativa. Origem: ${tipoImportacao}`,
+                                origem: tipoImportacao,
+                                resolvido: false
+                            });
+                        }
+                    });
+
+                    // 2. REGRA: COMBUSTÍVEL NÃO MAPEADO [cite: 65-68]
+                    // (Apenas para Shell, pois Ticket já normalizamos na entrada)
+                    if (tipoImportacao === 'Shell') {
+                        // Carrega mapeamento
+                        const { data: mapa } = await supabaseClient.from('combustivel_mapeamento').select('nome_original');
+                        const setMapa = new Set(mapa?.map(m => m.nome_original.toUpperCase()) || []);
+
+                        dadosImportados.forEach(item => {
+                            if (item.combustivel && !setMapa.has(item.combustivel.toUpperCase())) {
+                                novosAlertas.push({
+                                    placa: item.placa,
+                                    data_ocorrencia: item.data_hora_transacao,
+                                    tipo_erro: "Combustível não mapeado",
+                                    detalhes: `Produto desconhecido: "${item.combustivel}"`,
+                                    origem: tipoImportacao,
+                                    resolvido: false
+                                });
+                            }
+                        });
+                    }
+
+                    // 3. REGRA: DUPLICIDADE DE PLATAFORMA (Shell vs Ticket) [cite: 59-64]
+                    // Se importou Shell, verifica se essas placas operaram na Ticket no mesmo mês (e vice-versa)
+                    const tabelaAlvo = tipoImportacao === 'Shell' ? 'ticket_abastecimentos' : 'shell_abastecimentos';
+                    const campoDataAlvo = tipoImportacao === 'Shell' ? 'data_transacao' : 'data_hora_transacao';
+
+                    // Para cada mês envolvido na importação, verifica cruzamento
+                    for (const mes of periodosUnicos) {
+                        const inicioMes = `${mes}-01`;
+                        const fimMes = `${mes}-31`; // Simplificação segura para SQL
+
+                        const { data: concorrentes } = await supabaseClient
+                            .from(tabelaAlvo)
+                            .select('placa')
+                            .gte(campoDataAlvo, inicioMes)
+                            .lte(campoDataAlvo, fimMes)
+                            .in('placa', placasUnicas);
+                        
+                        const setConcorrente = new Set(concorrentes?.map(c => c.placa) || []);
+
+                        if (setConcorrente.size > 0) {
+                            // Gera alerta para as placas que apareceram nos dois lados
+                            setConcorrente.forEach(placa => {
+                                novosAlertas.push({
+                                    placa: placa,
+                                    data_ocorrencia: inicioMes, // Marca o mês
+                                    tipo_erro: "Abastecimento em 2 plataformas",
+                                    detalhes: `Veículo abasteceu na Shell e Ticket em ${mes}`,
+                                    origem: "Cruzamento",
+                                    resolvido: false
+                                });
+                            });
+                        }
+                    }
+
+                    // SALVAR ALERTAS (COM DE-DUPLICAÇÃO) [cite: 69-71]
+                    if (novosAlertas.length > 0) {
+                        // O Supabase não tem "INSERT IGNORE" nativo simples para verificar duplicidade de regra de negócio complexa,
+                        // mas podemos fazer um loop de verificação ou confiar que o volume de alertas é baixo.
+                        // Para simplificar e seguir o DOC[cite: 70], vamos verificar se já existe alerta aberto igual.
+                        
+                        let salvos = 0;
+                        for (const alerta of novosAlertas) {
+                            // Verifica se já existe alerta idêntico não resolvido
+                            const { data: existe } = await supabaseClient
+                                .from('alertas_abastecimento')
+                                .select('id')
+                                .eq('placa', alerta.placa)
+                                .eq('tipo_erro', alerta.tipo_erro)
+                                .eq('resolvido', false)
+                                .limit(1);
+                            
+                            if (!existe || existe.length === 0) {
+                                await supabaseClient.from('alertas_abastecimento').insert(alerta);
+                                salvos++;
+                            }
+                        }
+                        if (salvos > 0) addLog(`${salvos} novos alertas de integridade gerados.`, "warning");
+                    }
+
+                } catch (error) {
+                    console.error(error);
+                    addLog("Erro ao gerar alertas: " + error.message, "error");
+                }
+            };
             // 1. Processamento SHELL
             const processShellFile = (file) => {
                 const XLSX = window.XLSX;
@@ -3565,6 +3686,7 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
                         if (error) throw error;
                         
                         addLog(`Shell: ${batch.length} abastecimentos importados.`, "success");
+                        await gerarAlertasEmLote('Shell', batch);
                         // Trigger de Alertas seria chamado aqui futuramente
 
                     } catch (err) { addLog("Erro Shell: " + err.message, "error"); } finally { setLoading(false); }
@@ -3623,6 +3745,7 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
                         if (error) throw error;
 
                         addLog(`Ticket: ${batch.length} abastecimentos processados.`, "success");
+                        await gerarAlertasEmLote('Ticket', batch);
 
                     } catch (err) { addLog("Erro Ticket: " + err.message, "error"); } finally { setLoading(false); }
                 };
@@ -3989,6 +4112,7 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
     </script>
 </body>
 </html>
+
 
 
 
