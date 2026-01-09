@@ -3923,7 +3923,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         status: 'Aberto'
     });
 
-    // --- ÍCONES BLINDADOS ---
+    // --- ÍCONES ---
     const IconPlus = Icons.Plus || Icons.UserPlus;
     const IconEdit = Icons.Edit || Icons.Pen;
     const IconTrash = Icons.Trash2 || Icons.Trash;
@@ -3932,7 +3932,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
     const IconUser = Icons.User;
     const IconCheck = Icons.CheckCircle || Icons.Check;
     const IconX = Icons.X || Icons.XCircle;
-    // ------------------------
+    // --------------
 
     useEffect(() => {
         fetchChamados();
@@ -4048,104 +4048,104 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
     const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide";
 
     return (
-        <div className="space-y-6 animate-enter pb-20">
-            {/* Header e Filtros */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 backdrop-blur-sm shadow-sm">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg text-orange-600 dark:text-orange-400">
-                        <IconCheck className="w-6 h-6" />
+        <> {/* <--- USANDO FRAGMENTO PARA ISOLAR O CONTEÚDO */}
+            
+            {/* CONTEÚDO PRINCIPAL (COM ANIMAÇÃO) */}
+            <div className="space-y-6 animate-enter pb-20">
+                
+                {/* Header e Filtros */}
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 backdrop-blur-sm shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg text-orange-600 dark:text-orange-400">
+                            <IconCheck className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Registro de Chamados</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Controle de atendimentos e solicitações.</p>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Registro de Chamados</h2>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">Controle de atendimentos e solicitações.</p>
+
+                    <div className="flex gap-3 w-full md:w-auto items-end">
+                        <div className="relative w-full md:w-48">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Filtrar Data</span>
+                            <input type="date" className="w-full pl-3 pr-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-500 text-slate-700 dark:text-slate-200" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
+                        </div>
+                        <div className="relative w-full md:w-64">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Buscar</span>
+                            <IconSearch className="absolute left-3 top-8 text-slate-400 w-4 h-4" />
+                            <input type="text" placeholder="Solicitante ou descrição..." className="w-full pl-9 pr-4 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-500 text-slate-700 dark:text-slate-200" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                        </div>
+                        <button onClick={handleNew} className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-orange-500/30 transition-all flex items-center gap-2 h-[36px]">
+                            <IconPlus className="w-4 h-4" /> Novo Chamado
+                        </button>
                     </div>
                 </div>
 
-                <div className="flex gap-3 w-full md:w-auto items-end">
-                    <div className="relative w-full md:w-48">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Filtrar Data</span>
-                        <input type="date" className="w-full pl-3 pr-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-500 text-slate-700 dark:text-slate-200" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
-                    </div>
-                    <div className="relative w-full md:w-64">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Buscar</span>
-                        <IconSearch className="absolute left-3 top-8 text-slate-400 w-4 h-4" />
-                        <input type="text" placeholder="Solicitante ou descrição..." className="w-full pl-9 pr-4 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-500 text-slate-700 dark:text-slate-200" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                    </div>
-                    <button onClick={handleNew} className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-orange-500/30 transition-all flex items-center gap-2 h-[36px]">
-                        <IconPlus className="w-4 h-4" /> Novo Chamado
-                    </button>
-                </div>
-            </div>
-
-            {/* Tabela */}
-            <div className="glass-card overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900">
-                <div className="overflow-x-auto max-h-[70vh]">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase sticky top-0 z-10 shadow-sm">
-                            <tr>
-                                <th className="px-6 py-4">Data</th>
-                                <th className="px-6 py-4">Hora Solic.</th>
-                                <th className="px-6 py-4">Solicitante</th>
-                                <th className="px-6 py-4">Criado Por</th>
-                                <th className="px-6 py-4 text-center">Início Atend.</th>
-                                <th className="px-6 py-4 text-center">Fim Atend.</th>
-                                <th className="px-6 py-4 text-center">Status</th>
-                                <th className="px-6 py-4 text-right">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                            {filteredList.map((item) => (
-                                <tr key={item.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                    <td className="px-6 py-3 font-mono text-slate-600 dark:text-slate-400">{new Date(item.data_solicitacao).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
-                                    <td className="px-6 py-3 font-mono text-slate-600 dark:text-slate-400">{item.hora_solicitacao}</td>
-                                    <td className="px-6 py-3 font-bold text-slate-800 dark:text-slate-200">
-                                        {item.solicitante}
-                                        <div className="text-xs font-normal text-slate-400 truncate max-w-[150px]">{item.descricao}</div>
-                                    </td>
-                                    <td className="px-6 py-3 text-xs text-slate-500 dark:text-slate-400">
-                                        <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700">
-                                            {formatUserDisplay(item.usuario_criacao)}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-3 text-center font-mono text-blue-600 dark:text-blue-400 font-bold">{item.inicio_atendimento || '-'}</td>
-                                    <td className="px-6 py-3 text-center font-mono text-green-600 dark:text-green-400 font-bold">{item.fim_atendimento || '-'}</td>
-                                    <td className="px-6 py-3 text-center">
-                                        <span className={`px-2 py-1 rounded text-[10px] font-bold border ${item.status === 'Concluído' ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400' : item.status === 'Em Andamento' ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400'}`}>{item.status}</span>
-                                    </td>
-                                    <td className="px-6 py-3 text-right flex justify-end gap-2 opacity-80 group-hover:opacity-100">
-                                        <button onClick={() => handleEdit(item)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Editar"><IconEdit className="w-4 h-4" /></button>
-                                        <button onClick={() => handleDelete(item.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Excluir"><IconTrash className="w-4 h-4" /></button>
-                                    </td>
+                {/* Tabela */}
+                <div className="glass-card overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900">
+                    <div className="overflow-x-auto max-h-[70vh]">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th className="px-6 py-4">Data</th>
+                                    <th className="px-6 py-4">Hora Solic.</th>
+                                    <th className="px-6 py-4">Solicitante</th>
+                                    <th className="px-6 py-4">Criado Por</th>
+                                    <th className="px-6 py-4 text-center">Início Atend.</th>
+                                    <th className="px-6 py-4 text-center">Fim Atend.</th>
+                                    <th className="px-6 py-4 text-center">Status</th>
+                                    <th className="px-6 py-4 text-right">Ações</th>
                                 </tr>
-                            ))}
-                            {filteredList.length === 0 && <tr><td colSpan="8" className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">Nenhum chamado encontrado.</td></tr>}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                {filteredList.map((item) => (
+                                    <tr key={item.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                        <td className="px-6 py-3 font-mono text-slate-600 dark:text-slate-400">{new Date(item.data_solicitacao).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
+                                        <td className="px-6 py-3 font-mono text-slate-600 dark:text-slate-400">{item.hora_solicitacao}</td>
+                                        <td className="px-6 py-3 font-bold text-slate-800 dark:text-slate-200">
+                                            {item.solicitante}
+                                            <div className="text-xs font-normal text-slate-400 truncate max-w-[150px]">{item.descricao}</div>
+                                        </td>
+                                        <td className="px-6 py-3 text-xs text-slate-500 dark:text-slate-400">
+                                            <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700">
+                                                {formatUserDisplay(item.usuario_criacao)}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-3 text-center font-mono text-blue-600 dark:text-blue-400 font-bold">{item.inicio_atendimento || '-'}</td>
+                                        <td className="px-6 py-3 text-center font-mono text-green-600 dark:text-green-400 font-bold">{item.fim_atendimento || '-'}</td>
+                                        <td className="px-6 py-3 text-center">
+                                            <span className={`px-2 py-1 rounded text-[10px] font-bold border ${item.status === 'Concluído' ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400' : item.status === 'Em Andamento' ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400'}`}>{item.status}</span>
+                                        </td>
+                                        <td className="px-6 py-3 text-right flex justify-end gap-2 opacity-80 group-hover:opacity-100">
+                                            <button onClick={() => handleEdit(item)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Editar"><IconEdit className="w-4 h-4" /></button>
+                                            <button onClick={() => handleDelete(item.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Excluir"><IconTrash className="w-4 h-4" /></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {filteredList.length === 0 && <tr><td colSpan="8" className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">Nenhum chamado encontrado.</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            {/* MODAL DE CADASTRO (CORRIGIDO PARA CENTRALIZAR COM OVERLAY SEPARADO) */}
+            {/* MODAL (AGORA FORA DA DIV ANIMADA PARA PODER CENTRALIZAR) */}
             {showModal && (
-                // 1. Container PAI fixo e centralizador (z-index alto)
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    
-                    {/* 2. Overlay escuro (clicável para fechar) */}
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 min-h-screen">
+                    {/* Fundo Escuro */}
                     <div 
                         className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
                         onClick={() => setShowModal(false)}
                     ></div>
 
-                    {/* 3. O Cartão Modal em si (Relativo para ficar acima do overlay) */}
+                    {/* Cartão Modal */}
                     <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden animate-enter">
-                        
                         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
                             <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
                                 {formData.id ? <IconEdit className="text-orange-500"/> : <IconPlus className="text-orange-500"/>}
                                 {formData.id ? 'Editar Chamado' : 'Iniciar Chamado'}
                             </h3>
-                            <button onClick={() => setShowModal(false)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500 transition-colors">
-                                <IconX className="w-5 h-5" />
-                            </button>
+                            <button onClick={() => setShowModal(false)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500 transition-colors"><IconX className="w-5 h-5" /></button>
                         </div>
 
                         <div className="p-6 overflow-y-auto max-h-[80vh] custom-scrollbar">
@@ -4157,54 +4157,23 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                                         <input type="text" className={`${inputClass} pl-9`} value={formData.solicitante} onChange={e => setFormData({...formData, solicitante: e.target.value})} required placeholder="Nome do usuário" />
                                     </div>
                                 </div>
-
-                                <div>
-                                    <label className={labelClass}>Data Solicitação</label>
-                                    <div className="relative">
-                                        <input type="date" className={inputClass} value={formData.data_solicitacao} onChange={e => setFormData({...formData, data_solicitacao: e.target.value})} required />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className={labelClass}>Hora Solicitação</label>
-                                    <div className="relative">
-                                        <IconClock className="absolute left-3 top-2.5 text-slate-400 w-4 h-4" />
-                                        <input type="time" className={`${inputClass} pl-9`} value={formData.hora_solicitacao} onChange={e => setFormData({...formData, hora_solicitacao: e.target.value})} required />
-                                    </div>
-                                </div>
-
-                                <div className="md:col-span-2 border-t border-slate-100 dark:border-slate-800 my-2 pt-2">
-                                    <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-3 block">Registro de Atendimento</span>
-                                </div>
-
-                                <div>
-                                    <label className={labelClass}>Início Atendimento</label>
-                                    <input type="time" className={inputClass} value={formData.inicio_atendimento} onChange={e => setFormData({...formData, inicio_atendimento: e.target.value})} />
-                                </div>
-
-                                <div>
-                                    <label className={labelClass}>Fim Atendimento</label>
-                                    <input type="time" className={inputClass} value={formData.fim_atendimento} onChange={e => setFormData({...formData, fim_atendimento: e.target.value})} />
-                                </div>
-
-                                <div className="md:col-span-2">
-                                    <label className={labelClass}>Descrição / Observação</label>
-                                    <textarea className={inputClass} rows="3" value={formData.descricao} onChange={e => setFormData({...formData, descricao: e.target.value})} placeholder="Detalhes do problema ou serviço..." />
-                                </div>
+                                <div><label className={labelClass}>Data Solicitação</label><div className="relative"><input type="date" className={inputClass} value={formData.data_solicitacao} onChange={e => setFormData({...formData, data_solicitacao: e.target.value})} required /></div></div>
+                                <div><label className={labelClass}>Hora Solicitação</label><div className="relative"><IconClock className="absolute left-3 top-2.5 text-slate-400 w-4 h-4" /><input type="time" className={`${inputClass} pl-9`} value={formData.hora_solicitacao} onChange={e => setFormData({...formData, hora_solicitacao: e.target.value})} required /></div></div>
+                                <div className="md:col-span-2 border-t border-slate-100 dark:border-slate-800 my-2 pt-2"><span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-3 block">Registro de Atendimento</span></div>
+                                <div><label className={labelClass}>Início Atendimento</label><input type="time" className={inputClass} value={formData.inicio_atendimento} onChange={e => setFormData({...formData, inicio_atendimento: e.target.value})} /></div>
+                                <div><label className={labelClass}>Fim Atendimento</label><input type="time" className={inputClass} value={formData.fim_atendimento} onChange={e => setFormData({...formData, fim_atendimento: e.target.value})} /></div>
+                                <div className="md:col-span-2"><label className={labelClass}>Descrição / Observação</label><textarea className={inputClass} rows="3" value={formData.descricao} onChange={e => setFormData({...formData, descricao: e.target.value})} placeholder="Detalhes do problema ou serviço..." /></div>
                             </form>
                         </div>
 
                         <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex justify-end gap-3">
                             <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">Cancelar</button>
-                            <button type="submit" form="formChamado" disabled={loading} className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-orange-500/30 transition-all flex items-center gap-2">
-                                {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <IconCheck className="w-4 h-4" />} 
-                                Salvar Chamado
-                            </button>
+                            <button type="submit" form="formChamado" disabled={loading} className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-orange-500/30 transition-all flex items-center gap-2">{loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <IconCheck className="w-4 h-4" />} Salvar Chamado</button>
                         </div>
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 };
         const App = () => {
@@ -5219,6 +5188,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
