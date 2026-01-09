@@ -4326,10 +4326,12 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                                 {view === 'diesel_alertas' && (<DieselAlerts supabaseClient={supabaseClient} onNotify={addLog} />)}
                                 
                                 {/* --- 1. IMPORTAÇÃO DIESEL (Separada) --- */}
+                                {/* --- 1. IMPORTAÇÃO DIESEL (CORRIGIDO) --- */}
                                 {view === 'diesel' && subView === 'import' && (
                                     <div className="space-y-6 animate-enter pb-10">
                                         <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 mb-4">
-                                            <Icons.UploadCloud className="text-orange-500" /> Importar Abastecimentos e Frota
+                                            {/* Troquei UploadCloud por Upload */}
+                                            <Icons.Upload className="text-orange-500" /> Importar Abastecimentos e Frota
                                         </h3>
                                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                                             <UploadCard type="shell" iconName="droplet" onAnalyze={(f)=>handleImport(f,'shell')} isAnalyzing={loading} />
@@ -4340,11 +4342,12 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                                     </div>
                                 )}
 
-                                {/* --- 2. IMPORTAÇÃO CONTROLADORIA (Restaurada) --- */}
+                                {/* --- 2. IMPORTAÇÃO CONTROLADORIA (CORRIGIDO) --- */}
                                 {view === 'controladoria' && subView === 'import' && (
                                     <div className="space-y-6 animate-enter pb-10">
                                         <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 mb-4">
-                                            <Icons.UploadCloud className="text-purple-500" /> Importar Dados Financeiros
+                                            {/* Troquei UploadCloud por Upload */}
+                                            <Icons.Upload className="text-purple-500" /> Importar Dados Financeiros
                                         </h3>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                             <UploadCard type="controladoria" iconName="barChart" onAnalyze={(f)=>handleImport(f,'controladoria')} isAnalyzing={loading} />
@@ -4352,17 +4355,17 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                                     </div>
                                 )}
 
-                                {/* --- 3. IMPORTAÇÃO TERCEIRIZAÇÃO (Sem o genérico) --- */}
+                                {/* --- 3. IMPORTAÇÃO TERCEIRIZAÇÃO (CORRIGIDO) --- */}
                                 {view === 'terceirizacao_import' && (
                                     <div className="space-y-6 animate-enter pb-10">
                                         <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 mb-4">
-                                            <Icons.UploadCloud className="text-blue-500" /> Importar Dados Operacionais
+                                            {/* Troquei UploadCloud por Upload */}
+                                            <Icons.Upload className="text-blue-500" /> Importar Dados Operacionais
                                         </h3>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                             <UploadCard type="apuracao" iconName="fileText" onAnalyze={(f)=>handleImport(f,'apuracao')} isAnalyzing={loading} />
                                             <UploadCard type="pagamentos" iconName="dollar" onAnalyze={(f)=>handleImport(f,'pagamentos')} isAnalyzing={loading} />
                                             <UploadCard type="concessao" iconName="checkCircle" onAnalyze={(f)=>handleImport(f,'concessao')} isAnalyzing={loading} />
-                                            {/* O card genérico "terceirizacao" foi removido conforme solicitado */}
                                         </div>
                                     </div>
                                 )}
@@ -4381,6 +4384,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
