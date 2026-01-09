@@ -2492,345 +2492,198 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
         </div>
     );
 };
-// ============================================================================
-// COMPONENTE: CADASTRO DE TERCEIROS (COM HOVER NAS AÇÕES)
-// ============================================================================
 const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
-    const [terceiros, setTerceiros] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    
-    // Estados do Modal
-    const [showModal, setShowModal] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [loadingCep, setLoadingCep] = useState(false);
-    
-    // Estado do Formulário
+    const [list, setList] = useState([]);
     const [formData, setFormData] = useState({
-        id: null,
-        apelido: '',
         cod_sap: '',
-        tipo_pessoa: 'Jurídica',
+        apelido: '', // Nome Fantasia / Razão Social
         cnpj: '',
-        cpf: '',
-        razao_social: '',
-        nome_completo: '', 
-        cep: '',
+        email: '',
         rua: '',
         bairro: '',
         cidade: '',
-        estado: '',
-        email: '',
-        telefone: ''
+        estado: ''
     });
 
-    // --- FUNÇÕES AUXILIARES DE FORMATAÇÃO ---
-    const formatDocumento = (val, type) => {
-        if (!val) return '-';
-        const str = String(val).replace(/\D/g, '');
-        
-        if (type === 'CNPJ' || str.length > 11) {
-            return str.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, "$1.$2.$3/$4-$5");
-        } else {
-            return str.replace(/^(\d{3})(\d{3})(\d{3})(\d{2}).*/, "$1.$2.$3-$4");
-        }
-    };
+    // Busca a lista de terceiros ao carregar
+    useEffect(() => {
+        fetchTerceiros();
+    }, []);
 
-    const handleMaskInput = (e, type) => {
-        let val = e.target.value.replace(/\D/g, ''); 
-        if (type === 'CNPJ') {
-            val = val.slice(0, 14);
-            val = val.replace(/^(\d{2})(\d)/, "$1.$2");
-            val = val.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
-            val = val.replace(/\.(\d{3})(\d)/, ".$1/$2");
-            val = val.replace(/(\d{4})(\d)/, "$1-$2");
-            setFormData({...formData, cnpj: val});
-        } else if (type === 'CPF') {
-            val = val.slice(0, 11);
-            val = val.replace(/^(\d{3})(\d)/, "$1.$2");
-            val = val.replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3");
-            val = val.replace(/\.(\d{3})(\d)/, ".$1-$2");
-            setFormData({...formData, cpf: val});
-        } else if (type === 'TEL') {
-            val = val.slice(0, 11);
-            val = val.replace(/^(\d{2})(\d)/, "($1) $2");
-            val = val.replace(/(\d)(\d{4})$/, "$1-$2");
-            setFormData({...formData, telefone: val});
-        }
-    };
-
-    // 1. Buscar Dados
     const fetchTerceiros = async () => {
-        setLoading(true);
         try {
             const { data, error } = await supabaseClient
                 .from('terceiros')
                 .select('*')
-                .order('apelido', { ascending: true });
+                .order('apelido', { ascending: true })
+                .limit(100);
             if (error) throw error;
-            setTerceiros(data || []);
-        } catch (e) {
-            onNotify("Erro ao carregar: " + e.message, "error");
+            setList(data || []);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleSave = async (e) => {
+        e.preventDefault();
+        if (!formData.cod_sap || !formData.apelido) {
+            onNotify("Código SAP e Nome são obrigatórios.", "error");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            // REMOVIDO: tipo_pessoa
+            // O objeto abaixo contém apenas o que existe no seu banco
+            const payload = {
+                cod_sap: formData.cod_sap,
+                apelido: formData.apelido,
+                cnpj: formData.cnpj,
+                email: formData.email,
+                rua: formData.rua,
+                bairro: formData.bairro,
+                cidade: formData.cidade,
+                estado: formData.estado
+            };
+
+            // Upsert: Se existir o ID/CodSap atualiza, senão cria.
+            // Importante: O banco precisa ter 'cod_sap' como Primary Key ou Unique para o upsert funcionar perfeitamente pelo cod_sap.
+            // Se a chave for 'id' (autoincrement), a lógica mudaria um pouco, mas vamos tentar pelo cod_sap.
+            const { error } = await supabaseClient
+                .from('terceiros')
+                .upsert(payload, { onConflict: 'cod_sap' });
+
+            if (error) throw error;
+
+            onNotify("Terceiro salvo com sucesso!", "success");
+            setFormData({ cod_sap: '', apelido: '', cnpj: '', email: '', rua: '', bairro: '', cidade: '', estado: '' }); // Limpa form
+            fetchTerceiros(); // Atualiza lista
+        } catch (error) {
+            onNotify("Erro ao salvar: " + error.message, "error");
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => { fetchTerceiros(); }, []);
-
-    // 2. Busca CEP
-    const checkCEP = async (e) => {
-        const cep = e.target.value.replace(/\D/g, '');
-        if (cep.length === 8) {
-            setLoadingCep(true);
-            try {
-                const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-                const data = await response.json();
-                if (!data.erro) {
-                    setFormData(prev => ({
-                        ...prev,
-                        rua: data.logradouro,
-                        bairro: data.bairro,
-                        cidade: data.localidade,
-                        estado: data.uf
-                    }));
-                } else {
-                    onNotify("CEP não encontrado.", "error");
-                }
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setLoadingCep(false);
-            }
-        }
+    const handleEdit = (item) => {
+        setFormData({
+            cod_sap: item.cod_sap || '',
+            apelido: item.apelido || '',
+            cnpj: item.cnpj || '',
+            email: item.email || '',
+            rua: item.rua || '',
+            bairro: item.bairro || '',
+            cidade: item.cidade || '',
+            estado: item.estado || ''
+        });
+        // Rola a tela para o topo do formulário
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // 3. Salvar
-    const handleSave = async (e) => {
-        e.preventDefault();
-        setIsSaving(true);
-        try {
-            const payload = { 
-                ...formData,
-                cnpj: formData.cnpj.replace(/\D/g, ''), 
-                cpf: formData.cpf.replace(/\D/g, ''),   
-                nome_completo: formData.nome_completo || formData.razao_social 
-            };
-
-            let error;
-            if (payload.id) {
-                const { error: err } = await supabaseClient.from('terceiros').update(payload).eq('id', payload.id);
-                error = err;
-            } else {
-                delete payload.id;
-                const { error: err } = await supabaseClient.from('terceiros').insert(payload);
-                error = err;
-            }
-
-            if (error) throw error;
-            onNotify("Salvo com sucesso!", "success");
-            setShowModal(false);
-            fetchTerceiros();
-        } catch (e) {
-            onNotify("Erro ao salvar: " + e.message, "error");
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    // 4. Excluir
     const handleDelete = async (id) => {
-        if (!confirm("Excluir cadastro?")) return;
+        if (!window.confirm("Deseja realmente excluir este cadastro?")) return;
         try {
             const { error } = await supabaseClient.from('terceiros').delete().eq('id', id);
             if (error) throw error;
-            onNotify("Excluído.", "success");
+            onNotify("Excluído com sucesso.", "success");
             fetchTerceiros();
-        } catch (e) {
-            onNotify(e.message, "error");
+        } catch (error) {
+            onNotify("Erro ao excluir: " + error.message, "error");
         }
     };
-
-    // 5. Filtro
-    const filteredData = terceiros.filter(t => {
-        const search = searchTerm.toLowerCase();
-        return (
-            (t.apelido || '').toLowerCase().includes(search) ||
-            (t.razao_social || '').toLowerCase().includes(search) ||
-            (t.cod_sap || '').toLowerCase().includes(search) ||
-            (t.cnpj || '').includes(search)
-        );
-    });
-
-    // 6. Abrir Modal
-    const openModal = (item = null) => {
-        if (item) {
-            setFormData({
-                ...item,
-                cnpj: formatDocumento(item.cnpj, 'CNPJ'),
-                cpf: formatDocumento(item.cpf, 'CPF'),
-                rua: item.rua || '',
-                bairro: item.bairro || '',
-                cidade: item.cidade || '',
-                estado: item.estado || '',
-                cep: item.cep || '',
-                email: item.email || '',
-                telefone: item.telefone || ''
-            });
-        } else {
-            setFormData({
-                id: null, apelido: '', cod_sap: '', tipo_pessoa: 'Jurídica',
-                cnpj: '', cpf: '', razao_social: '', nome_completo: '', 
-                cep: '', rua: '', bairro: '', cidade: '', estado: '',
-                email: '', telefone: ''
-            });
-        }
-        setShowModal(true);
-    };
-
-    // --- CONTEÚDO DO MODAL (VIA PORTAL) ---
-    const ModalContent = (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[99999] p-4" onClick={() => setShowModal(false)}>
-            <div className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh] overflow-hidden animate-enter" onClick={e => e.stopPropagation()}>
-                
-                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        {formData.id ? <Icons.Edit className="text-blue-500" /> : <Icons.Plus className="text-blue-500" />}
-                        {formData.id ? 'Editar Cadastro' : 'Novo Cadastro'}
-                    </h3>
-                    <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-slate-500"><Icons.X width={20}/></button>
-                </div>
-
-                <div className="p-6 overflow-y-auto custom-scrollbar">
-                    <form onSubmit={handleSave} className="space-y-6">
-                        <div className="space-y-4">
-                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2">Dados Cadastrais</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <label className="input-label">Código SAP <span className="text-red-500">*</span></label>
-                                    <input type="text" required className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 font-mono text-slate-700 dark:text-white" 
-                                        value={formData.cod_sap} onChange={e => setFormData({...formData, cod_sap: e.target.value})} placeholder="Ex: 4000..." />
-                                </div>
-                                <div>
-                                    <label className="input-label">CNPJ</label>
-                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-slate-700 dark:text-white font-mono" 
-                                        value={formData.cnpj} onChange={e => handleMaskInput(e, 'CNPJ')} placeholder="00.000.000/0000-00" maxLength={18} />
-                                </div>
-                                <div>
-                                    <label className="input-label">CPF (Opcional)</label>
-                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-slate-700 dark:text-white font-mono" 
-                                        value={formData.cpf} onChange={e => handleMaskInput(e, 'CPF')} placeholder="000.000.000-00" maxLength={14} />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="input-label">Razão Social <span className="text-red-500">*</span></label>
-                                    <input type="text" required className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-slate-700 dark:text-white" 
-                                        value={formData.razao_social} onChange={e => setFormData({...formData, razao_social: e.target.value})} />
-                                </div>
-                                <div>
-                                    <label className="input-label">Apelido <span className="text-red-500">*</span></label>
-                                    <input type="text" required className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-slate-700 dark:text-white" 
-                                        value={formData.apelido} onChange={e => setFormData({...formData, apelido: e.target.value})} />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2">Endereço</h4>
-                            <div className="flex gap-4">
-                                <div className="w-1/3 relative">
-                                    <label className="input-label">CEP {loadingCep && <span className="text-blue-500 animate-pulse text-[10px] ml-2">...</span>}</label>
-                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 font-mono text-slate-700 dark:text-white" 
-                                        value={formData.cep} onChange={e => setFormData({...formData, cep: e.target.value})} onBlur={checkCEP} placeholder="00000-000" maxLength={9} />
-                                </div>
-                                <div className="w-2/3">
-                                    <label className="input-label">Logradouro</label>
-                                    <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-slate-700 dark:text-white" 
-                                        value={formData.rua} onChange={e => setFormData({...formData, rua: e.target.value})} />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-12 gap-4">
-                                <div className="col-span-5"><label className="input-label">Bairro</label><input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-slate-700 dark:text-white" value={formData.bairro} onChange={e => setFormData({...formData, bairro: e.target.value})} /></div>
-                                <div className="col-span-5"><label className="input-label">Cidade</label><input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-slate-700 dark:text-white" value={formData.cidade} onChange={e => setFormData({...formData, cidade: e.target.value})} /></div>
-                                <div className="col-span-2"><label className="input-label">UF</label><input type="text" maxLength={2} className="w-full bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-slate-700 dark:text-white uppercase text-center" value={formData.estado} onChange={e => setFormData({...formData, estado: e.target.value.toUpperCase()})} /></div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2">Contato</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><label className="input-label">E-mail</label><input type="email" className="w-full bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-slate-700 dark:text-white" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
-                                <div><label className="input-label">Telefone</label><input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500 text-slate-700 dark:text-white" value={formData.telefone} onChange={e => handleMaskInput(e, 'TEL')} placeholder="(00) 00000-0000" /></div>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
-                            <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancelar</button>
-                            <button type="submit" disabled={isSaving} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow-lg flex items-center gap-2 transition-colors disabled:opacity-70">
-                                {isSaving ? <div className="loader h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div> : <><Icons.CheckCircle width={16} /> Salvar Cadastro</>}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    );
 
     return (
         <div className="space-y-6 animate-enter pb-10">
-            {showModal && ReactDOM.createPortal(ModalContent, document.body)}
+            {/* Formulário de Cadastro */}
+            <div className="glass-card p-6">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                    <Icons.UserPlus className="text-blue-500" /> Cadastro de Terceiro (PJ)
+                </h3>
+                <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label className="input-label">Código SAP *</label>
+                        <input type="text" name="cod_sap" value={formData.cod_sap} onChange={handleChange} className="input-field" placeholder="Ex: 4000123" required />
+                    </div>
+                    <div className="md:col-span-2">
+                        <label className="input-label">Razão Social / Nome Fantasia *</label>
+                        <input type="text" name="apelido" value={formData.apelido} onChange={handleChange} className="input-field" placeholder="Nome da Empresa" required />
+                    </div>
+                    <div>
+                        <label className="input-label">CNPJ</label>
+                        <input type="text" name="cnpj" value={formData.cnpj} onChange={handleChange} className="input-field" placeholder="00.000.000/0001-00" />
+                    </div>
+                    
+                    <div>
+                        <label className="input-label">E-mail Contato</label>
+                        <input type="email" name="email" value={formData.email} onChange={handleChange} className="input-field" placeholder="contato@empresa.com" />
+                    </div>
+                    
+                    {/* Endereço */}
+                    <div className="md:col-span-2">
+                        <label className="input-label">Rua / Logradouro</label>
+                        <input type="text" name="rua" value={formData.rua} onChange={handleChange} className="input-field" placeholder="Rua..." />
+                    </div>
+                    <div>
+                        <label className="input-label">Bairro</label>
+                        <input type="text" name="bairro" value={formData.bairro} onChange={handleChange} className="input-field" />
+                    </div>
+                    <div>
+                        <label className="input-label">Cidade</label>
+                        <input type="text" name="cidade" value={formData.cidade} onChange={handleChange} className="input-field" />
+                    </div>
+                    <div>
+                        <label className="input-label">Estado (UF)</label>
+                        <input type="text" name="estado" value={formData.estado} onChange={handleChange} className="input-field" placeholder="Ex: SP" maxLength={2} />
+                    </div>
 
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div><h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><Icons.User className="text-blue-500" /> Cadastro de Terceiros</h2><p className="text-sm text-slate-500 mt-1">Gerencie a base de fornecedores.</p></div>
-                <div className="flex gap-3 w-full md:w-auto">
-                    <div className="relative flex-1 md:w-64"><Icons.Search className="absolute left-3 top-2.5 text-slate-400 w-4 h-4" /><input type="text" placeholder="Buscar..." className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-9 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700 dark:text-white" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
-                    <button onClick={() => openModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg"><Icons.Plus width={16} /> Novo</button>
-                </div>
+                    <div className="md:col-span-4 flex justify-end gap-3 mt-4">
+                        <button type="button" onClick={() => setFormData({ cod_sap: '', apelido: '', cnpj: '', email: '', rua: '', bairro: '', cidade: '', estado: '' })} className="px-4 py-2 text-sm text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors">
+                            Limpar
+                        </button>
+                        <button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2">
+                            {loading ? 'Salvando...' : <><Icons.Save className="w-4 h-4" /> Salvar Cadastro</>}
+                        </button>
+                    </div>
+                </form>
             </div>
 
+            {/* Listagem Rápida */}
             <div className="glass-card overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300">
-                        <thead className="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                <div className="bg-slate-50 dark:bg-slate-800 p-3 border-b border-slate-200 dark:border-slate-700 font-bold text-xs uppercase text-slate-500">
+                    Últimos Cadastros
+                </div>
+                <div className="overflow-x-auto max-h-96">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-white dark:bg-slate-900 text-slate-500 border-b border-slate-200 dark:border-slate-700">
                             <tr>
-                                <th className="px-6 py-3">Fornecedor / Razão Social</th>
-                                <th className="px-6 py-3">Cód. SAP</th>
-                                <th className="px-6 py-3">Documento</th>
-                                <th className="px-6 py-3">Localização</th>
-                                <th className="px-6 py-3 text-right">Ações</th>
+                                <th className="px-4 py-2">Cod. SAP</th>
+                                <th className="px-4 py-2">Nome</th>
+                                <th className="px-4 py-2">CNPJ</th>
+                                <th className="px-4 py-2">Cidade/UF</th>
+                                <th className="px-4 py-2 text-right">Ações</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                            {loading ? (<tr><td colSpan="5" className="p-8 text-center text-slate-400">Carregando...</td></tr>) : filteredData.length === 0 ? (<tr><td colSpan="5" className="p-8 text-center text-slate-400 italic">Nenhum registro.</td></tr>) : (
-                                filteredData.map((row) => (
-                                    <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
-                                        <td className="px-6 py-3">
-                                            <div className="font-bold text-slate-800 dark:text-slate-200">{row.apelido}</div>
-                                            <div className="text-xs text-slate-400 truncate max-w-[200px]" title={row.razao_social}>{row.razao_social}</div>
-                                        </td>
-                                        <td className="px-6 py-3 font-mono text-xs"><span className="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded border border-slate-200 dark:border-slate-600">{row.cod_sap}</span></td>
-                                        <td className="px-6 py-3 text-xs font-mono">
-                                            {row.cnpj && <div className="mb-1"><span className="font-bold text-slate-500 mr-1">CNPJ:</span>{formatDocumento(row.cnpj, 'CNPJ')}</div>}
-                                            {row.cpf && <div><span className="font-bold text-slate-500 mr-1">CPF:</span>{formatDocumento(row.cpf, 'CPF')}</div>}
-                                        </td>
-                                        <td className="px-6 py-3 text-xs">
-                                            {row.cidade ? <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded">{row.cidade}/{row.estado}</span> : '-'}
-                                        </td>
-                                        <td className="px-6 py-3 text-right">
-                                            {/* EFEITO DE HOVER RETOMADO AQUI */}
-                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                <button onClick={() => openModal(row)} className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors" title="Editar"><Icons.Edit width={16} /></button>
-                                                <button onClick={() => handleDelete(row.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-colors" title="Excluir"><Icons.Trash2 width={16} /></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
+                            {list.map((item) => (
+                                <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                    <td className="px-4 py-2 font-mono text-xs">{item.cod_sap}</td>
+                                    <td className="px-4 py-2 font-bold">{item.apelido}</td>
+                                    <td className="px-4 py-2 text-xs text-slate-500">{item.cnpj}</td>
+                                    <td className="px-4 py-2 text-xs">{item.cidade}/{item.estado}</td>
+                                    <td className="px-4 py-2 text-right flex justify-end gap-2">
+                                        <button onClick={() => handleEdit(item)} className="text-blue-500 hover:text-blue-700" title="Editar"><Icons.Edit className="w-4 h-4" /></button>
+                                        <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:text-red-700" title="Excluir"><Icons.Trash className="w-4 h-4" /></button>
+                                    </td>
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-500 text-center">Exibindo {filteredData.length} registros</div>
             </div>
         </div>
     );
@@ -3788,6 +3641,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
