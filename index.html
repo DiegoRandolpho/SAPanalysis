@@ -2495,7 +2495,7 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
 const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
     const [loading, setLoading] = useState(false);
     const [list, setList] = useState([]);
-    const [showModal, setShowModal] = useState(false); // Controla o Popup
+    const [showModal, setShowModal] = useState(false);
     const [formData, setFormData] = useState({
         cod_sap: '',
         apelido: '',
@@ -2507,13 +2507,14 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
         estado: ''
     });
 
-    // --- Ícones Blindados (Previne erro de undefined) ---
+    // --- CORREÇÃO: Ícones Blindados (Previne erro de undefined) ---
+    // Adicionei IconUsers aqui para corrigir o erro do título
+    const IconUsers = Icons.Users || Icons.User || Icons.Users2 || Icons.FileText;
     const IconPlus = Icons.Plus || Icons.UserPlus || Icons.FileText;
     const IconEdit = Icons.Edit || Icons.Pen || Icons.FileText;
     const IconTrash = Icons.Trash || Icons.X || Icons.FileText;
     const IconSave = Icons.Save || Icons.Check || Icons.FileText;
     const IconX = Icons.X || Icons.XCircle || Icons.ArrowLeft;
-    const IconSearch = Icons.Search || Icons.FileText;
     // ---------------------------------------------------
 
     useEffect(() => {
@@ -2596,7 +2597,7 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
             if (error) throw error;
 
             onNotify("Terceiro salvo com sucesso!", "success");
-            setShowModal(false); // Fecha o popup
+            setShowModal(false);
             fetchTerceiros();
         } catch (error) {
             onNotify("Erro ao salvar: " + error.message, "error");
@@ -2611,7 +2612,8 @@ const TerceirizacaoCadastros = ({ supabaseClient, onNotify }) => {
             {/* Header com Botão Novo */}
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <Icons.Users className="text-blue-500" /> Gestão de Terceiros
+                    {/* AQUI ESTAVA O ERRO: Trocado Icons.Users por IconUsers */}
+                    <IconUsers className="text-blue-500" /> Gestão de Terceiros
                 </h3>
                 <button 
                     onClick={handleNew}
@@ -3690,6 +3692,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
