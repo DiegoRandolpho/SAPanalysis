@@ -1505,6 +1505,8 @@
                             <div className={`overflow-hidden transition-all duration-300 ${expandedModules.controladoria ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0'}`}>
                                 <div className="space-y-0.5 mb-2">
                                     <SubMenuItem label="Dashboard" active={view === 'controladoria' && subView === 'dash'} onClick={() => setView('controladoria', 'dash')} />
+                                    <SubMenuItem label="Gestão de Frota" active={view === 'diesel_frota'} onClick={() => setView('diesel_frota')} />
+                                    <SubMenuItem label="Extratos / Lançamentos" active={view === 'diesel_extratos'} onClick={() => setView('diesel_extratos')} />
                                     <SubMenuItem label="DRE Gerencial" active={view === 'controladoria' && subView === 'dre'} onClick={() => setView('controladoria', 'dre')} />
                                     <SubMenuItem label="Relatórios" active={view === 'controladoria' && subView === 'report'} onClick={() => setView('controladoria', 'report')} />
                                     <SubMenuItem label="Config De/Para" active={view === 'controladoria' && subView === 'depara'} onClick={() => setView('controladoria', 'depara')} />
@@ -1527,9 +1529,7 @@
                                     <SubMenuItem label="Relatórios" active={view === 'diesel' && subView === 'report'} onClick={() => setView('diesel', 'report')} />
                                     <SubMenuItem label="Importar Arquivos" active={view === 'diesel' && subView === 'import'} onClick={() => setView('diesel', 'import')} />
                                     
-                                    <button onClick={() => setView('diesel_alertas', 'dash')} className={`w-full text-left py-2 pl-12 pr-4 text-sm transition-colors flex items-center gap-2 ${view === 'diesel_alertas' ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
-                                        <IconAlert width={14} /> Auditoria
-                                    </button>
+                                    <button onClick={() => setView('diesel_alertas', 'dash')} className={`w-full text-left py-2 pl-12 pr-4 text-sm transition-colors flex items-center gap-2 ${view === 'diesel_alertas' ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}> Auditoria </button>
                                 </div>
                             </div>
                         )}
@@ -3405,6 +3405,121 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         </div>
     );
 };
+        const DieselFrota = ({ supabaseClient, onNotify }) => {
+    const [loading, setLoading] = useState(false);
+    const [list, setList] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    useEffect(() => { fetchFrota(); }, []);
+
+    const fetchFrota = async () => {
+        setLoading(true);
+        try {
+            const { data, error } = await supabaseClient.from('equipamentos').select('*').order('placa');
+            if (error) throw error;
+            setList(data || []);
+        } catch (error) { onNotify("Erro ao carregar frota: " + error.message, "error"); } 
+        finally { setLoading(false); }
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm("Remover este veículo da base?")) return;
+        try {
+            const { error } = await supabaseClient.from('equipamentos').delete().eq('id', id);
+            if (error) throw error;
+            onNotify("Veículo removido.", "success");
+            fetchFrota();
+        } catch (e) { onNotify("Erro: " + e.message, "error"); }
+    };
+
+    const filtered = list.filter(i => i.placa.toLowerCase().includes(searchTerm.toLowerCase()) || (i.marca||'').toLowerCase().includes(searchTerm.toLowerCase()));
+
+    return (
+        <div className="space-y-6 animate-enter pb-20">
+            <div className="flex justify-between items-center bg-white/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg text-indigo-600 dark:text-indigo-400"><Icons.Truck className="w-6 h-6" /></div>
+                    <div><h2 className="text-xl font-bold text-slate-800 dark:text-white">Gestão de Frota</h2><p className="text-xs text-slate-500">Base de Equipamentos Cadastrados</p></div>
+                </div>
+                <div className="relative"><Icons.Search className="absolute left-3 top-2.5 text-slate-400 w-4 h-4" /><input type="text" placeholder="Buscar Placa ou Marca..." className="pl-9 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} /></div>
+            </div>
+
+            <div className="glass-card overflow-hidden">
+                <div className="overflow-x-auto max-h-[70vh]">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-bold text-xs uppercase sticky top-0">
+                            <tr><th className="px-6 py-4">Placa</th><th className="px-6 py-4">Marca/Modelo</th><th className="px-6 py-4">Implemento</th><th className="px-6 py-4">Classe</th><th className="px-6 py-4 text-right">Ação</th></tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                            {filtered.map(item => (
+                                <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                    <td className="px-6 py-3 font-bold text-slate-700 dark:text-slate-200">{item.placa}</td>
+                                    <td className="px-6 py-3">{item.marca}</td>
+                                    <td className="px-6 py-3">{item.implemento}</td>
+                                    <td className="px-6 py-3"><span className="px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded text-xs">{item.classe}</span></td>
+                                    <td className="px-6 py-3 text-right"><button onClick={()=>handleDelete(item.id)} className="text-red-500 hover:text-red-700"><Icons.Trash className="w-4 h-4" /></button></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+        const DieselExtratos = ({ supabaseClient }) => {
+    const [tab, setTab] = useState('shell'); // shell, ticket, cta
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => { loadData(); }, [tab]);
+
+    const loadData = async () => {
+        setLoading(true);
+        const table = tab === 'shell' ? 'shell_abastecimentos' : tab === 'ticket' ? 'ticket_abastecimentos' : 'cta_abastecimentos';
+        const { data } = await supabaseClient.from(table).select('*').order('created_at', { ascending: false }).limit(200);
+        setData(data || []);
+        setLoading(false);
+    };
+
+    return (
+        <div className="space-y-6 animate-enter pb-20">
+            <div className="flex gap-2 mb-4 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-fit">
+                {['shell','ticket','cta'].map(t => (
+                    <button key={t} onClick={()=>setTab(t)} className={`px-4 py-2 text-sm font-bold rounded-md capitalize transition-all ${tab===t ? 'bg-white dark:bg-slate-700 shadow text-blue-600' : 'text-slate-500'}`}>{t}</button>
+                ))}
+            </div>
+            <div className="glass-card overflow-hidden">
+                <div className="overflow-x-auto max-h-[70vh]">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-bold text-xs uppercase">
+                            <tr>
+                                <th className="px-4 py-3">Data</th>
+                                <th className="px-4 py-3">Placa</th>
+                                <th className="px-4 py-3">Produto</th>
+                                <th className="px-4 py-3">Litros</th>
+                                <th className="px-4 py-3">Valor Total</th>
+                                <th className="px-4 py-3">Posto/Origem</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                            {data.map((row, i) => (
+                                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                    <td className="px-4 py-2">{new Date(row.data_transacao || row.data_hora_transacao || row.data_hora_inicio).toLocaleDateString()}</td>
+                                    <td className="px-4 py-2 font-bold">{row.placa}</td>
+                                    <td className="px-4 py-2">{row.combustivel || row.tipo_combustivel || 'Diesel'}</td>
+                                    <td className="px-4 py-2">{row.litros || row.volume} L</td>
+                                    <td className="px-4 py-2">R$ {(row.total_abastecimento || row.valor_emissao || row.custo_total || 0).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>
+                                    <td className="px-4 py-2 text-xs truncate max-w-xs">{row.nome_posto || row.nome_estabelecimento || 'Interno'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
         const App = () => {
             const [supabaseClient, setSupabaseClient] = useState(null);
             const [session, setSession] = useState(null);
@@ -4286,7 +4401,20 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                                         <TerceirizacaoTurnover supabaseClient={supabaseClient} filters={filters} onNotify={addLog} />
                                     </div>
                                 )}
-                                
+                               
+                    {view === 'diesel_alertas' && (
+                        <DieselAlerts supabaseClient={supabaseClient} onNotify={addLog} />
+                    )}
+
+            
+                    {view === 'diesel_frota' && (
+                        <DieselFrota supabaseClient={supabaseClient} onNotify={addLog} />
+                    )}
+
+            
+                    {view === 'diesel_extratos' && (
+                        <DieselExtratos supabaseClient={supabaseClient} />
+                    )}
                                 {view === 'terceirizacao_ativos' && (
                                     <div className="space-y-6 animate-enter pb-10">
                                         <div className="glass-card p-4 flex gap-4 items-center no-print">
@@ -4407,6 +4535,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
