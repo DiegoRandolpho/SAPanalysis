@@ -1447,6 +1447,7 @@
     const IconAlert = Icons.AlertTriangle || Icons.AlertCircle || Icons.Flag;
     const IconUpload = Icons.UploadCloud || Icons.Upload;
 
+    // Helper para botões principais
     const MenuItem = ({ label, active, onClick, icon: Icon }) => (
         <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 transition-all duration-200 text-sm font-medium border-l-4 ${active ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-600' : 'text-slate-600 dark:text-slate-400 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
             {Icon && <Icon width={18} height={18} />}
@@ -1454,25 +1455,27 @@
         </button>
     );
 
-    const SubMenuItem = ({ label, active, onClick }) => (
-        <button onClick={onClick} className={`w-full text-left py-2 pl-12 pr-4 text-sm transition-colors relative ${active ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
-            {active && <div className="absolute left-9 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></div>}
+    // Helper para sub-itens
+    const SubMenuItem = ({ label, active, onClick, icon: Icon }) => (
+        <button onClick={onClick} className={`w-full text-left py-2 pl-12 pr-4 text-sm transition-colors relative flex items-center gap-2 ${active ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
+            {active && !Icon && <div className="absolute left-9 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></div>}
+            {Icon && <Icon width={14} height={14} />}
             {label}
         </button>
     );
 
     return (
         <aside className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-screen fixed left-0 top-0 z-40 transition-all duration-300 flex flex-col shadow-xl shadow-slate-200/50 dark:shadow-none`}>
-            {/* Logo Area */}
+            {/* Logo */}
             <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 dark:border-slate-800">
                 {isSidebarOpen && <span className="font-extrabold text-xl tracking-tight text-slate-800 dark:text-white">TERSYS<span className="text-blue-600">.</span></span>}
                 <button onClick={toggleSidebar} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"><IconMenu width={20} /></button>
             </div>
 
-            {/* Menu Scrollable */}
             <div className="flex-1 overflow-y-auto py-4 custom-scrollbar">
                 <nav className="space-y-1">
-                    <MenuItem label="Dashboard Geral" icon={IconHome} active={view === 'dashboard'} onClick={() => setView('dashboard')} />
+                    
+                    {/* (REMOVIDO "DASHBOARD GERAL" SOLTO DAQUI) */}
 
                     {/* MÓDULO TERCEIRIZAÇÃO */}
                     <div>
@@ -1483,7 +1486,7 @@
                         {isSidebarOpen && (
                             <div className={`overflow-hidden transition-all duration-300 ${expandedModules.terceirizacao ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
                                 <div className="space-y-0.5 mb-2">
-                                    <SubMenuItem label="Visão Geral" active={view === 'dashboard' && !view.includes('_')} onClick={() => setView('dashboard')} />
+                                    <SubMenuItem label="Visão Geral" active={view === 'dashboard'} onClick={() => setView('dashboard')} />
                                     <SubMenuItem label="Cadastros" active={view === 'terceirizacao_cadastros'} onClick={() => setView('terceirizacao_cadastros')} />
                                     <SubMenuItem label="Pagamentos" active={view === 'terceirizacao_pagamentos'} onClick={() => setView('terceirizacao_pagamentos')} />
                                     <SubMenuItem label="Turnover" active={view === 'terceirizacao_turnover'} onClick={() => setView('terceirizacao_turnover')} />
@@ -1505,11 +1508,11 @@
                             <div className={`overflow-hidden transition-all duration-300 ${expandedModules.controladoria ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0'}`}>
                                 <div className="space-y-0.5 mb-2">
                                     <SubMenuItem label="Dashboard" active={view === 'controladoria' && subView === 'dash'} onClick={() => setView('controladoria', 'dash')} />
-                                    <SubMenuItem label="Gestão de Frota" active={view === 'diesel_frota'} onClick={() => setView('diesel_frota')} />
-                                    <SubMenuItem label="Extratos / Lançamentos" active={view === 'diesel_extratos'} onClick={() => setView('diesel_extratos')} />
                                     <SubMenuItem label="DRE Gerencial" active={view === 'controladoria' && subView === 'dre'} onClick={() => setView('controladoria', 'dre')} />
                                     <SubMenuItem label="Relatórios" active={view === 'controladoria' && subView === 'report'} onClick={() => setView('controladoria', 'report')} />
                                     <SubMenuItem label="Config De/Para" active={view === 'controladoria' && subView === 'depara'} onClick={() => setView('controladoria', 'depara')} />
+                                    
+                                    {/* Link Importar Controladoria Restaurado */}
                                     <SubMenuItem label="Importar Dados" active={view === 'controladoria' && subView === 'import'} onClick={() => setView('controladoria', 'import')} />
                                 </div>
                             </div>
@@ -1523,13 +1526,20 @@
                             {isSidebarOpen && (expandedModules.diesel ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
                         </button>
                         {isSidebarOpen && (
-                            <div className={`overflow-hidden transition-all duration-300 ${expandedModules.diesel ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0'}`}>
+                            <div className={`overflow-hidden transition-all duration-300 ${expandedModules.diesel ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'}`}>
                                 <div className="space-y-0.5 mb-2">
                                     <SubMenuItem label="Dashboard" active={view === 'diesel' && subView === 'dash'} onClick={() => setView('diesel', 'dash')} />
-                                    <SubMenuItem label="Relatórios" active={view === 'diesel' && subView === 'report'} onClick={() => setView('diesel', 'report')} />
+                                    <SubMenuItem label="Gestão de Frota" active={view === 'diesel_frota'} onClick={() => setView('diesel_frota')} />
+                                    <SubMenuItem label="Extratos / Lançamentos" active={view === 'diesel_extratos'} onClick={() => setView('diesel_extratos')} />
                                     <SubMenuItem label="Importar Arquivos" active={view === 'diesel' && subView === 'import'} onClick={() => setView('diesel', 'import')} />
                                     
-                                    <button onClick={() => setView('diesel_alertas', 'dash')} className={`w-full text-left py-2 pl-12 pr-4 text-sm transition-colors flex items-center gap-2 ${view === 'diesel_alertas' ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}> Auditoria </button>
+                                    {/* Auditoria Unificada (Sem duplicidade) */}
+                                    <SubMenuItem 
+                                        label="Auditoria" 
+                                        icon={IconAlert}
+                                        active={view === 'diesel_alertas'} 
+                                        onClick={() => setView('diesel_alertas', 'dash')} 
+                                    />
                                 </div>
                             </div>
                         )}
@@ -1537,35 +1547,24 @@
                 </nav>
             </div>
             
-            {/* User Profile / Footer - RESTAURADO COM FUNDO RGB ANIMADO */}
+            {/* User Profile */}
             <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                 <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
-                    
-                    {/* CONTAINER DO AVATAR COM EFEITO RGB */}
                     <div className="relative group cursor-pointer">
-                        {/* Camada de Fundo Animada (Gradiente RGB) */}
                         <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-spin-slow"></div>
-                        
-                        {/* Camada Frontal (Avatar) */}
                         <div className="relative w-9 h-9 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center ring-2 ring-white dark:ring-slate-900">
                              <span className="font-extrabold text-xs text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
                                 {session?.user?.email?.substring(0,2).toUpperCase() || 'US'}
                             </span>
                         </div>
                     </div>
-
                     {isSidebarOpen && (
                         <div className="flex-1 overflow-hidden">
                             <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{session?.user?.email?.split('@')[0]}</p>
                             <p className="text-xs text-slate-500 truncate capitalize">{userRole || 'Usuário'}</p>
                         </div>
                     )}
-                    
-                    {isSidebarOpen && (
-                        <button onClick={handleLogout} className="text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800" title="Sair">
-                            <IconLogOut width={18} />
-                        </button>
-                    )}
+                    {isSidebarOpen && (<button onClick={handleLogout} className="text-slate-400 hover:text-red-500 transition-colors"><IconLogOut width={18} /></button>)}
                 </div>
             </div>
         </aside>
@@ -4535,6 +4534,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
