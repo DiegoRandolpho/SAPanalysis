@@ -3237,21 +3237,13 @@ const ActiveAssets = ({ data, loading, filters, setFilters }) => {
     );
 };
         // --- Componente: Monitor de Alertas de Diesel ---
+// --- COMPONENTE: AUDITORIA DE ALERTAS (DIESEL) ---
 const DieselAlerts = ({ supabaseClient, onNotify }) => {
     const [loading, setLoading] = useState(false);
     const [alerts, setAlerts] = useState([]);
     const [filterStatus, setFilterStatus] = useState('pending'); // 'pending', 'resolved'
-    const [stats, setStats] = useState({ total: 0, criticos: 0, resolvidos: 0 });
 
-    // --- Ícones Blindados ---
-    const IconAlert = Icons.AlertTriangle || Icons.AlertCircle || Icons.FileText;
-    const IconCheck = Icons.CheckCircle || Icons.Check || Icons.FileText;
-    const IconSearch = Icons.Search || Icons.FileText;
-    const IconTrash = Icons.Trash2 || Icons.Trash || Icons.X;
-    const IconFilter = Icons.Filter || Icons.ListFilter;
-    const IconShield = Icons.Ban || Icons.Lock;
-    // ------------------------
-
+    // Busca os alertas ao carregar ou mudar o filtro
     useEffect(() => {
         fetchAlerts();
     }, [filterStatus]);
@@ -3259,7 +3251,6 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
     const fetchAlerts = async () => {
         setLoading(true);
         try {
-            // 1. Busca os dados filtrados
             let query = supabaseClient
                 .from('alertas_abastecimento')
                 .select('*')
@@ -3271,17 +3262,6 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
             const { data, error } = await query.limit(500);
             if (error) throw error;
             setAlerts(data || []);
-
-            // 2. Calcula estatísticas rápidas (opcional, busca contagem total)
-            // Para simplificar e ser rápido, calculamos sobre o que baixamos ou fazemos uma query leve depois
-            // Aqui vamos simular com o array atual para performance visual imediata
-            const criticos = (data || []).filter(a => a.tipo_erro.toLowerCase().includes('placa')).length;
-            setStats({ 
-                total: data.length, 
-                criticos: criticos,
-                resolvidos: filterStatus === 'resolved' ? data.length : 0 
-            });
-
         } catch (error) {
             console.error(error);
             onNotify("Erro ao carregar alertas: " + error.message, "error");
@@ -3294,15 +3274,15 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         try {
             const { error } = await supabaseClient.from('alertas_abastecimento').update({ resolvido: true }).eq('id', id);
             if (error) throw error;
-            onNotify("Alerta resolvido.", "success");
-            setAlerts(prev => prev.filter(a => a.id !== id)); // Remove da lista visualmente
+            onNotify("Alerta marcado como resolvido.", "success");
+            setAlerts(prev => prev.filter(a => a.id !== id));
         } catch (error) {
             onNotify("Erro: " + error.message, "error");
         }
     };
 
     const handleDelete = async (id) => {
-        if(!confirm("Excluir este alerta permanentemente?")) return;
+        if (!confirm("Excluir este alerta permanentemente?")) return;
         try {
             const { error } = await supabaseClient.from('alertas_abastecimento').delete().eq('id', id);
             if (error) throw error;
@@ -3311,103 +3291,69 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         } catch (e) { onNotify(e.message, "error"); }
     };
 
+    // Estilo dos Badges
     const getBadgeStyle = (tipo) => {
-        const t = tipo.toLowerCase();
-        if (t.includes('placa')) return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
-        if (t.includes('plataforma') || t.includes('duplicidade')) return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800';
-        if (t.includes('combustível') || t.includes('mapeado')) return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800';
-        return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400';
+        const t = (tipo || '').toLowerCase();
+        if (t.includes('placa')) return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 border dark:border-red-800';
+        if (t.includes('plataforma') || t.includes('duplicidade')) return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 border dark:border-blue-800';
+        return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 border dark:border-orange-800';
     };
 
     return (
         <div className="space-y-6 animate-enter pb-20">
-            
-            {/* Header & Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="md:col-span-4 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 backdrop-blur-sm">
-                    <div>
-                        <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                            <span className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 shadow-sm"><IconAlert width={20} /></span>
-                            Auditoria de Integridade
-                        </h2>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 ml-11">Gerencie inconsistências encontradas nas importações.</p>
-                    </div>
-                    
-                    {/* Filtros (Abas) */}
-                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                        <button 
-                            onClick={() => setFilterStatus('pending')}
-                            className={`px-4 py-2 text-sm font-bold rounded-md transition-all flex items-center gap-2 ${filterStatus === 'pending' ? 'bg-white dark:bg-slate-700 shadow text-red-600 dark:text-red-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
-                        >
-                            <IconAlert width={14} /> Pendentes
-                        </button>
-                        <button 
-                            onClick={() => setFilterStatus('resolved')}
-                            className={`px-4 py-2 text-sm font-bold rounded-md transition-all flex items-center gap-2 ${filterStatus === 'resolved' ? 'bg-white dark:bg-slate-700 shadow text-green-600 dark:text-green-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
-                        >
-                            <IconCheck width={14} /> Resolvidos
-                        </button>
-                    </div>
+            {/* Header & Filtros */}
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 backdrop-blur-sm shadow-sm">
+                <div>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <Icons.AlertCircle className="text-red-500" /> Auditoria de Abastecimentos
+                    </h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Verifique inconsistências nas importações.</p>
+                </div>
+                
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                    <button onClick={() => setFilterStatus('pending')} className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${filterStatus === 'pending' ? 'bg-white dark:bg-slate-700 shadow text-red-600 dark:text-red-400' : 'text-slate-500 hover:text-slate-700'}`}>Pendentes</button>
+                    <button onClick={() => setFilterStatus('resolved')} className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${filterStatus === 'resolved' ? 'bg-white dark:bg-slate-700 shadow text-green-600 dark:text-green-400' : 'text-slate-500 hover:text-slate-700'}`}>Resolvidos</button>
                 </div>
             </div>
 
-            {/* Listagem de Alertas */}
-            <div className="glass-card overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900 min-h-[400px] flex flex-col">
+            {/* Tabela de Alertas */}
+            <div className="glass-card overflow-hidden min-h-[300px] flex flex-col">
                 {alerts.length > 0 ? (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 uppercase font-bold text-xs sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700">
+                            <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase font-bold text-xs border-b border-slate-200 dark:border-slate-700">
                                 <tr>
-                                    <th className="px-6 py-4">Data Ocorrência</th>
-                                    <th className="px-6 py-4">Veículo / Placa</th>
-                                    <th className="px-6 py-4">Tipo do Problema</th>
-                                    <th className="px-6 py-4">Detalhes Técnicos</th>
+                                    <th className="px-6 py-4">Data</th>
+                                    <th className="px-6 py-4">Placa</th>
+                                    <th className="px-6 py-4">Problema</th>
+                                    <th className="px-6 py-4">Detalhes</th>
                                     <th className="px-6 py-4">Origem</th>
                                     <th className="px-6 py-4 text-right">Ação</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                                 {alerts.map((item) => (
                                     <tr key={item.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                         <td className="px-6 py-4 font-mono text-slate-600 dark:text-slate-400 text-xs">
-                                            {item.data_ocorrencia ? new Date(item.data_ocorrencia).toLocaleDateString('pt-BR') : '-'}
+                                            {item.data_ocorrencia ? Utils.date.formatNice(item.data_ocorrencia) : '-'}
                                         </td>
+                                        <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{item.placa}</td>
                                         <td className="px-6 py-4">
-                                            <div className="font-bold text-slate-800 dark:text-slate-200">{item.placa}</div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wide ${getBadgeStyle(item.tipo_erro)}`}>
+                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${getBadgeStyle(item.tipo_erro)}`}>
                                                 {item.tipo_erro}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <p className="text-slate-600 dark:text-slate-300 text-xs max-w-xs truncate" title={item.detalhes}>
-                                                {item.detalhes}
-                                            </p>
+                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300 text-xs max-w-xs truncate" title={item.detalhes}>
+                                            {item.detalhes}
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-xs font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700">
-                                                {item.origem || 'Sistema'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                {!item.resolvido && (
-                                                    <button 
-                                                        onClick={() => handleResolve(item.id)}
-                                                        className="flex items-center gap-1 bg-green-100 hover:bg-green-200 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-green-200 dark:border-green-800 shadow-sm hover:shadow"
-                                                    >
-                                                        <IconCheck width={14} /> Resolver
-                                                    </button>
-                                                )}
-                                                <button 
-                                                    onClick={() => handleDelete(item.id)}
-                                                    className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
-                                                    title="Excluir Registro"
-                                                >
-                                                    <IconTrash width={16} />
+                                        <td className="px-6 py-4 text-slate-500 text-xs">{item.origem}</td>
+                                        <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                            {!item.resolvido && (
+                                                <button onClick={() => handleResolve(item.id)} className="bg-green-100 hover:bg-green-200 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-3 py-1.5 rounded text-xs font-bold transition-colors border border-green-200 dark:border-green-800 flex items-center gap-1">
+                                                    <Icons.Check width={12} /> Resolver
                                                 </button>
-                                            </div>
+                                            )}
+                                            <button onClick={() => handleDelete(item.id)} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Excluir"><Icons.Trash2 width={14} /></button>
                                         </td>
                                     </tr>
                                 ))}
@@ -3415,15 +3361,10 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                         </table>
                     </div>
                 ) : (
-                    // Estado Vazio (Bonito)
-                    <div className="flex-1 flex flex-col items-center justify-center p-12 text-center animate-enter">
-                        <div className="w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mb-4">
-                            <IconCheck width={40} className="text-green-500" />
-                        </div>
-                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Tudo limpo!</h3>
-                        <p className="text-slate-500 dark:text-slate-400 max-w-xs mx-auto mt-2 text-sm">
-                            {filterStatus === 'pending' ? 'Não há pendências de auditoria no momento. Ótimo trabalho!' : 'Nenhum histórico de alertas resolvidos.'}
-                        </p>
+                    <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
+                        <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mb-3 text-green-500"><Icons.CheckCircle width={32} /></div>
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Tudo Certo!</h3>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm">Nenhum alerta {filterStatus === 'pending' ? 'pendente' : 'nesta lista'}.</p>
                     </div>
                 )}
             </div>
@@ -4426,10 +4367,6 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                                         <TerceirizacaoTurnover supabaseClient={supabaseClient} filters={filters} onNotify={addLog} />
                                     </div>
                                 )}
-                               
-                    {view === 'diesel_alertas' && (
-                        <DieselAlerts supabaseClient={supabaseClient} onNotify={addLog} />
-                    )}
 
             
                     {view === 'diesel_frota' && (
@@ -4560,6 +4497,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
