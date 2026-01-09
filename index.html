@@ -3022,122 +3022,115 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
                 </div>
             );
         };
-        const ActiveAssets = ({ data, loading }) => {
-            if (loading) return <div className="p-8 text-center text-slate-400 font-bold animate-pulse">Carregando dados...</div>;
-            
-            // Garante que lista e kpis existam para evitar crash
-            const safeData = data || { kpis: {}, lista: [] };
-            const { kpis, lista } = safeData;
+        // --- Componente ActiveAssets (Atualizado com Filtro de Data e KPI de Empresas) ---
+const ActiveAssets = ({ data, loading, filters, setFilters }) => {
+    if (loading) return <div className="p-8 text-center text-slate-400 font-bold animate-pulse">Carregando dados...</div>;
+    
+    const safeData = data || { kpis: {}, lista: [] };
+    const { kpis, lista } = safeData;
 
-            // Função de Exportação atualizada para incluir os novos campos
-            const handleExport = () => {
-                if (!lista || lista.length === 0) return;
-                
-                // Mapeia os dados para deixar o Excel bonito e organizado
-                const exportData = lista.map(item => ({
-                    "Código SAP": item.cod_sap,
-                    "Nome / Razão Social": item.nome,
-                    "CNPJ": item.cnpj,
-                    "E-mail": item.email,           // Novo
-                    "Logradouro": item.logradouro,  // Novo
-                    "Bairro": item.bairro,          // Novo
-                    "Cidade": item.cidade,          // Novo
-                    "UF": item.uf,                  // Novo
-                    "Filial": item.filial,
-                    "Veículo/Equipamento": item.veiculo,
-                    "Início Contrato": new Date(item.data_inicial).toLocaleDateString('pt-BR'),
-                    "Dias Ativo": item.dias_ativo,
-                    "Valor Base (R$)": item.valor_base
-                }));
+    const handleExport = () => {
+        if (!lista || lista.length === 0) return;
+        
+        const exportData = lista.map(item => ({
+            "Código SAP": item.cod_sap,
+            "Nome / Razão Social": item.nome,
+            "CNPJ": item.cnpj,
+            "E-mail": item.email,
+            "Logradouro": item.logradouro,
+            "Bairro": item.bairro,
+            "Cidade": item.cidade,
+            "UF": item.uf,
+            "Filial": item.filial,
+            "Veículo/Equipamento": item.veiculo,
+            "Início Contrato": new Date(item.data_inicial).toLocaleDateString('pt-BR'),
+            "Dias Ativo": item.dias_ativo,
+            "Valor Base (R$)": item.valor_base
+        }));
 
-                const ws = XLSX.utils.json_to_sheet(exportData);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Ativos");
-                XLSX.writeFile(wb, "Relatorio_Terceiros_Ativos.xlsx");
-            };
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Ativos");
+        XLSX.writeFile(wb, "Relatorio_Terceiros_Ativos.xlsx");
+    };
 
-            return (
-                <div className="space-y-6">
-                    {/* Header com Botão de Exportar */}
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-lg font-bold text-slate-700 dark:text-white flex items-center gap-2">
-                            <Icons.CheckCircle className="text-green-500" /> Terceiros Ativos
-                        </h2>
-                        <button 
-                            onClick={handleExport}
-                            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition-all"
-                        >
-                            <Icons.Download className="w-4 h-4" /> Baixar Excel Completo
-                        </button>
+    return (
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 no-print">
+                <h2 className="text-lg font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                    <Icons.CheckCircle className="text-green-500" /> Terceiros Ativos
+                </h2>
+
+                <div className="flex gap-3 items-center">
+                     {/* FILTRO DE DATA */}
+                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm">
+                        <span className="text-xs font-bold text-slate-500 uppercase">Data Ref:</span>
+                        <input 
+                            type="date" 
+                            className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none"
+                            value={filters.dateFim} // Usa a data final como referência
+                            onChange={(e) => setFilters(prev => ({ ...prev, dateFim: e.target.value }))}
+                        />
                     </div>
 
-                    {/* KPIs - REMOVIDO O CARD DE CUSTO MENSAL */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="glass-card p-4 flex items-center justify-between border-l-4 border-blue-500">
-                            <div>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase">Total Contratos Ativos</p>
-                                <p className="text-2xl font-bold text-slate-800 dark:text-white">{kpis.total_ativos || 0}</p>
-                            </div>
-                            <Icons.FileText className="text-blue-500 w-8 h-8 opacity-50" />
-                        </div>
-                        <div className="glass-card p-4 flex items-center justify-between border-l-4 border-purple-500">
-                            <div>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase">Frota Distinta</p>
-                                <p className="text-2xl font-bold text-slate-800 dark:text-white">{kpis.frota_distinta || 0}</p>
-                            </div>
-                            <Icons.Truck className="text-purple-500 w-8 h-8 opacity-50" />
-                        </div>
-                    </div>
-
-                    {/* Tabela de Listagem */}
-                    <div className="glass-card overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase font-bold text-xs">
-                                    <tr>
-                                        <th className="px-4 py-3">Cod. SAP</th>
-                                        <th className="px-4 py-3">Nome</th>
-                                        <th className="px-4 py-3">CNPJ</th>
-                                        <th className="px-4 py-3">Filial</th>
-                                        <th className="px-4 py-3">Veículo</th>
-                                        <th className="px-4 py-3">Início</th>
-                                        <th className="px-4 py-3 text-center">Dias</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                    {lista.map((item, i) => (
-                                        <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                            <td className="px-4 py-3 font-mono text-slate-600 dark:text-slate-400">{item.cod_sap}</td>
-                                            <td className={`px-4 py-3 font-bold ${item.nome.includes('PENDENTE') ? 'text-orange-500' : 'text-slate-700 dark:text-slate-200'}`}>
-                                                {item.nome}
-                                            </td>
-                                            <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.cnpj}</td>
-                                            <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.filial}</td>
-                                            <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-300">{item.veiculo}</td>
-                                            <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
-                                                {new Date(item.data_inicial).toLocaleDateString('pt-BR')}
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                                <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded text-xs font-bold">
-                                                    {item.dias_ativo} dias
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {lista.length === 0 && (
-                                        <tr>
-                                            <td colSpan="7" className="px-4 py-8 text-center text-slate-400">
-                                                Nenhum ativo encontrado para os filtros selecionados.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <button onClick={handleExport} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition-all">
+                        <Icons.Download className="w-4 h-4" /> Excel
+                    </button>
                 </div>
-            );
-        };
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="glass-card p-4 flex items-center justify-between border-l-4 border-blue-500">
+                    <div>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase">Total Contratos (Veículos)</p>
+                        <p className="text-2xl font-bold text-slate-800 dark:text-white">{kpis.total_ativos || 0}</p>
+                    </div>
+                    <Icons.FileText className="text-blue-500 w-8 h-8 opacity-50" />
+                </div>
+                {/* KPI ALTERADO PARA Nº EMPRESAS ATIVAS */}
+                <div className="glass-card p-4 flex items-center justify-between border-l-4 border-purple-500">
+                    <div>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 font-bold uppercase">Nº Empresas Ativas</p>
+                        <p className="text-2xl font-bold text-slate-800 dark:text-white">{kpis.empresas_ativas || 0}</p>
+                    </div>
+                    <Icons.Briefcase className="text-purple-500 w-8 h-8 opacity-50" />
+                </div>
+            </div>
+
+            <div className="glass-card overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase font-bold text-xs">
+                            <tr>
+                                <th className="px-4 py-3">Cod. SAP</th>
+                                <th className="px-4 py-3">Nome</th>
+                                <th className="px-4 py-3">CNPJ</th>
+                                <th className="px-4 py-3">Filial</th>
+                                <th className="px-4 py-3">Veículo</th>
+                                <th className="px-4 py-3">Início</th>
+                                <th className="px-4 py-3 text-center">Dias Ativo</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                            {lista.map((item, i) => (
+                                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                    <td className="px-4 py-3 font-mono text-slate-600 dark:text-slate-400">{item.cod_sap}</td>
+                                    <td className={`px-4 py-3 font-bold ${item.nome.includes('PENDENTE') ? 'text-orange-500' : 'text-slate-700 dark:text-slate-200'}`}>{item.nome}</td>
+                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.cnpj}</td>
+                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.filial}</td>
+                                    <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-300">{item.veiculo}</td>
+                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{new Date(item.data_inicial).toLocaleDateString('pt-BR')}</td>
+                                    <td className="px-4 py-3 text-center"><span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded text-xs font-bold">{item.dias_ativo} dias</span></td>
+                                </tr>
+                            ))}
+                            {lista.length === 0 && (<tr><td colSpan="7" className="px-4 py-8 text-center text-slate-400">Nenhum ativo encontrado nesta data.</td></tr>)}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
         const App = () => {
             const [supabaseClient, setSupabaseClient] = useState(null);
             const [session, setSession] = useState(null);
@@ -3725,6 +3718,7 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
