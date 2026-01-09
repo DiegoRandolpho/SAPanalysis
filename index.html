@@ -1463,14 +1463,16 @@
 
     return (
         <aside className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-screen fixed left-0 top-0 z-40 transition-all duration-300 flex flex-col shadow-xl shadow-slate-200/50 dark:shadow-none`}>
+            {/* Logo Area */}
             <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 dark:border-slate-800">
                 {isSidebarOpen && <span className="font-extrabold text-xl tracking-tight text-slate-800 dark:text-white">TERSYS<span className="text-blue-600">.</span></span>}
                 <button onClick={toggleSidebar} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"><IconMenu width={20} /></button>
             </div>
 
+            {/* Menu Scrollable */}
             <div className="flex-1 overflow-y-auto py-4 custom-scrollbar">
                 <nav className="space-y-1">
-                    {/* OBS: Removi o "Dashboard Geral" avulso daqui para não duplicar com o da Terceirização */}
+                    <MenuItem label="Dashboard Geral" icon={IconHome} active={view === 'dashboard'} onClick={() => setView('dashboard')} />
 
                     {/* MÓDULO TERCEIRIZAÇÃO */}
                     <div>
@@ -1487,7 +1489,6 @@
                                     <SubMenuItem label="Turnover" active={view === 'terceirizacao_turnover'} onClick={() => setView('terceirizacao_turnover')} />
                                     <SubMenuItem label="Ativos/Frota" active={view === 'terceirizacao_ativos'} onClick={() => setView('terceirizacao_ativos')} />
                                     <SubMenuItem label="De/Para" active={view === 'terceirizacao_depara'} onClick={() => setView('terceirizacao_depara')} />
-                                    {/* Link de Importação Específico */}
                                     <SubMenuItem label="Importar Arquivos" active={view === 'terceirizacao_import'} onClick={() => setView('terceirizacao_import')} />
                                 </div>
                             </div>
@@ -1507,7 +1508,6 @@
                                     <SubMenuItem label="DRE Gerencial" active={view === 'controladoria' && subView === 'dre'} onClick={() => setView('controladoria', 'dre')} />
                                     <SubMenuItem label="Relatórios" active={view === 'controladoria' && subView === 'report'} onClick={() => setView('controladoria', 'report')} />
                                     <SubMenuItem label="Config De/Para" active={view === 'controladoria' && subView === 'depara'} onClick={() => setView('controladoria', 'depara')} />
-                                    {/* Link de Importação Específico */}
                                     <SubMenuItem label="Importar Dados" active={view === 'controladoria' && subView === 'import'} onClick={() => setView('controladoria', 'import')} />
                                 </div>
                             </div>
@@ -1525,7 +1525,6 @@
                                 <div className="space-y-0.5 mb-2">
                                     <SubMenuItem label="Dashboard" active={view === 'diesel' && subView === 'dash'} onClick={() => setView('diesel', 'dash')} />
                                     <SubMenuItem label="Relatórios" active={view === 'diesel' && subView === 'report'} onClick={() => setView('diesel', 'report')} />
-                                    {/* Link de Importação Específico */}
                                     <SubMenuItem label="Importar Arquivos" active={view === 'diesel' && subView === 'import'} onClick={() => setView('diesel', 'import')} />
                                     
                                     <button onClick={() => setView('diesel_alertas', 'dash')} className={`w-full text-left py-2 pl-12 pr-4 text-sm transition-colors flex items-center gap-2 ${view === 'diesel_alertas' ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
@@ -1538,11 +1537,35 @@
                 </nav>
             </div>
             
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800">
+            {/* User Profile / Footer - RESTAURADO COM FUNDO RGB ANIMADO */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                 <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
-                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center font-bold text-xs">{session?.user?.email?.substring(0,2).toUpperCase() || 'US'}</div>
-                    {isSidebarOpen && (<div className="flex-1 overflow-hidden"><p className="text-sm font-bold text-slate-800 dark:text-white truncate">{session?.user?.email?.split('@')[0]}</p><p className="text-xs text-slate-500 truncate capitalize">{userRole || 'Usuário'}</p></div>)}
-                    {isSidebarOpen && (<button onClick={handleLogout} className="text-slate-400 hover:text-red-500 transition-colors"><IconLogOut width={18} /></button>)}
+                    
+                    {/* CONTAINER DO AVATAR COM EFEITO RGB */}
+                    <div className="relative group cursor-pointer">
+                        {/* Camada de Fundo Animada (Gradiente RGB) */}
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-spin-slow"></div>
+                        
+                        {/* Camada Frontal (Avatar) */}
+                        <div className="relative w-9 h-9 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center ring-2 ring-white dark:ring-slate-900">
+                             <span className="font-extrabold text-xs text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
+                                {session?.user?.email?.substring(0,2).toUpperCase() || 'US'}
+                            </span>
+                        </div>
+                    </div>
+
+                    {isSidebarOpen && (
+                        <div className="flex-1 overflow-hidden">
+                            <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{session?.user?.email?.split('@')[0]}</p>
+                            <p className="text-xs text-slate-500 truncate capitalize">{userRole || 'Usuário'}</p>
+                        </div>
+                    )}
+                    
+                    {isSidebarOpen && (
+                        <button onClick={handleLogout} className="text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800" title="Sair">
+                            <IconLogOut width={18} />
+                        </button>
+                    )}
                 </div>
             </div>
         </aside>
@@ -4384,6 +4407,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
     </script>
 </body>
 </html>
+
 
 
 
