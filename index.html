@@ -1512,84 +1512,126 @@
     );
 };
        const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
-    // Estados
-    const [activeTab, setActiveTab] = useState('regiao_material');
+    // ESTADO: Aba padrão agora é 'analitica'
+    const [activeTab, setActiveTab] = useState('analitica');
 
-    // --- HELPER: ÍCONE SEGURO (Evita erro de 'undefined' se o ícone não existir) ---
+    // --- HELPER: ÍCONE SEGURO ---
     const SafeIcon = ({ name, className, width, height }) => {
-        // Tenta pegar do objeto Icons, se não existir, usa Activity como fallback
         const IconComponent = Icons[name] || Icons.Activity;
         return <IconComponent className={className} width={width || 16} height={height || 16} />;
     };
 
-    // --- PROCESSAMENTO DE DADOS (KPIs e Tabelas) ---
+    // --- PROCESSAMENTO DE DADOS (Agrupamento e Cálculos) ---
     const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, lista } = useMemo(() => {
         const rawList = data?.lista || [];
         
-        let flow = {
-            ini_qty: 0, ini_val: 0,
-            in_qty: 0, in_val: 0,
-            out_qty: 0, out_val: 0,
-            fin_qty: 0, fin_val: 0,
-            fin_real_qty: 0,
-            var_qty: 0
-        };
+        // 1. Dicionários para Agrupamento
+        const groups = {}; // Para tabela Analítica (Agrupado por Material)
+        const regionaisMap = {}; // Para Gráfico
+        const materiaisMap = {}; // Para Gráfico
 
-        let diff = {
-            qty: 0, custo: 0, caminhoes: 0, ibcs: 0
-        };
+        // Acumuladores Globais para os Cards de Fluxo
+        let total_est_in = 0;
+        let total_entradas = 0;
+        let total_saidas = 0;
+        let total_est_fin_sap = 0;
+        let total_est_fin_real = 0;
+        
+        let total_dif_qty = 0;
+        let total_custo_dif = 0;
+        let total_caminhoes = 0;
+        let total_ibcs = 0;
 
-        const processedList = rawList.map(item => {
-            const est_in = Number(item.est_in_sap) || 0;
-            const entradas = Number(item.mais_sap) || 0;
-            const saidas = Number(item.menos_sap) || 0;
-            const est_fin_sap = Number(item.est_final_sap) || 0;
-            const est_fin_real = Number(item.est_final_real) || 0;
-            const dif_qty = Number(item.dif_real_sap) || 0;
-            const custo_dif = Number(item.custo_dif) || 0;
-            
-            const unitPrice = dif_qty !== 0 ? (custo_dif / dif_qty) : 0;
+        // 2. Iteração Única sobre a Lista Bruta
+        rawList.forEach(item => {
+            // Normalização de chaves e valores (Trata possíveis nomes diferentes vindos do Excel)
+            const est_in = Number(item.est_in_sap || item.est_inicial || 0);
+            const entradas = Number(item.mais_sap || item.entradas || 0);
+            const saidas = Number(item.menos_sap || item.saidas || 0);
+            const est_fin_sap = Number(item.est_final_sap || 0);
+            const est_fin_real = Number(item.est_final_real || 0);
+            const dif_qty = Number(item.dif_real_sap || 0);
+            const custo = Number(item.custo_dif || 0);
+            const caminhoes = Number(item.num_caminhoes || 0);
+            const ibcs = Number(item.num_ibcs || 0);
 
-            const val_in = est_in * unitPrice;
-            const val_entradas = entradas * unitPrice;
-            const val_saidas = saidas * unitPrice;
-            const val_fin_real = est_fin_real * unitPrice;
+            // Chave de Agrupamento por Material
+            const matKey = item.grupo_material || item.cod_material || 'Outros';
 
-            const denominadorVar = entradas + est_in;
-            const variacaoPct = denominadorVar !== 0 ? (dif_qty / denominadorVar) : 0;
-            
-            const denominadorCustoAj = dif_qty + est_fin_sap;
-            const custoMedioAjustado = denominadorCustoAj !== 0 ? (custo_dif / denominadorCustoAj) : 0;
+            // Agrupamento Analítico
+            if (!groups[matKey]) {
+                groups[matKey] = {
+                    name: matKey,
+                    est_in: 0, entradas: 0, saidas: 0,
+                    est_fin_sap: 0, est_fin_real: 0,
+                    dif_qty: 0, custo_dif: 0
+                };
+            }
+            groups[matKey].est_in += est_in;
+            groups[matKey].entradas += entradas;
+            groups[matKey].saidas += saidas;
+            groups[matKey].est_fin_sap += est_fin_sap;
+            groups[matKey].est_fin_real += est_fin_real;
+            groups[matKey].dif_qty += dif_qty;
+            groups[matKey].custo_dif += custo;
 
-            flow.ini_qty += est_in; flow.ini_val += val_in;
-            flow.in_qty += entradas; flow.in_val += val_entradas;
-            flow.out_qty += saidas; flow.out_val += val_saidas;
-            flow.fin_qty += est_fin_real; flow.fin_val += val_fin_real;
-            
-            diff.qty += dif_qty;
-            diff.custo += custo_dif;
-            diff.caminhoes += (Number(item.num_caminhoes) || 0);
-            diff.ibcs += (Number(item.num_ibcs) || 0);
+            // Totais Globais (Diff Card)
+            total_dif_qty += dif_qty;
+            total_custo_dif += custo;
+            total_caminhoes += caminhoes;
+            total_ibcs += ibcs;
+
+            // Dados para Gráficos
+            const rKey = item.regional || 'N/D';
+            regionaisMap[rKey] = (regionaisMap[rKey] || 0) + custo;
+            materiaisMap[matKey] = (materiaisMap[matKey] || 0) + custo;
+        });
+
+        // 3. Processamento da Tabela Analítica (Calculando Preços e Variações nos totais agrupados)
+        const processedAnalitica = Object.values(groups).map(g => {
+            // Lógica de Preço Unitário baseada no grupo: Custo Total / Diferença Total
+            // Evita divisão por zero
+            const unitPrice = g.dif_qty !== 0 ? (g.custo_dif / g.dif_qty) : 0;
+
+            // Variação %: Ajuste / (Total Entradas + Estoque Inicial)
+            const denominadorVar = g.entradas + g.est_in;
+            const variacaoPct = denominadorVar !== 0 ? (g.dif_qty / denominadorVar) : 0;
+
+            // Custo Médio Ajustado: Custo Total / (Dif Qty + Est Final SAP)
+            const denominadorCustoAj = g.dif_qty + g.est_fin_sap; // Matematicamente igual a Est Final Real
+            const custoMedioAjustado = denominadorCustoAj !== 0 ? (g.custo_dif / denominadorCustoAj) : 0;
+
+            // Acumula para os Cards de Fluxo (Calculando R$ com base no preço unitário do item)
+            total_est_in += (g.est_in * unitPrice);
+            total_entradas += (g.entradas * unitPrice);
+            total_saidas += (g.saidas * unitPrice);
+            total_est_fin_sap += (g.est_fin_sap * unitPrice);
+            total_est_fin_real += (g.est_fin_real * unitPrice);
 
             return {
-                ...item,
-                analitica: {
-                    unitPrice, custoMedioAjustado, variacaoPct,
-                    est_in, entradas, saidas, est_fin_sap, est_fin_real, dif_qty, custo_dif
-                }
+                ...g,
+                unitPrice,
+                custoMedioAjustado,
+                variacaoPct
             };
-        });
+        }).sort((a, b) => b.custo_dif - a.custo_dif); // Ordenar por custo descendente
 
-        const regionaisMap = {};
-        const materiaisMap = {};
-        rawList.forEach(item => {
-            const val = Number(item.custo_dif) || 0;
-            const rKey = item.regional || 'N/D';
-            regionaisMap[rKey] = (regionaisMap[rKey] || 0) + val;
-            const mKey = item.grupo_material || item.cod_material || 'N/D';
-            materiaisMap[mKey] = (materiaisMap[mKey] || 0) + val;
-        });
+        // 4. Totais para Cards de Fluxo (Calculados acima durante o map do analítico)
+        const flow = {
+            ini_qty: Object.values(groups).reduce((acc, curr) => acc + curr.est_in, 0),
+            ini_val: total_est_in,
+            
+            in_qty: Object.values(groups).reduce((acc, curr) => acc + curr.entradas, 0),
+            in_val: total_entradas,
+            
+            out_qty: Object.values(groups).reduce((acc, curr) => acc + curr.saidas, 0),
+            out_val: total_saidas,
+            
+            fin_qty: Object.values(groups).reduce((acc, curr) => acc + curr.est_fin_real, 0),
+            fin_val: total_est_fin_real
+        };
 
+        // 5. Formatação Gráficos
         const regionaisArr = Object.entries(regionaisMap)
             .map(([name, value]) => ({ name, value, abs: Math.abs(value) }))
             .sort((a, b) => b.abs - a.abs).slice(0, 10);
@@ -1601,19 +1643,25 @@
         return { 
             chartsData: { regionais: regionaisArr, materiais: materiaisArr },
             inventoryFlow: flow,
-            consolidatedDiff: diff,
-            analiticaData: processedList,
+            consolidatedDiff: {
+                qty: total_dif_qty,
+                custo: total_custo_dif,
+                caminhoes: total_caminhoes,
+                ibcs: total_ibcs
+            },
+            analiticaData: processedAnalitica,
             lista: rawList
         };
     }, [data]);
 
     if (loading) return <div className="p-10 text-center text-slate-400 animate-pulse">Carregando indicadores de insumos...</div>;
     
+    // Formatadores
     const fmtMoney = (v) => Utils.formatters.currency(v);
     const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 
-    // --- COMPONENTE: CARD FLUXO DE INVENTÁRIO (Corrigido para usar iconName) ---
+    // --- COMPONENTE: CARD FLUXO ---
     const FlowCard = ({ title, qty, val, iconName, color, isVar }) => (
         <div className="glass-card p-4 flex flex-col justify-between relative overflow-hidden print:border print:border-slate-300 print:shadow-none break-inside-avoid">
             <div className="flex justify-between items-start mb-2">
@@ -1636,12 +1684,12 @@
         </div>
     );
 
-    // --- COMPONENTE: TABELA ANALÍTICA ---
+    // --- COMPONENTE: TABELA ANALÍTICA (Sem Filial, Agrupada) ---
     const AnaliticaTable = () => (
         <div className="glass-card flex flex-col print:shadow-none print:border print:border-slate-300 print:bg-white print:animate-none">
             <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
                 <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
-                    <SafeIcon name="Table" width={16} /> Detalhamento Analítico por Material
+                    <SafeIcon name="Table" width={16} /> Detalhamento Analítico por Material (Consolidado)
                 </h3>
             </div>
             <div className="overflow-x-auto">
@@ -1662,20 +1710,19 @@
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                         {analiticaData.map((row, i) => (
                             <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                <td className="px-3 py-2 font-medium truncate max-w-[200px]" title={row.descricao_material || row.grupo_material}>
-                                    {row.descricao_material || row.grupo_material || row.cod_material}
-                                    <div className="text-[10px] text-slate-400">{row.filial}</div>
+                                <td className="px-3 py-2 font-medium truncate max-w-[250px]" title={row.name}>
+                                    {row.name}
                                 </td>
-                                <td className="px-2 py-2 text-right font-mono">{fmtNum(row.analitica.est_in)}</td>
-                                <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtNum(row.analitica.entradas)}</td>
-                                <td className="px-2 py-2 text-right font-mono text-red-500">{fmtNum(row.analitica.saidas)}</td>
-                                <td className="px-2 py-2 text-right font-mono font-bold">{fmtNum(row.analitica.est_fin_sap)}</td>
-                                <td className="px-2 py-2 text-right font-mono font-bold text-blue-600">{fmtNum(row.analitica.est_fin_real)}</td>
-                                <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.analitica.variacaoPct) > 0.05 ? 'text-red-500' : 'text-slate-500'}`}>
-                                    {fmtPerc(row.analitica.variacaoPct)}
+                                <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_in)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtNum(row.entradas)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-red-500">{fmtNum(row.saidas)}</td>
+                                <td className="px-2 py-2 text-right font-mono font-bold">{fmtNum(row.est_fin_sap)}</td>
+                                <td className="px-2 py-2 text-right font-mono font-bold text-blue-600">{fmtNum(row.est_fin_real)}</td>
+                                <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-500' : 'text-slate-500'}`}>
+                                    {fmtPerc(row.variacaoPct)}
                                 </td>
-                                <td className="px-2 py-2 text-right font-mono">{fmtMoney(row.analitica.unitPrice)}</td>
-                                <td className="px-2 py-2 text-right font-mono text-purple-600">{fmtMoney(row.analitica.custoMedioAjustado)}</td>
+                                <td className="px-2 py-2 text-right font-mono">{fmtMoney(row.unitPrice)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-purple-600">{fmtMoney(row.custoMedioAjustado)}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -1684,14 +1731,10 @@
         </div>
     );
 
-    // --- COMPONENTE DRILLDOWN (Corrigido para usar iconName) ---
+    // --- COMPONENTE DRILLDOWN ---
     const DrillDownTable = ({ rawData, hierarchy, title, iconName }) => {
         const [path, setPath] = useState([]);
-
-        const filteredData = useMemo(() => {
-            return rawData.filter(item => path.every((val, index) => item[hierarchy[index].key] === val));
-        }, [rawData, path, hierarchy]);
-
+        const filteredData = useMemo(() => rawData.filter(item => path.every((val, index) => item[hierarchy[index].key] === val)), [rawData, path, hierarchy]);
         const currentLevelIndex = path.length;
         const isLastLevel = currentLevelIndex >= hierarchy.length;
 
@@ -1699,51 +1742,29 @@
             if (isLastLevel) return [];
             const currentKey = hierarchy[currentLevelIndex].key;
             const groups = {};
-
             filteredData.forEach(item => {
                 const keyVal = item[currentKey] || 'N/D';
-                if (!groups[keyVal]) {
-                    groups[keyVal] = { name: keyVal, caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, sap_qty: 0, real_qty: 0, count: 0 };
-                }
+                if (!groups[keyVal]) groups[keyVal] = { name: keyVal, caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, sap_qty: 0, real_qty: 0 };
                 groups[keyVal].caminhoes += (Number(item.num_caminhoes) || 0);
                 groups[keyVal].ibcs += (Number(item.num_ibcs) || 0);
                 groups[keyVal].custo += (Number(item.custo_dif) || 0);
                 groups[keyVal].dif_qty += (Number(item.dif_real_sap) || 0);
                 groups[keyVal].sap_qty += (Number(item.est_final_sap) || 0);
                 groups[keyVal].real_qty += (Number(item.est_final_real) || 0);
-                groups[keyVal].count += 1;
             });
-
-            return Object.values(groups).map(g => {
-                const divisor = g.sap_qty + g.real_qty;
-                const variacao = divisor === 0 ? 0 : g.dif_qty / divisor;
-                return { ...g, variacao };
-            }).sort((a, b) => a.custo - b.custo);
+            return Object.values(groups).map(g => ({ ...g, variacao: (g.sap_qty + g.real_qty) === 0 ? 0 : g.dif_qty / (g.sap_qty + g.real_qty) })).sort((a, b) => a.custo - b.custo);
         }, [filteredData, currentLevelIndex, hierarchy, isLastLevel]);
 
-        const totals = useMemo(() => {
-            const t = groupedData.reduce((acc, curr) => ({
-                caminhoes: acc.caminhoes + curr.caminhoes,
-                ibcs: acc.ibcs + curr.ibcs,
-                custo: acc.custo + curr.custo,
-                dif_qty: acc.dif_qty + curr.dif_qty,
-                sap_qty: acc.sap_qty + curr.sap_qty,
-                real_qty: acc.real_qty + curr.real_qty
-            }), { caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, sap_qty: 0, real_qty: 0 });
-
-            const divTotal = t.sap_qty + t.real_qty;
-            t.variacao = divTotal === 0 ? 0 : t.dif_qty / divTotal;
-            return t;
-        }, [groupedData]);
+        const totals = useMemo(() => groupedData.reduce((acc, curr) => ({
+            caminhoes: acc.caminhoes + curr.caminhoes, ibcs: acc.ibcs + curr.ibcs, custo: acc.custo + curr.custo, dif_qty: acc.dif_qty + curr.dif_qty, sap_qty: acc.sap_qty + curr.sap_qty, real_qty: acc.real_qty + curr.real_qty
+        }), { caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, sap_qty: 0, real_qty: 0 }), [groupedData]);
+        const totalsVar = (totals.sap_qty + totals.real_qty) === 0 ? 0 : totals.dif_qty / (totals.sap_qty + totals.real_qty);
 
         const handleDrill = (name) => setPath([...path, name]);
         const handleBack = () => setPath(path.slice(0, -1));
         const handleReset = () => setPath([]);
 
-        if (isLastLevel) {
-            return <div className="p-10 text-center no-print"><button onClick={handleBack} className="text-blue-600 underline">Voltar</button></div>;
-        }
-
+        if (isLastLevel) return <div className="p-10 text-center no-print"><button onClick={handleBack} className="text-blue-600 underline">Voltar</button></div>;
         const currentLabel = hierarchy[currentLevelIndex].label;
 
         return (
@@ -1758,7 +1779,6 @@
                     </div>
                     <span className="text-xs font-bold bg-slate-200 px-2 py-1 rounded text-slate-600 no-print">Nível: {currentLabel}</span>
                 </div>
-                
                 <div className="overflow-x-auto print:overflow-visible">
                     <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print:text-black">
                         <thead className="uppercase bg-slate-100 dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:text-black print:bg-slate-200">
@@ -1788,7 +1808,7 @@
                                 <td className="px-4 py-3 uppercase text-xs">Total Geral</td>
                                 <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(totals.caminhoes)}</td>
                                 <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(totals.ibcs)}</td>
-                                <td className="px-4 py-3 text-right font-mono">{fmtPerc(totals.variacao)}</td>
+                                <td className="px-4 py-3 text-right font-mono">{fmtPerc(totalsVar)}</td>
                                 <td className={`px-4 py-3 text-right font-mono ${totals.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(totals.custo)}</td>
                                 <td className="no-print"></td>
                             </tr>
@@ -1839,7 +1859,7 @@
                 </div>
             </div>
 
-            {/* --- FLUXO DE INVENTÁRIO (Novos Cards com nomes seguros) --- */}
+            {/* --- FLUXO DE INVENTÁRIO --- */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 print:grid-cols-5">
                 <FlowCard title="Estoque Inicial" qty={inventoryFlow.ini_qty} val={inventoryFlow.ini_val} iconName="Database" color="text-slate-500" />
                 <FlowCard title="Entradas" qty={inventoryFlow.in_qty} val={inventoryFlow.in_val} iconName="ArrowDownCircle" color="text-emerald-600" />
@@ -1848,10 +1868,10 @@
                 <FlowCard title="Variação Total" qty={(inventoryFlow.ini_qty > 0 ? (inventoryFlow.fin_qty - inventoryFlow.ini_qty)/inventoryFlow.ini_qty : 0)} val={0} iconName="Activity" color="text-purple-600" isVar={true} />
             </div>
 
-            {/* --- ÁREA DE DESTAQUE: CARD CONSOLIDADO E GRÁFICOS --- */}
+            {/* --- ÁREA DE DESTAQUE --- */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block">
                 
-                {/* 1. Card Consolidado de Diferença (Unificado e Seguro) */}
+                {/* 1. Card Consolidado */}
                 <div className="lg:col-span-1 flex flex-col gap-6 print:mb-6">
                     <div className="glass-card p-6 border-l-4 border-purple-500 bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/20 relative overflow-hidden h-full flex flex-col justify-center">
                         <div className="absolute top-0 right-0 p-4 opacity-10">
@@ -1880,7 +1900,7 @@
                     </div>
                 </div>
 
-                {/* 2. Gráficos (Ocupam 2 colunas) */}
+                {/* 2. Gráficos */}
                 <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print:block">
                     {/* Gráfico 1 */}
                     <div className="glass-card p-4 h-[300px] flex flex-col print:h-[250px] print:mb-4 print:shadow-none print:border print:border-slate-300 print:break-inside-avoid">
@@ -1922,22 +1942,22 @@
                 </div>
             </div>
 
-            {/* NAVEGAÇÃO DE ABAS */}
+            {/* NAVEGAÇÃO DE ABAS - Reordenada */}
             <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit no-print flex-wrap">
+                <button onClick={() => setActiveTab('analitica')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all uppercase flex items-center gap-1 ${activeTab === 'analitica' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 shadow-sm' : 'text-slate-500 hover:text-purple-600'}`}>
+                    <SafeIcon name="Table" width={12} /> Analítica
+                </button>
                 {['regiao_material', 'material_regiao', 'categoria_material', 'regional_usina', 'usina_material'].map(tab => (
                     <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all uppercase ${activeTab === tab ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
                         {tab.replace('_', ' + ')}
                     </button>
                 ))}
-                <button onClick={() => setActiveTab('analitica')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all uppercase flex items-center gap-1 ${activeTab === 'analitica' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 shadow-sm' : 'text-slate-500 hover:text-purple-600'}`}>
-                    <SafeIcon name="Table" width={12} /> Analítica
-                </button>
             </div>
 
-            {/* ÁREA DAS TABELAS (6 Tabelas ao total) */}
+            {/* ÁREA DAS TABELAS - Reordenada para Analítica ser a primeira */}
             <div className="min-h-[400px]">
-                {/* 1. Analítica (NOVA) */}
-                <div className={`${activeTab === 'analitica' ? '' : 'hide-on-screen'} print-force-visible`}>
+                {/* 1. Analítica (Agrupada por Material, sem Filial) */}
+                <div className={`${activeTab === 'analitica' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
                     <AnaliticaTable />
                 </div>
 
@@ -5462,6 +5482,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
