@@ -1544,16 +1544,20 @@
 
         // 2. Iteração Única sobre a Lista Bruta
         rawList.forEach(item => {
-            // Normalização de chaves e valores (Trata possíveis nomes diferentes vindos do Excel)
-            const est_in = Number(item.est_in_sap || item.est_inicial || 0);
-            const entradas = Number(item.mais_sap || item.entradas || 0);
-            const saidas = Number(item.menos_sap || item.saidas || 0);
-            const est_fin_sap = Number(item.est_final_sap || 0);
-            const est_fin_real = Number(item.est_final_real || 0);
-            const dif_qty = Number(item.dif_real_sap || 0);
-            const custo = Number(item.custo_dif || 0);
-            const caminhoes = Number(item.num_caminhoes || 0);
-            const ibcs = Number(item.num_ibcs || 0);
+            // --- CORREÇÃO AQUI: MAPEAMENTO EXATO COM AS COLUNAS DO SQL ---
+            const est_in = Number(item.est_inicial_sap) || 0;
+            const entradas = Number(item.entradas_sap) || 0;
+            const saidas = Number(item.saidas_sap) || 0;
+            
+            const est_fin_sap = Number(item.est_final_sap) || 0;
+            const est_fin_real = Number(item.est_final_real) || 0;
+            
+            const dif_qty = Number(item.dif_real_sap) || 0;
+            const custo = Number(item.custo_dif) || 0;
+            
+            const caminhoes = Number(item.num_caminhoes) || 0;
+            const ibcs = Number(item.num_ibcs) || 0;
+            // -------------------------------------------------------------
 
             // Chave de Agrupamento por Material
             const matKey = item.grupo_material || item.cod_material || 'Outros';
@@ -1575,7 +1579,7 @@
             groups[matKey].dif_qty += dif_qty;
             groups[matKey].custo_dif += custo;
 
-            // Totais Globais (Diff Card)
+            // Totais Globais (Diff Card e Flow Cards)
             total_dif_qty += dif_qty;
             total_custo_dif += custo;
             total_caminhoes += caminhoes;
@@ -1601,7 +1605,7 @@
             const denominadorCustoAj = g.dif_qty + g.est_fin_sap; // Matematicamente igual a Est Final Real
             const custoMedioAjustado = denominadorCustoAj !== 0 ? (g.custo_dif / denominadorCustoAj) : 0;
 
-            // Acumula para os Cards de Fluxo (Calculando R$ com base no preço unitário do item)
+            // Acumula para os Cards de Fluxo (Calculando R$ com base no preço unitário do item agrupado)
             total_est_in += (g.est_in * unitPrice);
             total_entradas += (g.entradas * unitPrice);
             total_saidas += (g.saidas * unitPrice);
@@ -1614,7 +1618,7 @@
                 custoMedioAjustado,
                 variacaoPct
             };
-        }).sort((a, b) => b.custo_dif - a.custo_dif); // Ordenar por custo descendente
+        }).sort((a, b) => b.custo_dif - a.custo_dif); // Ordenar por custo descendente (maior prejuízo/lucro)
 
         // 4. Totais para Cards de Fluxo (Calculados acima durante o map do analítico)
         const flow = {
@@ -1745,6 +1749,8 @@
             filteredData.forEach(item => {
                 const keyVal = item[currentKey] || 'N/D';
                 if (!groups[keyVal]) groups[keyVal] = { name: keyVal, caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, sap_qty: 0, real_qty: 0 };
+                
+                // --- MAPEAMENTO TAMBÉM NAS SUB-TABELAS ---
                 groups[keyVal].caminhoes += (Number(item.num_caminhoes) || 0);
                 groups[keyVal].ibcs += (Number(item.num_ibcs) || 0);
                 groups[keyVal].custo += (Number(item.custo_dif) || 0);
@@ -5482,6 +5488,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
