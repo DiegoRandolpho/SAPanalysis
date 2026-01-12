@@ -1764,137 +1764,6 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
         </div>
     );
 };
-    // --- RENDERIZAÇÃO PRINCIPAL ---
-
-    return (
-        <div className="space-y-6 animate-enter pb-10 report-container">
-            {/* Header e Filtros */}
-            <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <Icons.LayoutDashboard className="text-purple-500" /> Visão Geral: Insumos
-                    </h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        Controle de estoque físico x sistêmico e perdas.
-                    </p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm">
-                        <span className="text-xs font-bold text-slate-500 uppercase"><Icons.Calendar width={14} className="inline mr-1"/> Período:</span>
-                        <input 
-                            type="month" 
-                            className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none"
-                            value={filters.periodo}
-                            onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))}
-                        />
-                    </div>
-                    <button 
-                        onClick={() => window.print()} 
-                        className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all"
-                    >
-                        <Icons.Download width={16} /> PDF
-                    </button>
-                </div>
-            </div>
-
-            {/* KPIs Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card 
-                    title="Custo Total (Diferença)" 
-                    value={fmtMoney(kpis.total_custo_dif)} 
-                    iconName="dollarSign" 
-                    color={kpis.total_custo_dif > 0 ? "red" : "emerald"}
-                    subtext="Impacto financeiro da quebra"
-                />
-                <Card 
-                    title="Diferença Total (Unid)" 
-                    value={fmtNum(kpis.total_dif_sap)} 
-                    iconName="activity" 
-                    color="blue"
-                    subtext="Real vs SAP Acumulado"
-                />
-                <Card 
-                    title="Equiv. Caminhões" 
-                    value={Utils.math.roundVolume(kpis.total_caminhoes)} 
-                    iconName="truck" 
-                    color="orange"
-                    subtext="Volume perdido/ganho"
-                />
-                <Card 
-                    title="Equiv. IBC's" 
-                    value={Utils.math.roundVolume(kpis.total_ibcs)} 
-                    iconName="box" 
-                    color="purple"
-                    subtext="Volume em contentores"
-                />
-            </div>
-
-            {/* Navegação de Abas */}
-            <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit no-print">
-                <button 
-                    onClick={() => setActiveTab('regiao_material')}
-                    className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'regiao_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                >
-                    Região + Material
-                </button>
-                <button 
-                    onClick={() => setActiveTab('material_regiao')}
-                    className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'material_regiao' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                >
-                    Material + Região
-                </button>
-                <button 
-                    onClick={() => setActiveTab('categoria_material')}
-                    className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'categoria_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                >
-                    Categoria + Material
-                </button>
-            </div>
-
-            {/* Renderização Condicional das Tabelas Drill-Down */}
-            <div className="min-h-[400px]">
-                {activeTab === 'regiao_material' && (
-                    <DrillDownTable 
-                        rawData={lista} 
-                        title="Classificação por Região"
-                        icon={Icons.Map || Icons.Target}
-                        hierarchy={[
-                            { key: 'regional', label: 'Encarregado / Regional' },
-                            { key: 'grupo_material', label: 'Grupo de Material' },
-                            { key: 'filial', label: 'Usina / Filial' }
-                        ]}
-                    />
-                )}
-
-                {activeTab === 'material_regiao' && (
-                    <DrillDownTable 
-                        rawData={lista} 
-                        title="Classificação por Material"
-                        icon={Icons.Box || Icons.Package}
-                        hierarchy={[
-                            { key: 'grupo_material', label: 'Grupo de Material' },
-                            { key: 'regional', label: 'Encarregado / Regional' },
-                            { key: 'filial', label: 'Usina / Filial' }
-                        ]}
-                    />
-                )}
-
-                {activeTab === 'categoria_material' && (
-                    <DrillDownTable 
-                        rawData={lista} 
-                        title="Classificação por Categoria"
-                        icon={Icons.ListFilter || Icons.Filter}
-                        hierarchy={[
-                            { key: 'categoria', label: 'Categoria' },
-                            { key: 'grupo_material', label: 'Grupo de Material' },
-                            { key: 'regional', label: 'Encarregado / Regional' }
-                        ]}
-                    />
-                )}
-            </div>
-        </div>
-    );
-};
         const Sidebar = ({ isSidebarOpen, toggleSidebar, toggleModule, expandedModules, userRole, setView, view, subView, handleLogout, session }) => {
     // ÍCONES BLINDADOS
     const IconHome = Icons.Home || Icons.Layout || Icons.FileText;
@@ -5388,6 +5257,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
