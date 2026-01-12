@@ -1515,11 +1515,17 @@
     // Estados
     const [activeTab, setActiveTab] = useState('regiao_material');
 
+    // --- HELPER: ÍCONE SEGURO (Evita erro de 'undefined' se o ícone não existir) ---
+    const SafeIcon = ({ name, className, width, height }) => {
+        // Tenta pegar do objeto Icons, se não existir, usa Activity como fallback
+        const IconComponent = Icons[name] || Icons.Activity;
+        return <IconComponent className={className} width={width || 16} height={height || 16} />;
+    };
+
     // --- PROCESSAMENTO DE DADOS (KPIs e Tabelas) ---
     const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, lista } = useMemo(() => {
         const rawList = data?.lista || [];
         
-        // Estruturas para acumular totais
         let flow = {
             ini_qty: 0, ini_val: 0,
             in_qty: 0, in_val: 0,
@@ -1530,15 +1536,10 @@
         };
 
         let diff = {
-            qty: 0,
-            custo: 0,
-            caminhoes: 0,
-            ibcs: 0
+            qty: 0, custo: 0, caminhoes: 0, ibcs: 0
         };
 
-        // Processamento Linha a Linha para Tabela Analítica e KPIs
         const processedList = rawList.map(item => {
-            // Conversão segura de valores
             const est_in = Number(item.est_in_sap) || 0;
             const entradas = Number(item.mais_sap) || 0;
             const saidas = Number(item.menos_sap) || 0;
@@ -1547,30 +1548,23 @@
             const dif_qty = Number(item.dif_real_sap) || 0;
             const custo_dif = Number(item.custo_dif) || 0;
             
-            // Lógica de Preço Unitário (Baseado na diferença, conforme solicitado)
-            // Se dif_qty for 0, evitamos divisão por zero assumindo 0 (ou poderíamos usar custo médio padrão se existisse)
             const unitPrice = dif_qty !== 0 ? (custo_dif / dif_qty) : 0;
 
-            // Cálculos Monetários
             const val_in = est_in * unitPrice;
             const val_entradas = entradas * unitPrice;
             const val_saidas = saidas * unitPrice;
             const val_fin_real = est_fin_real * unitPrice;
 
-            // Fórmulas Específicas Solicitadas
             const denominadorVar = entradas + est_in;
             const variacaoPct = denominadorVar !== 0 ? (dif_qty / denominadorVar) : 0;
             
-            // Custo Médio Ajustado ("CUSTO" / ("DIF REAL X SAP" + "EST. FIN. SAP"))
-            // Nota: (DIF + FIN_SAP) é matematicamente igual a EST_FIN_REAL
             const denominadorCustoAj = dif_qty + est_fin_sap;
             const custoMedioAjustado = denominadorCustoAj !== 0 ? (custo_dif / denominadorCustoAj) : 0;
 
-            // Acumuladores Globais
             flow.ini_qty += est_in; flow.ini_val += val_in;
             flow.in_qty += entradas; flow.in_val += val_entradas;
             flow.out_qty += saidas; flow.out_val += val_saidas;
-            flow.fin_qty += est_fin_real; flow.fin_val += val_fin_real; // Usando Real para o fluxo final
+            flow.fin_qty += est_fin_real; flow.fin_val += val_fin_real;
             
             diff.qty += dif_qty;
             diff.custo += custo_dif;
@@ -1580,29 +1574,18 @@
             return {
                 ...item,
                 analitica: {
-                    unitPrice,
-                    custoMedioAjustado,
-                    variacaoPct,
-                    est_in,
-                    entradas,
-                    saidas,
-                    est_fin_sap,
-                    est_fin_real,
-                    dif_qty,
-                    custo_dif
+                    unitPrice, custoMedioAjustado, variacaoPct,
+                    est_in, entradas, saidas, est_fin_sap, est_fin_real, dif_qty, custo_dif
                 }
             };
         });
 
-        // Gráficos (Lógica mantida)
         const regionaisMap = {};
         const materiaisMap = {};
         rawList.forEach(item => {
             const val = Number(item.custo_dif) || 0;
-            
             const rKey = item.regional || 'N/D';
             regionaisMap[rKey] = (regionaisMap[rKey] || 0) + val;
-
             const mKey = item.grupo_material || item.cod_material || 'N/D';
             materiaisMap[mKey] = (materiaisMap[mKey] || 0) + val;
         });
@@ -1626,17 +1609,16 @@
 
     if (loading) return <div className="p-10 text-center text-slate-400 animate-pulse">Carregando indicadores de insumos...</div>;
     
-    // Formatadores
     const fmtMoney = (v) => Utils.formatters.currency(v);
     const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 
-    // --- COMPONENTE: CARD FLUXO DE INVENTÁRIO ---
-    const FlowCard = ({ title, qty, val, icon: Icon, color, isVar }) => (
+    // --- COMPONENTE: CARD FLUXO DE INVENTÁRIO (Corrigido para usar iconName) ---
+    const FlowCard = ({ title, qty, val, iconName, color, isVar }) => (
         <div className="glass-card p-4 flex flex-col justify-between relative overflow-hidden print:border print:border-slate-300 print:shadow-none break-inside-avoid">
             <div className="flex justify-between items-start mb-2">
                 <span className={`text-xs font-bold uppercase tracking-wider ${color}`}>{title}</span>
-                <Icon width={16} className={`opacity-50 ${color}`} />
+                <SafeIcon name={iconName} width={16} className={`opacity-50 ${color}`} />
             </div>
             <div>
                 {isVar ? (
@@ -1659,7 +1641,7 @@
         <div className="glass-card flex flex-col print:shadow-none print:border print:border-slate-300 print:bg-white print:animate-none">
             <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
                 <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
-                    <Icons.Table width={16} /> Detalhamento Analítico por Material
+                    <SafeIcon name="Table" width={16} /> Detalhamento Analítico por Material
                 </h3>
             </div>
             <div className="overflow-x-auto">
@@ -1702,8 +1684,8 @@
         </div>
     );
 
-    // --- COMPONENTE ANTIGO (Tabelas DrillDown) ---
-    const DrillDownTable = ({ rawData, hierarchy, title, icon: Icon }) => {
+    // --- COMPONENTE DRILLDOWN (Corrigido para usar iconName) ---
+    const DrillDownTable = ({ rawData, hierarchy, title, iconName }) => {
         const [path, setPath] = useState([]);
 
         const filteredData = useMemo(() => {
@@ -1768,10 +1750,10 @@
             <div className="glass-card flex flex-col print:shadow-none print:border print:border-slate-300 print:mb-4 print:break-inside-auto print:bg-white print:animate-none">
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center print:bg-slate-100 print:border-slate-300">
                     <div className="flex items-center gap-2">
-                        {path.length > 0 && (<button onClick={handleBack} className="p-1.5 hover:bg-slate-200 rounded-full mr-1 no-print"><Icons.ArrowLeft width={16} /></button>)}
+                        {path.length > 0 && (<button onClick={handleBack} className="p-1.5 hover:bg-slate-200 rounded-full mr-1 no-print"><SafeIcon name="ArrowLeft" width={16} /></button>)}
                         <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 print:text-black">
-                            {Icon && <Icon width={16} />} 
-                            {path.length === 0 ? title : (<span className="flex items-center gap-2"><span className="opacity-50 cursor-pointer" onClick={handleReset}>{title}</span>{path.map((p, i) => (<React.Fragment key={i}><Icons.ChevronRight width={12} className="opacity-40" /><span className="font-bold">{p}</span></React.Fragment>))}</span>)}
+                            <SafeIcon name={iconName} width={16} />
+                            {path.length === 0 ? title : (<span className="flex items-center gap-2"><span className="opacity-50 cursor-pointer" onClick={handleReset}>{title}</span>{path.map((p, i) => (<React.Fragment key={i}><SafeIcon name="ChevronRight" width={12} className="opacity-40" /><span className="font-bold">{p}</span></React.Fragment>))}</span>)}
                         </h3>
                     </div>
                     <span className="text-xs font-bold bg-slate-200 px-2 py-1 rounded text-slate-600 no-print">Nível: {currentLabel}</span>
@@ -1797,7 +1779,7 @@
                                     <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(row.ibcs)}</td>
                                     <td className={`px-4 py-3 text-right font-mono font-bold ${Math.abs(row.variacao) > 0.05 ? 'text-red-500' : 'text-slate-600'}`}>{fmtPerc(row.variacao)}</td>
                                     <td className={`px-4 py-3 text-right font-mono font-bold ${row.custo < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{fmtMoney(row.custo)}</td>
-                                    <td className="px-4 py-3 text-center no-print"><Icons.ChevronRight width={14} /></td>
+                                    <td className="px-4 py-3 text-center no-print"><SafeIcon name="ChevronRight" width={14} /></td>
                                 </tr>
                             ))}
                         </tbody>
@@ -1845,35 +1827,35 @@
             <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <Icons.LayoutDashboard className="text-purple-500" /> Visão Geral: Insumos
+                        <SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos
                     </h2>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm">
-                        <span className="text-xs font-bold text-slate-500 uppercase"><Icons.Calendar width={14} className="inline mr-1"/> Período:</span>
+                        <span className="text-xs font-bold text-slate-500 uppercase"><SafeIcon name="Calendar" width={14} className="inline mr-1"/> Período:</span>
                         <input type="month" className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} />
                     </div>
-                    <button onClick={() => window.print()} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all"><Icons.Download width={16} /> PDF</button>
+                    <button onClick={() => window.print()} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all"><SafeIcon name="Download" width={16} /> PDF</button>
                 </div>
             </div>
 
-            {/* --- FLUXO DE INVENTÁRIO (Novos Cards) --- */}
+            {/* --- FLUXO DE INVENTÁRIO (Novos Cards com nomes seguros) --- */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 print:grid-cols-5">
-                <FlowCard title="Estoque Inicial" qty={inventoryFlow.ini_qty} val={inventoryFlow.ini_val} icon={Icons.Database} color="text-slate-500" />
-                <FlowCard title="Entradas" qty={inventoryFlow.in_qty} val={inventoryFlow.in_val} icon={Icons.ArrowDownCircle} color="text-emerald-600" />
-                <FlowCard title="Saídas" qty={inventoryFlow.out_qty} val={inventoryFlow.out_val} icon={Icons.ArrowUpCircle} color="text-red-500" />
-                <FlowCard title="Estoque Final" qty={inventoryFlow.fin_qty} val={inventoryFlow.fin_val} icon={Icons.CheckCircle} color="text-blue-600" />
-                <FlowCard title="Variação Total" qty={(inventoryFlow.ini_qty > 0 ? (inventoryFlow.fin_qty - inventoryFlow.ini_qty)/inventoryFlow.ini_qty : 0)} val={0} icon={Icons.Activity} color="text-purple-600" isVar={true} />
+                <FlowCard title="Estoque Inicial" qty={inventoryFlow.ini_qty} val={inventoryFlow.ini_val} iconName="Database" color="text-slate-500" />
+                <FlowCard title="Entradas" qty={inventoryFlow.in_qty} val={inventoryFlow.in_val} iconName="ArrowDownCircle" color="text-emerald-600" />
+                <FlowCard title="Saídas" qty={inventoryFlow.out_qty} val={inventoryFlow.out_val} iconName="ArrowUpCircle" color="text-red-500" />
+                <FlowCard title="Estoque Final" qty={inventoryFlow.fin_qty} val={inventoryFlow.fin_val} iconName="CheckCircle" color="text-blue-600" />
+                <FlowCard title="Variação Total" qty={(inventoryFlow.ini_qty > 0 ? (inventoryFlow.fin_qty - inventoryFlow.ini_qty)/inventoryFlow.ini_qty : 0)} val={0} iconName="Activity" color="text-purple-600" isVar={true} />
             </div>
 
             {/* --- ÁREA DE DESTAQUE: CARD CONSOLIDADO E GRÁFICOS --- */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block">
                 
-                {/* 1. Card Consolidado de Diferença (Unificado) */}
+                {/* 1. Card Consolidado de Diferença (Unificado e Seguro) */}
                 <div className="lg:col-span-1 flex flex-col gap-6 print:mb-6">
                     <div className="glass-card p-6 border-l-4 border-purple-500 bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/20 relative overflow-hidden h-full flex flex-col justify-center">
                         <div className="absolute top-0 right-0 p-4 opacity-10">
-                            <Icons.AlertTriangle width={100} height={100} />
+                            <SafeIcon name="AlertTriangle" width={100} height={100} />
                         </div>
                         <h3 className="text-sm font-bold uppercase text-slate-500 mb-2 tracking-widest">Diferença de Estoque</h3>
                         
@@ -1886,12 +1868,12 @@
 
                         <div className="pt-4 border-t border-slate-200 dark:border-slate-700/50 flex justify-between items-center text-sm">
                             <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                                <Icons.Truck width={16} />
+                                <SafeIcon name="Truck" width={16} />
                                 <span className="font-bold">{Utils.math.roundVolume(consolidatedDiff.caminhoes)}</span> <span className="text-xs">Caminhões</span>
                             </div>
                             <div className="h-4 w-px bg-slate-300 dark:bg-slate-700"></div>
                             <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                                <Icons.Box width={16} />
+                                <SafeIcon name="Box" width={16} />
                                 <span className="font-bold">{Utils.math.roundVolume(consolidatedDiff.ibcs)}</span> <span className="text-xs">IBCs</span>
                             </div>
                         </div>
@@ -1903,7 +1885,7 @@
                     {/* Gráfico 1 */}
                     <div className="glass-card p-4 h-[300px] flex flex-col print:h-[250px] print:mb-4 print:shadow-none print:border print:border-slate-300 print:break-inside-avoid">
                         <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-2 flex items-center gap-2 uppercase print:text-black">
-                            <Icons.BarChart2 width={14} className="text-purple-500" /> Top Ajustes (Região)
+                            <SafeIcon name="BarChart2" width={14} className="text-purple-500" /> Top Ajustes (Região)
                         </h3>
                         <div className="flex-1 w-full">
                             <ResponsiveContainer width="100%" height="100%">
@@ -1922,7 +1904,7 @@
                     {/* Gráfico 2 */}
                     <div className="glass-card p-4 h-[300px] flex flex-col print:h-[250px] print:shadow-none print:border print:border-slate-300 print:break-inside-avoid print:break-after-page">
                         <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-2 flex items-center gap-2 uppercase print:text-black">
-                            <Icons.AlertCircle width={14} className="text-orange-500" /> Top Ajustes (Material)
+                            <SafeIcon name="AlertCircle" width={14} className="text-orange-500" /> Top Ajustes (Material)
                         </h3>
                         <div className="flex-1 w-full">
                             <ResponsiveContainer width="100%" height="100%">
@@ -1948,7 +1930,7 @@
                     </button>
                 ))}
                 <button onClick={() => setActiveTab('analitica')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all uppercase flex items-center gap-1 ${activeTab === 'analitica' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 shadow-sm' : 'text-slate-500 hover:text-purple-600'}`}>
-                    <Icons.Table width={12} /> Analítica
+                    <SafeIcon name="Table" width={12} /> Analítica
                 </button>
             </div>
 
@@ -1961,27 +1943,27 @@
 
                 {/* 2. Região + Material */}
                 <div className={`${activeTab === 'regiao_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <DrillDownTable rawData={lista} title="Classificação por Região" icon={Icons.Target} hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
+                    <DrillDownTable rawData={lista} title="Classificação por Região" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
                 
                 {/* 3. Material + Região */}
                 <div className={`${activeTab === 'material_regiao' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <DrillDownTable rawData={lista} title="Classificação por Material" icon={Icons.Box} hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
+                    <DrillDownTable rawData={lista} title="Classificação por Material" iconName="Box" hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
                 
                 {/* 4. Categoria + Material */}
                 <div className={`${activeTab === 'categoria_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <DrillDownTable rawData={lista} title="Classificação por Categoria" icon={Icons.ListFilter} hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
+                    <DrillDownTable rawData={lista} title="Classificação por Categoria" iconName="ListFilter" hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
                 </div>
 
                 {/* 5. Regional + Usina */}
                 <div className={`${activeTab === 'regional_usina' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <DrillDownTable rawData={lista} title="Regional + Usina" icon={Icons.Target} hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
+                    <DrillDownTable rawData={lista} title="Regional + Usina" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
                 </div>
 
                 {/* 6. Usina + Material */}
                 <div className={`${activeTab === 'usina_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <DrillDownTable rawData={lista} title="Usina + Material" icon={Icons.Briefcase} hierarchy={[{ key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
+                    <DrillDownTable rawData={lista} title="Usina + Material" iconName="Briefcase" hierarchy={[{ key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
                 </div>
             </div>
         </div>
@@ -5480,6 +5462,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
