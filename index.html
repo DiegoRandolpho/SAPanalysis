@@ -143,15 +143,24 @@
             normalizeKey: (key) => key ? key.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "") : '',
             cleanStr: (str) => str ? str.toString().trim().toUpperCase() : '',
             normalizeClass: (str) => str ? str.toString().trim().toUpperCase().replace(/\s+/g, ' ') : '',
-            checkPermission: (role, required) => {
-                if (!role) return false;
-                const r = role.toLowerCase();
-                if (r === 'admin' || r === 'administrador') return true;
-                if (required === 'terceirizacao') return r === 'terceirizacao' || r === 'terceirização';
-                if (required === 'controladoria') return r === 'controladoria';
-                if (required === 'diesel') return r === 'diesel' || r === 'admin';
-                return false;
-            },
+            ccheckPermission: (role, required) => {
+    if (!role) return false;
+    const r = role.toLowerCase();
+    
+    // Admin vê tudo
+    if (r === 'admin' || r === 'administrador') return true;
+    
+    // Regras Específicas
+    if (r === 'insumos') return required === 'insumos';
+    if (r === 'diesel') return required === 'diesel';
+    if (r === 'controladoria') return required === 'controladoria';
+    
+    // O padrão (terceirização) vê apenas terceirização
+    if (r === 'terceirizacao' || r === 'terceirização') return required === 'terceirizacao' || required === 'dashboard';
+
+    // Fallback: se a role for igual ao recurso solicitado
+    return r === required;
+},
             formatters: {
                 currency: (val) => (typeof val === 'string' ? parseFloat(val) : val || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}),
                 number: (val, decimals = 2) => (typeof val === 'string' ? parseFloat(val) : val || 0).toLocaleString('pt-BR', {minimumFractionDigits: decimals, maximumFractionDigits: decimals}),
@@ -5257,6 +5266,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
