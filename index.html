@@ -1480,15 +1480,14 @@
 };
 
 const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
-    // Estados
     const [activeTab, setActiveTab] = useState('regiao_material');
 
-    // Processamento dos Gráficos (Memoizado)
+    // --- DADOS DOS GRÁFICOS ---
     const chartsData = useMemo(() => {
         const lista = data?.lista || [];
         if (lista.length === 0) return { regionais: [], materiais: [] };
 
-        // 1. Top 10 Encarregados (Absoluto)
+        // Top 10 Encarregados (Absoluto)
         const regionaisMap = {};
         lista.forEach(item => {
             const key = item.regional || 'N/D';
@@ -1498,7 +1497,7 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
         const regionaisArr = Object.entries(regionaisMap).map(([name, value]) => ({ name, value, abs: Math.abs(value) }));
         const regionaisFinal = regionaisArr.sort((a, b) => b.abs - a.abs).slice(0, 10);
 
-        // 2. Top 10 Materiais (Absoluto)
+        // Top 10 Materiais (Absoluto)
         const materiaisMap = {};
         lista.forEach(item => {
             const key = item.grupo_material || item.cod_material || 'N/D';
@@ -1511,20 +1510,21 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
         return { regionais: regionaisFinal, materiais: materiaisFinal };
     }, [data]);
 
-    if (loading) return <div className="p-10 text-center text-slate-400 animate-pulse">Carregando indicadores de insumos...</div>;
+    if (loading) return <div className="p-10 text-center text-slate-400 animate-pulse">Carregando indicadores...</div>;
     
     const lista = data?.lista || [];
     const kpis = data?.kpis || { total_custo_dif: 0, total_caminhoes: 0, total_ibcs: 0, total_dif_sap: 0 };
 
-    // Formatação
+    // Formatadores
     const fmtMoney = (v) => Utils.formatters.currency(v);
     const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
     const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 
-    // Componente Personalizado de Card KPI
+    // --- COMPONENTE CARD KPI ---
     const KpiCard = ({ title, value, iconName, color, subtext }) => {
         const Icon = Icons[Utils.cleanStr(iconName)] || Icons.Activity;
         
+        // Cores (Textos e Fundos)
         const colorClasses = {
             red: "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400",
             emerald: "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400",
@@ -1535,15 +1535,16 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
         const activeColor = colorClasses[color] || colorClasses.blue;
 
         return (
+            // break-inside-avoid: Garante que o card não quebre ao meio na impressão
             <div className="glass-card p-4 flex items-center justify-between relative overflow-hidden print:border print:border-slate-300 print:shadow-none break-inside-avoid">
                 <div className="relative z-10 w-full min-w-0 pr-2">
                     <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{title}</p>
-                    <h3 className="text-2xl font-black text-slate-800 dark:text-white whitespace-nowrap tracking-tight truncate print:text-xl" title={value}>
+                    {/* Ajuste: Permite quebra de linha (normal) mas reduz fonte no print */}
+                    <h3 className="text-2xl font-black text-slate-800 dark:text-white whitespace-normal leading-tight print:text-lg" title={value}>
                         {value}
                     </h3>
                     <p className="text-[10px] text-slate-400 mt-1 font-medium">{subtext}</p>
                 </div>
-                {/* flex-shrink-0 garante que o ícone nunca encolha ou seja cortado */}
                 <div className={`p-3 rounded-full flex-shrink-0 ${activeColor} print:bg-transparent`}>
                     {Icons[iconName] ? React.createElement(Icons[iconName], { width: 24, height: 24 }) : <Icons.Activity />}
                 </div>
@@ -1551,18 +1552,14 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
         );
     };
 
-    // --- COMPONENTE INTERNO DE TABELA COM DRILL-DOWN ---
+    // --- TABELA DRILL-DOWN ---
     const DrillDownTable = ({ rawData, hierarchy, title, icon: Icon }) => {
         const [path, setPath] = useState([]);
 
-        // 1. Filtrar
         const filteredData = useMemo(() => {
-            return rawData.filter(item => {
-                return path.every((val, index) => item[hierarchy[index].key] === val);
-            });
+            return rawData.filter(item => path.every((val, index) => item[hierarchy[index].key] === val));
         }, [rawData, path, hierarchy]);
 
-        // 2. Agrupar
         const currentLevelIndex = path.length;
         const isLastLevel = currentLevelIndex >= hierarchy.length;
         
@@ -1573,12 +1570,7 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
 
             filteredData.forEach(item => {
                 const keyVal = item[currentKey] || 'N/D';
-                if (!groups[keyVal]) {
-                    groups[keyVal] = { 
-                        name: keyVal, caminhoes: 0, ibcs: 0, custo: 0, 
-                        dif_qty: 0, sap_qty: 0, real_qty: 0, count: 0 
-                    };
-                }
+                if (!groups[keyVal]) groups[keyVal] = { name: keyVal, caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, sap_qty: 0, real_qty: 0, count: 0 };
                 groups[keyVal].caminhoes += (Number(item.num_caminhoes) || 0);
                 groups[keyVal].ibcs += (Number(item.num_ibcs) || 0);
                 groups[keyVal].custo += (Number(item.custo_dif) || 0);
@@ -1595,7 +1587,6 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
             }).sort((a, b) => a.custo - b.custo);
         }, [filteredData, currentLevelIndex, hierarchy, isLastLevel]);
 
-        // 3. Totais
         const totals = useMemo(() => {
             const t = groupedData.reduce((acc, curr) => ({
                 caminhoes: acc.caminhoes + curr.caminhoes,
@@ -1605,7 +1596,6 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                 sap_qty: acc.sap_qty + curr.sap_qty,
                 real_qty: acc.real_qty + curr.real_qty
             }), { caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, sap_qty: 0, real_qty: 0 });
-
             const divTotal = t.sap_qty + t.real_qty;
             t.variacao = divTotal === 0 ? 0 : t.dif_qty / divTotal;
             return t;
@@ -1615,19 +1605,12 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
         const handleBack = () => setPath(path.slice(0, -1));
         const handleReset = () => setPath([]);
 
-        if (isLastLevel) {
-            return (
-                <div className="flex flex-col items-center justify-center p-10 text-slate-500 no-print">
-                    <p>Fim do detalhamento.</p>
-                    <button onClick={handleBack} className="mt-2 text-blue-600 underline">Voltar</button>
-                </div>
-            );
-        }
+        if (isLastLevel) return <div className="p-10 text-center no-print">Fim do detalhamento. <button onClick={handleBack} className="text-blue-600 underline">Voltar</button></div>;
 
         const currentLabel = hierarchy[currentLevelIndex].label;
 
         return (
-            <div className="glass-card flex flex-col animate-enter print:shadow-none print:border print:border-slate-300 print:mb-8 print:break-inside-auto print:overflow-visible">
+            <div className="glass-card flex flex-col animate-enter print:shadow-none print:border print:border-slate-300 print:mb-4 print:break-inside-auto">
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center print:bg-slate-100 print:border-slate-300">
                     <div className="flex items-center gap-2">
                         {path.length > 0 && (<button onClick={handleBack} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors mr-1 no-print"><Icons.ArrowLeft width={16} /></button>)}
@@ -1644,34 +1627,32 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                         <thead className="uppercase bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 font-bold text-slate-500 print:text-black print:bg-slate-200">
                             <tr>
                                 <th className="px-4 py-3">{currentLabel}</th>
-                                <th className="px-4 py-3 text-right whitespace-nowrap">Nº Caminhões</th>
-                                <th className="px-4 py-3 text-right whitespace-nowrap">Nº IBC's</th>
-                                <th className="px-4 py-3 text-right whitespace-nowrap">Variação (%)</th>
-                                <th className="px-4 py-3 text-right whitespace-nowrap">Custo Total</th>
-                                <th className="px-4 py-3 text-center no-print" width="50">Ação</th>
+                                <th className="px-4 py-3 text-right">Caminhões</th>
+                                <th className="px-4 py-3 text-right">IBC's</th>
+                                <th className="px-4 py-3 text-right">Var %</th>
+                                <th className="px-4 py-3 text-right">Custo</th>
+                                <th className="px-4 py-3 text-center no-print" width="50">#</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-slate-300">
                             {groupedData.map((row, i) => (
                                 <tr key={i} onClick={() => handleDrill(row.name)} className="hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer group break-inside-avoid">
                                     <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-200 group-hover:text-blue-600 print:text-black">{row.name}</td>
-                                    <td className="px-4 py-3 text-right font-mono whitespace-nowrap">{Utils.math.roundVolume(row.caminhoes)}</td>
-                                    <td className="px-4 py-3 text-right font-mono whitespace-nowrap">{Utils.math.roundVolume(row.ibcs)}</td>
-                                    <td className={`px-4 py-3 text-right font-mono font-bold whitespace-nowrap ${Math.abs(row.variacao) > 0.05 ? 'text-red-500' : 'text-slate-600 dark:text-slate-400'}`}>
-                                        {fmtPerc(row.variacao)}
-                                    </td>
-                                    <td className={`px-4 py-3 text-right font-mono font-bold whitespace-nowrap ${row.custo < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{fmtMoney(row.custo)}</td>
+                                    <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(row.caminhoes)}</td>
+                                    <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(row.ibcs)}</td>
+                                    <td className={`px-4 py-3 text-right font-mono font-bold ${Math.abs(row.variacao) > 0.05 ? 'text-red-500' : 'text-slate-600 dark:text-slate-400'}`}>{fmtPerc(row.variacao)}</td>
+                                    <td className={`px-4 py-3 text-right font-mono font-bold ${row.custo < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{fmtMoney(row.custo)}</td>
                                     <td className="px-4 py-3 text-center text-slate-300 group-hover:text-blue-500 no-print"><Icons.ChevronRight width={14} /></td>
                                 </tr>
                             ))}
                         </tbody>
                         <tfoot className="bg-slate-50 dark:bg-slate-800 border-t-2 border-slate-200 dark:border-slate-600 font-bold text-slate-800 dark:text-white print:border-slate-400 print:bg-slate-100 print:text-black">
                             <tr>
-                                <td className="px-4 py-3 uppercase text-xs tracking-wider">Total Geral</td>
-                                <td className="px-4 py-3 text-right font-mono whitespace-nowrap">{Utils.math.roundVolume(totals.caminhoes)}</td>
-                                <td className="px-4 py-3 text-right font-mono whitespace-nowrap">{Utils.math.roundVolume(totals.ibcs)}</td>
-                                <td className="px-4 py-3 text-right font-mono whitespace-nowrap">{fmtPerc(totals.variacao)}</td>
-                                <td className={`px-4 py-3 text-right font-mono whitespace-nowrap ${totals.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(totals.custo)}</td>
+                                <td className="px-4 py-3 uppercase text-xs tracking-wider">Total</td>
+                                <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(totals.caminhoes)}</td>
+                                <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(totals.ibcs)}</td>
+                                <td className="px-4 py-3 text-right font-mono">{fmtPerc(totals.variacao)}</td>
+                                <td className={`px-4 py-3 text-right font-mono ${totals.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(totals.custo)}</td>
                                 <td className="no-print"></td>
                             </tr>
                         </tfoot>
@@ -1681,23 +1662,36 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
         );
     };
 
-    // --- RENDERIZAÇÃO PRINCIPAL ---
     return (
         <div className="space-y-6 animate-enter pb-10 report-container print:space-y-4 print:p-0 print:m-0 print:w-full print:bg-white">
             
-            {/* CABEÇALHO DE IMPRESSÃO */}
+            {/* CSS INJETADO PARA CORRIGIR IMPRESSÃO */}
+            <style>{`
+                @media print {
+                    @page { margin: 1cm; size: A4; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .tab-hidden-screen { display: block !important; }
+                    .no-print { display: none !important; }
+                }
+                /* Na tela, esconde o que tem essa classe se não estiver ativo */
+                @media screen {
+                    .tab-hidden-screen { display: none; }
+                    .tab-active-screen { display: block; }
+                }
+            `}</style>
+
+            {/* CABEÇALHO */}
             <div className="hidden print:flex flex-col mb-6">
                 <div className="flex justify-between items-center border-b-2 border-slate-800 pb-2 mb-2">
                     <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-12 object-contain" />
                     <div className="text-right">
                         <h1 className="text-2xl font-bold uppercase text-slate-900 tracking-wider">INVENTÁRIO DE INSUMOS</h1>
-                        <p className="text-sm text-slate-600">Período de Referência: <span className="font-bold">{Utils.date.formatNice(filters.periodo)}</span></p>
-                        <p className="text-xs text-slate-400">Emissão: {new Date().toLocaleDateString()} às {new Date().toLocaleTimeString()}</p>
+                        <p className="text-sm text-slate-600">Referência: <span className="font-bold">{Utils.date.formatNice(filters.periodo)}</span></p>
                     </div>
                 </div>
             </div>
 
-            {/* Header Tela */}
+            {/* HEADER TELA */}
             <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -1713,18 +1707,16 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                 </div>
             </div>
 
-            {/* KPIs Cards - AJUSTADO PARA 2 COLUNAS NO PRINT */}
+            {/* KPIS - LAYOUT 2x2 NA IMPRESSÃO */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 print:grid-cols-2 print:gap-4">
-                <KpiCard title="Custo Total" value={fmtMoney(kpis.total_custo_dif)} iconName="DollarSign" color={kpis.total_custo_dif > 0 ? "red" : "emerald"} subtext="Impacto financeiro da quebra" />
-                <KpiCard title="Diferença Total" value={fmtNum(kpis.total_dif_sap)} iconName="Activity" color="blue" subtext="Real vs SAP Acumulado" />
+                <KpiCard title="Custo Total" value={fmtMoney(kpis.total_custo_dif)} iconName="DollarSign" color={kpis.total_custo_dif > 0 ? "red" : "emerald"} subtext="Impacto financeiro" />
+                <KpiCard title="Diferença Total" value={fmtNum(kpis.total_dif_sap)} iconName="Activity" color="blue" subtext="Real vs SAP" />
                 <KpiCard title="Equiv. Caminhões" value={Utils.math.roundVolume(kpis.total_caminhoes)} iconName="Truck" color="orange" subtext="Volume perdido/ganho" />
                 <KpiCard title="Equiv. IBC's" value={Utils.math.roundVolume(kpis.total_ibcs)} iconName="Box" color="purple" subtext="Volume em contentores" />
             </div>
 
             {/* GRÁFICOS */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:block print:space-y-6">
-                
-                {/* Gráfico 1 */}
                 <div className="glass-card p-5 h-[400px] flex flex-col print:h-[300px] print:shadow-none print:border print:border-slate-300 print:break-inside-avoid print:mb-4">
                     <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm mb-4 border-b pb-2 flex items-center gap-2 print:text-black">
                         <Icons.BarChart2 width={16} className="text-purple-500" /> Top 10 Maiores Ajustes Absolutos
@@ -1743,10 +1735,9 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                     </div>
                 </div>
 
-                {/* Gráfico 2 */}
                 <div className="glass-card p-5 h-[400px] flex flex-col print:h-[300px] print:shadow-none print:border print:border-slate-300 print:break-inside-avoid print:mb-8 print:break-after-page">
                     <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm mb-4 border-b pb-2 flex items-center gap-2 print:text-black">
-                        <Icons.AlertCircle width={16} className="text-orange-500" /> Top 10 Materiais - Maior Ajuste (Absoluto)
+                        <Icons.AlertCircle width={16} className="text-orange-500" /> Top 10 Materiais (Absoluto)
                     </h3>
                     <div className="flex-1 w-full">
                         <ResponsiveContainer width="100%" height="100%">
@@ -1755,7 +1746,7 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                                 <XAxis type="number" tick={{fontSize: 10, fill: 'black'}} tickFormatter={(v) => `R$ ${v/1000}k`} />
                                 <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 9, fontWeight: 'bold', fill: 'black'}} />
                                 <Bar dataKey="abs" name="Impacto Absoluto" radius={[0, 4, 4, 0]} barSize={20}>
-                                    {chartsData.materiais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} fillOpacity={1} /> ))}
+                                    {chartsData.materiais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#f87171' : '#34d399'} fillOpacity={1} /> ))}
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
@@ -1763,26 +1754,23 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                 </div>
             </div>
 
-            {/* NAVEGAÇÃO (TELA) */}
+            {/* NAVEGAÇÃO DE ABAS */}
             <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit no-print">
                 <button onClick={() => setActiveTab('regiao_material')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'regiao_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Região + Material</button>
                 <button onClick={() => setActiveTab('material_regiao')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'material_regiao' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Material + Região</button>
                 <button onClick={() => setActiveTab('categoria_material')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'categoria_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Categoria + Material</button>
             </div>
 
-            {/* TABELAS */}
+            {/* TABELAS - VISIBILIDADE CONTROLADA POR CSS CUSTOMIZADO */}
             <div className="min-h-[400px]">
-                {/* 1. Região + Material */}
-                <div className={`${activeTab === 'regiao_material' ? 'block' : 'hidden'} print:block print:break-before-page`}>
-                    <DrillDownTable rawData={lista} title="Classificação por Região" icon={Icons.Target} hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
+                <div className={activeTab === 'regiao_material' ? 'tab-active-screen' : 'tab-hidden-screen'}>
+                    <div className="print:break-before-page"><DrillDownTable rawData={lista} title="Classificação por Região" icon={Icons.Target} hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} /></div>
                 </div>
-                {/* 2. Material + Região */}
-                <div className={`${activeTab === 'material_regiao' ? 'block' : 'hidden'} print:block print:break-before-page`}>
-                    <DrillDownTable rawData={lista} title="Classificação por Material" icon={Icons.Box} hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
+                <div className={activeTab === 'material_regiao' ? 'tab-active-screen' : 'tab-hidden-screen'}>
+                    <div className="print:break-before-page"><DrillDownTable rawData={lista} title="Classificação por Material" icon={Icons.Box} hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} /></div>
                 </div>
-                {/* 3. Categoria + Material */}
-                <div className={`${activeTab === 'categoria_material' ? 'block' : 'hidden'} print:block print:break-before-page`}>
-                    <DrillDownTable rawData={lista} title="Classificação por Categoria" icon={Icons.ListFilter} hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
+                <div className={activeTab === 'categoria_material' ? 'tab-active-screen' : 'tab-hidden-screen'}>
+                    <div className="print:break-before-page"><DrillDownTable rawData={lista} title="Classificação por Categoria" icon={Icons.ListFilter} hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} /></div>
                 </div>
             </div>
         </div>
@@ -5281,6 +5269,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
