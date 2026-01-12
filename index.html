@@ -1620,7 +1620,6 @@
         const currentLabel = hierarchy[currentLevelIndex].label;
 
         return (
-            // REMOVIDO 'animate-enter' e adicionado 'print:shadow-none print:bg-white'
             <div className="glass-card flex flex-col print:shadow-none print:border print:border-slate-300 print:mb-4 print:break-inside-auto print:bg-white print:animate-none">
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center print:bg-slate-100 print:border-slate-300">
                     <div className="flex items-center gap-2">
@@ -1775,14 +1774,16 @@
                 </div>
             </div>
 
-            {/* NAVEGAÇÃO (TELA) */}
-            <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit no-print">
+            {/* NAVEGAÇÃO (TELA) - Botões para alternar as 5 tabelas */}
+            <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit no-print flex-wrap">
                 <button onClick={() => setActiveTab('regiao_material')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'regiao_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Região + Material</button>
                 <button onClick={() => setActiveTab('material_regiao')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'material_regiao' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Material + Região</button>
                 <button onClick={() => setActiveTab('categoria_material')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'categoria_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Categoria + Material</button>
+                <button onClick={() => setActiveTab('regional_usina')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'regional_usina' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Regional + Usina</button>
+                <button onClick={() => setActiveTab('usina_material')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'usina_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Usina + Material</button>
             </div>
 
-            {/* TABELAS */}
+            {/* TABELAS - Agora são 5 tabelas, cada uma em uma folha na impressão */}
             <div className="min-h-[400px]">
                 {/* 1. Região + Material */}
                 <div className={`${activeTab === 'regiao_material' ? '' : 'hide-on-screen'} print-force-visible`}>
@@ -1797,6 +1798,33 @@
                 {/* 3. Categoria + Material (Com quebra) */}
                 <div className={`${activeTab === 'categoria_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
                     <DrillDownTable rawData={lista} title="Classificação por Categoria" icon={Icons.ListFilter} hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
+                </div>
+
+                {/* 4. Regional + Usina (NOVA) */}
+                <div className={`${activeTab === 'regional_usina' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
+                    <DrillDownTable 
+                        rawData={lista} 
+                        title="Regional + Usina" 
+                        icon={Icons.Target} 
+                        hierarchy={[
+                            { key: 'regional', label: 'Encarregado / Regional' }, 
+                            { key: 'filial', label: 'Usina / Filial' }, 
+                            { key: 'grupo_material', label: 'Grupo de Material' }
+                        ]} 
+                    />
+                </div>
+
+                {/* 5. Usina + Material (NOVA) */}
+                <div className={`${activeTab === 'usina_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
+                    <DrillDownTable 
+                        rawData={lista} 
+                        title="Usina + Material" 
+                        icon={Icons.Briefcase} 
+                        hierarchy={[
+                            { key: 'filial', label: 'Usina / Filial' }, 
+                            { key: 'grupo_material', label: 'Grupo de Material' }
+                        ]} 
+                    />
                 </div>
             </div>
         </div>
@@ -5295,6 +5323,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
