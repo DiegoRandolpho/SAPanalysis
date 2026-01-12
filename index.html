@@ -1619,14 +1619,14 @@
     const FlowCard = ({ title, qty, val, iconName, color }) => (
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
             <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-slate-600">{title}</span>
-                <div className={`p-1.5 rounded-md bg-opacity-10 ${color.replace('text-', 'bg-')} print:bg-opacity-20`}>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-slate-700">{title}</span>
+                <div className={`p-1.5 rounded-md bg-opacity-10 ${color.replace('text-', 'bg-')} print-color-force`}>
                     <SafeIcon name={iconName} width={14} className={`${color} print-color-force`} />
                 </div>
             </div>
             <div>
                 <div className="text-lg font-bold text-slate-800 dark:text-white print:text-black">{fmtMoney(val)}</div>
-                <div className="text-xs font-medium text-slate-500 mt-1 print:text-slate-500">{fmtNum(qty)} <span className="opacity-70 font-normal">un</span></div>
+                <div className="text-xs font-medium text-slate-500 mt-1 print:text-slate-600">{fmtNum(qty)} <span className="opacity-70 font-normal">un</span></div>
             </div>
         </div>
     );
@@ -1634,14 +1634,14 @@
     const VariationCard = ({ qty }) => (
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
              <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-slate-600">Variação Total</span>
-                <div className="p-1.5 rounded-md bg-purple-50 print:bg-purple-100">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-slate-700">Variação Total</span>
+                <div className="p-1.5 rounded-md bg-purple-50 print-color-force">
                     <SafeIcon name="Activity" width={14} className="text-purple-600 print-color-force" />
                 </div>
             </div>
             <div className="flex flex-col">
                 <span className={`text-2xl font-black ${qty < 0 ? 'text-red-500' : 'text-emerald-500'} print-color-force`}>{fmtPerc(qty)}</span>
-                <span className="text-[10px] text-slate-400 print:text-slate-500">Var. Inicial vs Final</span>
+                <span className="text-[10px] text-slate-400 print:text-slate-600">Var. Inicial vs Final</span>
             </div>
         </div>
     );
@@ -1742,51 +1742,50 @@
                 @media print {
                     @page { margin: 0.5cm; size: A4; }
                     
-                    /* RESET GERAL MAS PERMITINDO CORES DE TEXTO */
+                    /* CONFIGURAÇÕES GERAIS DE IMPRESSÃO */
                     body, #root, main, .report-container {
                         background-color: white !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
 
-                    /* Cards com fundo sutil para não ficar chapado no branco */
+                    /* ESTILOS DOS CARDS NA IMPRESSÃO */
                     .print-card {
-                        background-color: #fcfcfc !important; /* Quase branco, mas destaca do fundo */
-                        border: 1px solid #e2e8f0 !important;
+                        background-color: #f8fafc !important; /* Cinza muito suave (Slate-50) */
+                        border: 1px solid #cbd5e1 !important; /* Borda visível (Slate-300) */
                         box-shadow: none !important;
+                        color: black !important;
                     }
 
-                    /* REGRAS DE CORES FORÇADAS */
+                    /* FORÇAR CORES DE TEXTO */
                     .text-red-500, .text-red-600 { color: #dc2626 !important; }
                     .text-emerald-500, .text-emerald-600 { color: #059669 !important; }
                     .text-purple-600, .text-purple-700 { color: #7c3aed !important; }
                     .print-color-force { -webkit-print-color-adjust: exact; }
 
-                    /* LAYOUT DE CARDS */
+                    /* LAYOUT DE GRIDS */
                     .print-grid-cols-3 { 
                         display: grid !important;
                         grid-template-columns: repeat(3, 1fr) !important;
                         gap: 10px !important;
                     }
 
-                    /* GRÁFICOS LADO A LADO */
                     .print-grid-charts {
                         display: grid !important;
                         grid-template-columns: 1fr 1fr !important;
                         gap: 10px !important;
-                        height: 400px !important;
+                        height: 220px !important; /* Altura reduzida para caber na Pág 1 */
                         break-inside: avoid;
                     }
 
-                    /* CONTROLE DE PÁGINAS (SOLUÇÃO PÁGINA EM BRANCO) */
-                    /* Removemos o page-break-after do container principal para evitar o "double break" */
+                    /* CONTROLE DE PÁGINAS */
                     .print-page-1-container {
                         display: block;
                         height: auto !important;
                         margin-bottom: 20px;
+                        /* SEM page-break-after aqui para evitar folha branca */
                     }
                     
-                    /* A quebra acontece SOMENTE antes das tabelas */
                     .print-page-break { 
                         page-break-before: always; 
                         margin-top: 20px; 
@@ -1798,12 +1797,11 @@
                     .hide-on-screen { display: none; }
                     .no-print { display: none !important; }
 
-                    /* CABEÇALHOS DE TABELA */
+                    /* TABELAS */
                     .print-header { background-color: #f1f5f9 !important; border-bottom: 2px solid #cbd5e1 !important; color: black !important; }
                     
-                    /* LIMPEZA GERAL */
-                    * { text-shadow: none !important; box-shadow: none !important; }
-                    .recharts-wrapper { width: 100% !important; }
+                    /* GRÁFICOS */
+                    .recharts-wrapper { width: 100% !important; height: 100% !important; }
                 }
             `}</style>
             
@@ -1882,10 +1880,10 @@
                         </div>
                     </div>
 
-                    {/* Gráficos */}
+                    {/* Gráficos (Altura Compactada para Pág 1) */}
                     <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print-grid-charts">
-                        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[300px] print-card">
-                            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-slate-300 print:text-black">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
+                            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-slate-300 print:text-black print:mb-1">
                                 <SafeIcon name="BarChart2" width={14} className="text-purple-500 print:text-purple-700" /> Top Ajustes (Região)
                             </h3>
                             <div className="flex-1 w-full min-h-0">
@@ -1894,15 +1892,15 @@
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                                         <XAxis type="number" tick={{fontSize: 9, fill: 'black'}} tickFormatter={(v) => `R$${v/1000}k`} />
                                         <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} interval={0} />
-                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={20}>
+                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
                                             {chartsData.regionais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
-                        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[300px] print-card">
-                            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-slate-300 print:text-black">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
+                            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-slate-300 print:text-black print:mb-1">
                                 <SafeIcon name="AlertCircle" width={14} className="text-orange-500 print:text-orange-600" /> Top Ajustes (Material)
                             </h3>
                             <div className="flex-1 w-full min-h-0">
@@ -1911,7 +1909,7 @@
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                                         <XAxis type="number" tick={{fontSize: 9, fill: 'black'}} tickFormatter={(v) => `R$${v/1000}k`} />
                                         <YAxis dataKey="name" type="category" width={110} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} interval={0} />
-                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={20}>
+                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
                                             {chartsData.materiais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
                                         </Bar>
                                     </BarChart>
@@ -5485,6 +5483,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
