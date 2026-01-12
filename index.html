@@ -1543,7 +1543,6 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                     </h3>
                     <p className="text-[10px] text-slate-400 mt-1 font-medium">{subtext}</p>
                 </div>
-                {/* flex-shrink-0 garante que o ícone nunca encolha ou seja cortado */}
                 <div className={`p-3 rounded-full flex-shrink-0 ${activeColor} print:bg-transparent`}>
                     {Icons[iconName] ? React.createElement(Icons[iconName], { width: 24, height: 24 }) : <Icons.Activity />}
                 </div>
@@ -1565,7 +1564,7 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
         // 2. Agrupar
         const currentLevelIndex = path.length;
         const isLastLevel = currentLevelIndex >= hierarchy.length;
-        
+
         const groupedData = useMemo(() => {
             if (isLastLevel) return [];
             const currentKey = hierarchy[currentLevelIndex].key;
@@ -1685,6 +1684,14 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     return (
         <div className="space-y-6 animate-enter pb-10 report-container print:space-y-4 print:p-0 print:m-0 print:w-full print:bg-white">
             
+            {/* CSS FORÇADO PARA IMPRESSÃO */}
+            <style>{`
+                @media print {
+                    .print-force-show { display: block !important; }
+                    .print-page-break { page-break-before: always !important; margin-top: 20px; }
+                }
+            `}</style>
+            
             {/* CABEÇALHO DE IMPRESSÃO */}
             <div className="hidden print:flex flex-col mb-6">
                 <div className="flex justify-between items-center border-b-2 border-slate-800 pb-2 mb-2">
@@ -1770,18 +1777,20 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                 <button onClick={() => setActiveTab('categoria_material')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'categoria_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Categoria + Material</button>
             </div>
 
-            {/* TABELAS */}
+            {/* TABELAS (CORRIGIDAS PARA IMPRESSÃO MÚLTIPLA) */}
             <div className="min-h-[400px]">
                 {/* 1. Região + Material */}
-                <div className={`${activeTab === 'regiao_material' ? 'block' : 'hidden'} print:block print:break-before-page`}>
+                <div className={`${activeTab === 'regiao_material' ? 'block' : 'hidden'} print-force-show`}>
                     <DrillDownTable rawData={lista} title="Classificação por Região" icon={Icons.Target} hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
-                {/* 2. Material + Região */}
-                <div className={`${activeTab === 'material_regiao' ? 'block' : 'hidden'} print:block print:break-before-page`}>
+                
+                {/* 2. Material + Região (Com quebra) */}
+                <div className={`${activeTab === 'material_regiao' ? 'block' : 'hidden'} print-force-show print-page-break`}>
                     <DrillDownTable rawData={lista} title="Classificação por Material" icon={Icons.Box} hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
-                {/* 3. Categoria + Material */}
-                <div className={`${activeTab === 'categoria_material' ? 'block' : 'hidden'} print:block print:break-before-page`}>
+                
+                {/* 3. Categoria + Material (Com quebra) */}
+                <div className={`${activeTab === 'categoria_material' ? 'block' : 'hidden'} print-force-show print-page-break`}>
                     <DrillDownTable rawData={lista} title="Classificação por Categoria" icon={Icons.ListFilter} hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
                 </div>
             </div>
@@ -5281,6 +5290,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
