@@ -1684,11 +1684,14 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     return (
         <div className="space-y-6 animate-enter pb-10 report-container print:space-y-4 print:p-0 print:m-0 print:w-full print:bg-white">
             
-            {/* CSS FORÇADO PARA IMPRESSÃO */}
+            {/* CSS: LÓGICA INVERTIDA PARA GARANTIR IMPRESSÃO */}
             <style>{`
+                /* Só esconde se for TELA. Na impressão, essa regra não existe, então aparece tudo. */
+                @media screen {
+                    .hide-on-screen { display: none !important; }
+                }
                 @media print {
-                    .print-force-show { display: block !important; }
-                    .print-page-break { page-break-before: always !important; margin-top: 20px; }
+                    .print-page-break { page-break-before: always; margin-top: 20px; display: block !important; }
                 }
             `}</style>
             
@@ -1777,20 +1780,23 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                 <button onClick={() => setActiveTab('categoria_material')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'categoria_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Categoria + Material</button>
             </div>
 
-            {/* TABELAS (CORRIGIDAS PARA IMPRESSÃO MÚLTIPLA) */}
+            {/* TABELAS */}
+            {/* LÓGICA: Se activeTab NÃO for a tabela atual, aplica 'hide-on-screen'. 
+                'hide-on-screen' só funciona na tela. Na impressão, ele é ignorado, então a tabela aparece. */}
             <div className="min-h-[400px]">
+                
                 {/* 1. Região + Material */}
-                <div className={`${activeTab === 'regiao_material' ? 'block' : 'hidden'} print-force-show`}>
+                <div className={activeTab === 'regiao_material' ? '' : 'hide-on-screen'}>
                     <DrillDownTable rawData={lista} title="Classificação por Região" icon={Icons.Target} hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
                 
                 {/* 2. Material + Região (Com quebra) */}
-                <div className={`${activeTab === 'material_regiao' ? 'block' : 'hidden'} print-force-show print-page-break`}>
+                <div className={`${activeTab === 'material_regiao' ? '' : 'hide-on-screen'} print-page-break`}>
                     <DrillDownTable rawData={lista} title="Classificação por Material" icon={Icons.Box} hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
                 
                 {/* 3. Categoria + Material (Com quebra) */}
-                <div className={`${activeTab === 'categoria_material' ? 'block' : 'hidden'} print-force-show print-page-break`}>
+                <div className={`${activeTab === 'categoria_material' ? '' : 'hide-on-screen'} print-page-break`}>
                     <DrillDownTable rawData={lista} title="Classificação por Categoria" icon={Icons.ListFilter} hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
                 </div>
             </div>
@@ -5290,6 +5296,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
