@@ -1641,44 +1641,43 @@
     const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 
-    // --- Componente Card de Fluxo ---
+    // --- Componentes Visuais ---
+
     const FlowCard = ({ title, qty, val, iconName, color }) => (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print:border-slate-300 print:shadow-none break-inside-avoid">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
             <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{title}</span>
-                <div className={`p-1.5 rounded-md bg-opacity-10 ${color.replace('text-', 'bg-')}`}>
-                    <SafeIcon name={iconName} width={14} className={color} />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span>
+                <div className={`p-1.5 rounded-md bg-opacity-10 ${color.replace('text-', 'bg-')} print:bg-slate-100`}>
+                    <SafeIcon name={iconName} width={14} className={`${color} print:text-black`} />
                 </div>
             </div>
             <div>
-                <div className="text-lg font-bold text-slate-800 dark:text-white">{fmtMoney(val)}</div>
-                <div className="text-xs font-medium text-slate-500 mt-1">{fmtNum(qty)} <span className="opacity-70 font-normal">un</span></div>
+                <div className="text-lg font-bold text-slate-800 dark:text-white print:text-black">{fmtMoney(val)}</div>
+                <div className="text-xs font-medium text-slate-500 mt-1 print:text-slate-600">{fmtNum(qty)} <span className="opacity-70 font-normal">un</span></div>
             </div>
         </div>
     );
 
-    // --- Componente Card Variação ---
     const VariationCard = ({ qty }) => (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print:border-slate-300 print:shadow-none break-inside-avoid">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
              <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Variação Total</span>
-                <div className="p-1.5 rounded-md bg-purple-50">
-                    <SafeIcon name="Activity" width={14} className="text-purple-600" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">Variação Total</span>
+                <div className="p-1.5 rounded-md bg-purple-50 print:bg-slate-100">
+                    <SafeIcon name="Activity" width={14} className="text-purple-600 print:text-black" />
                 </div>
             </div>
             <div className="flex flex-col">
-                <span className={`text-2xl font-black ${qty < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{fmtPerc(qty)}</span>
-                <span className="text-[10px] text-slate-400">Var. Inicial vs Final</span>
+                <span className={`text-2xl font-black ${qty < 0 ? 'text-red-500' : 'text-emerald-500'} print:text-black`}>{fmtPerc(qty)}</span>
+                <span className="text-[10px] text-slate-400 print:text-slate-600">Var. Inicial vs Final</span>
             </div>
         </div>
     );
 
-    // --- Componente Tabela (Padronizada e Zebrada) ---
     const StandardTable = ({ children, title, iconName }) => (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print:shadow-none print:border-slate-300 print:mb-6 overflow-hidden break-inside-avoid">
-            <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print:bg-slate-100 print:border-slate-300">
-                <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 uppercase tracking-wide">
-                    <SafeIcon name={iconName} width={16} className="text-purple-600" /> {title}
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-table-container overflow-hidden break-inside-avoid mb-6">
+            <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print-header">
+                <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 uppercase tracking-wide print:text-black">
+                    <SafeIcon name={iconName} width={16} className="text-purple-600 print:text-black" /> {title}
                 </h3>
             </div>
             <div className="overflow-x-auto print:overflow-visible">
@@ -1687,13 +1686,11 @@
         </div>
     );
 
-    // --- Componente DrillDown ---
     const DrillDownTable = ({ rawData, hierarchy, title, iconName }) => {
         const [path, setPath] = useState([]);
         const filteredData = useMemo(() => rawData.filter(item => path.every((val, index) => item[hierarchy[index].key] === val)), [rawData, path, hierarchy]);
         const currentLevelIndex = path.length;
         const isLastLevel = currentLevelIndex >= hierarchy.length;
-
         const groupedData = useMemo(() => {
             if (isLastLevel) return [];
             const currentKey = hierarchy[currentLevelIndex].key;
@@ -1710,17 +1707,14 @@
             });
             return Object.values(groups).map(g => ({ ...g, variacao: (g.sap_qty + g.real_qty) === 0 ? 0 : g.dif_qty / (g.sap_qty + g.real_qty) })).sort((a, b) => a.custo - b.custo);
         }, [filteredData, currentLevelIndex, hierarchy, isLastLevel]);
-
         const totals = useMemo(() => groupedData.reduce((acc, curr) => ({
             caminhoes: acc.caminhoes + curr.caminhoes, ibcs: acc.ibcs + curr.ibcs, custo: acc.custo + curr.custo, dif_qty: acc.dif_qty + curr.dif_qty, sap_qty: acc.sap_qty + curr.sap_qty, real_qty: acc.real_qty + curr.real_qty
         }), { caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, sap_qty: 0, real_qty: 0 }), [groupedData]);
         const totalsVar = (totals.sap_qty + totals.real_qty) === 0 ? 0 : totals.dif_qty / (totals.sap_qty + totals.real_qty);
-
         const handleDrill = (name) => setPath([...path, name]);
         const handleBack = () => setPath(path.slice(0, -1));
         const handleReset = () => setPath([]);
-
-        if (isLastLevel) return <div className="p-6 text-center text-slate-400 no-print">Fim do nível. <button onClick={handleBack} className="text-purple-600 underline hover:text-purple-800">Voltar</button></div>;
+        if (isLastLevel) return <div className="p-6 text-center text-slate-400 no-print">Fim do nível. <button onClick={handleBack} className="text-purple-600 underline">Voltar</button></div>;
         const currentLabel = hierarchy[currentLevelIndex].label;
 
         return (
@@ -1731,8 +1725,8 @@
                         <button onClick={handleBack} className="hover:underline flex items-center gap-1"><SafeIcon name="ArrowLeft" width={10}/> Voltar</button>
                     </div>
                 )}
-                <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print:text-[10px]">
-                    <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-slate-50 print:text-black">
+                <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
+                    <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-slate-100 print:text-black">
                         <tr>
                             <th className="px-4 py-3">{currentLabel}</th>
                             <th className="px-4 py-3 text-right">Caminhões</th>
@@ -1744,23 +1738,23 @@
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                         {groupedData.map((row, i) => (
-                            <tr key={i} onClick={() => handleDrill(row.name)} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30">
-                                <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-200">{row.name}</td>
-                                <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(row.caminhoes)}</td>
-                                <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(row.ibcs)}</td>
-                                <td className={`px-4 py-3 text-right font-mono font-bold ${Math.abs(row.variacao) > 0.05 ? 'text-red-600' : 'text-slate-600'}`}>{fmtPerc(row.variacao)}</td>
-                                <td className={`px-4 py-3 text-right font-mono font-bold ${row.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(row.custo)}</td>
+                            <tr key={i} onClick={() => handleDrill(row.name)} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-slate-50">
+                                <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-200 print:text-black">{row.name}</td>
+                                <td className="px-4 py-3 text-right font-mono print:text-black">{Utils.math.roundVolume(row.caminhoes)}</td>
+                                <td className="px-4 py-3 text-right font-mono print:text-black">{Utils.math.roundVolume(row.ibcs)}</td>
+                                <td className={`px-4 py-3 text-right font-mono font-bold ${Math.abs(row.variacao) > 0.05 ? 'text-red-600' : 'text-slate-600'} print:text-black`}>{fmtPerc(row.variacao)}</td>
+                                <td className={`px-4 py-3 text-right font-mono font-bold ${row.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print:text-black`}>{fmtMoney(row.custo)}</td>
                                 <td className="px-4 py-3 text-center no-print text-slate-400"><SafeIcon name="ChevronRight" width={14} /></td>
                             </tr>
                         ))}
                     </tbody>
-                    <tfoot className="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-800 print:bg-slate-200">
+                    <tfoot className="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-800 print:bg-slate-200 print:text-black">
                         <tr>
                             <td className="px-4 py-3 uppercase text-xs">Total</td>
                             <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(totals.caminhoes)}</td>
                             <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(totals.ibcs)}</td>
                             <td className="px-4 py-3 text-right font-mono">{fmtPerc(totalsVar)}</td>
-                            <td className={`px-4 py-3 text-right font-mono ${totals.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(totals.custo)}</td>
+                            <td className={`px-4 py-3 text-right font-mono ${totals.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print:text-black`}>{fmtMoney(totals.custo)}</td>
                             <td className="no-print"></td>
                         </tr>
                     </tfoot>
@@ -1770,30 +1764,58 @@
     };
 
     return (
-        <div className="space-y-6 pb-10 report-container print:space-y-4 print:p-0 print:m-0 print:w-full print:bg-white print:text-black">
+        <div className="space-y-6 pb-10 report-container">
             
             <style>{`
-                @media screen { .hide-on-screen { display: none !important; } }
                 @media print {
                     @page { margin: 1cm; size: A4; }
-                    body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: white !important; }
                     
-                    .print-grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
-                    .print-page-break { page-break-before: always; margin-top: 20px; }
-                    
-                    /* Forçar visibilidade e resetar estilos de tela */
+                    /* RESET AGRESSIVO PARA FUNDO BRANCO */
+                    body, #root, main, .report-container {
+                        background-color: white !important;
+                        background-image: none !important;
+                        color: black !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+
+                    /* REMOVE ESTILOS DE TELA */
+                    .glass-card, .bg-white, .dark\\:bg-slate-800 {
+                        background: white !important;
+                        box-shadow: none !important;
+                        border: 1px solid #e2e8f0 !important;
+                    }
+
+                    /* LAYOUT DE CARDS */
+                    .print-grid-cols-3 { 
+                        display: grid !important;
+                        grid-template-columns: repeat(3, 1fr) !important;
+                        gap: 1rem !important;
+                    }
+
+                    /* GRÁFICOS LADO A LADO */
+                    .print-grid-charts {
+                        display: grid !important;
+                        grid-template-columns: repeat(2, 1fr) !important;
+                        gap: 1rem !important;
+                        break-inside: avoid;
+                    }
+
+                    /* VISIBILIDADE */
                     .print-force-visible {
                         display: block !important;
-                        visibility: visible !important;
-                        opacity: 1 !important;
-                        animation: none !important;
                     }
+                    .hide-on-screen { display: none; }
+                    .print-page-break { page-break-before: always; margin-top: 2rem; }
+                    .no-print { display: none !important; }
+
+                    /* TABELAS ZEBRADAS */
+                    .print-header { background-color: #f1f5f9 !important; border-bottom: 2px solid #cbd5e1 !important; }
+                    tr:nth-child(even) { background-color: #f8fafc !important; }
+                    th { background-color: #f1f5f9 !important; color: black !important; }
                     
-                    /* Limpeza */
-                    * { scrollbar-width: none !important; box-shadow: none !important; text-shadow: none !important; }
-                    ::-webkit-scrollbar { display: none !important; }
-                    
-                    /* Garantir que gráficos apareçam bem */
+                    /* LIMPEZA GERAL */
+                    * { text-shadow: none !important; box-shadow: none !important; }
                     .recharts-wrapper { width: 100% !important; }
                 }
             `}</style>
@@ -1828,7 +1850,7 @@
             </div>
 
             {/* --- BLOCO 1: FLUXO E DIFERENÇA --- */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 print:grid-cols-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 print-grid-cols-3">
                 <FlowCard title="Estoque Inicial" qty={inventoryFlow.ini_qty} val={inventoryFlow.ini_val} iconName="Database" color="text-slate-500" />
                 <FlowCard title="Entradas" qty={inventoryFlow.in_qty} val={inventoryFlow.in_val} iconName="ArrowDownCircle" color="text-emerald-600" />
                 <FlowCard title="Saídas" qty={inventoryFlow.out_qty} val={inventoryFlow.out_val} iconName="ArrowUpCircle" color="text-red-500" />
@@ -1837,41 +1859,40 @@
             </div>
 
             {/* --- BLOCO 2: CONSOLIDADO E GRÁFICOS --- */}
-            {/* Layout: Em tela, Consolidado à esq, Gráficos à dir. Em Print: Consolidado ocupa linha inteira, gráficos lado a lado abaixo. */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:grid-cols-1">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block">
                 
-                {/* 1. Card Consolidado (Destaque Financeiro) */}
-                <div className="lg:col-span-1">
-                    <div className="bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/50 p-6 shadow-sm relative overflow-hidden h-full flex flex-col justify-center print:border-slate-300 print:bg-slate-50">
+                {/* 1. Card Consolidado (Total Width na Impressão) */}
+                <div className="lg:col-span-1 print:mb-6">
+                    <div className="bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/50 p-6 shadow-sm relative overflow-hidden h-full flex flex-col justify-center print-card">
                         <div className="absolute top-0 right-0 p-4 opacity-5">
                             <SafeIcon name="AlertTriangle" width={120} height={120} className="text-purple-900" />
                         </div>
                         
                         <div className="flex items-center gap-2 mb-4">
-                            <div className="p-2 bg-purple-100 rounded-lg text-purple-700"><SafeIcon name="AlertTriangle" width={20} /></div>
-                            <h3 className="text-sm font-bold uppercase text-purple-900 dark:text-purple-300 tracking-wider">Diferença de Estoque</h3>
+                            <div className="p-2 bg-purple-100 rounded-lg text-purple-700 print:bg-slate-200"><SafeIcon name="AlertTriangle" width={20} /></div>
+                            <h3 className="text-sm font-bold uppercase text-purple-900 dark:text-purple-300 tracking-wider print:text-black">Diferença de Estoque</h3>
                         </div>
                         
                         <div className="mb-6">
-                            <span className={`text-4xl font-black ${consolidatedDiff.custo < 0 ? 'text-red-600' : 'text-emerald-600'} tracking-tight`}>
+                            <span className={`text-4xl font-black ${consolidatedDiff.custo < 0 ? 'text-red-600' : 'text-emerald-600'} tracking-tight print:text-black`}>
                                 {consolidatedDiff.custo > 0 ? '+' : ''}{fmtMoney(consolidatedDiff.custo)}
                             </span>
-                            <span className="text-lg font-medium text-slate-600 dark:text-slate-400 block mt-1">
+                            <span className="text-lg font-medium text-slate-600 dark:text-slate-400 block mt-1 print:text-black">
                                 {fmtNum(consolidatedDiff.qty)} <span className="text-sm">unidades</span>
                             </span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 border-t border-purple-100 dark:border-slate-700/50 pt-4">
+                        <div className="grid grid-cols-2 gap-4 border-t border-purple-100 dark:border-slate-700/50 pt-4 print:border-slate-300">
                             <div>
-                                <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">Caminhões</p>
-                                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                                <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">Caminhões</p>
+                                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 print:text-black">
                                     <SafeIcon name="Truck" width={16} />
                                     <span className="font-bold text-lg">{Utils.math.roundVolume(consolidatedDiff.caminhoes)}</span>
                                 </div>
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">IBC's</p>
-                                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                                <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">IBC's</p>
+                                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 print:text-black">
                                     <SafeIcon name="Box" width={16} />
                                     <span className="font-bold text-lg">{Utils.math.roundVolume(consolidatedDiff.ibcs)}</span>
                                 </div>
@@ -1880,19 +1901,18 @@
                     </div>
                 </div>
 
-                {/* 2. Gráficos (Lado a Lado, Ajustados) */}
-                <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print:grid-cols-2">
+                {/* 2. Gráficos (Lado a Lado na Impressão) */}
+                <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print-grid-charts">
                     {/* Gráfico 1 */}
-                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[350px] print:shadow-none print:border-slate-300">
-                        <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2">
-                            <SafeIcon name="BarChart2" width={14} className="text-purple-500" /> Top Ajustes (Região)
+                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print-card">
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-slate-300 print:text-black">
+                            <SafeIcon name="BarChart2" width={14} className="text-purple-500 print:text-black" /> Top Ajustes (Região)
                         </h3>
                         <div className="flex-1 w-full min-h-0">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartsData.regionais} layout="vertical" margin={{top: 0, right: 30, left: 40, bottom: 0}}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                                     <XAxis type="number" tick={{fontSize: 9, fill: '#64748b'}} tickFormatter={(v) => `R$${v/1000}k`} />
-                                    {/* YAxis com largura maior para não cortar nomes */}
                                     <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 'bold', fill: '#334155'}} interval={0} />
                                     <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={20}>
                                         {chartsData.regionais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
@@ -1903,9 +1923,9 @@
                     </div>
 
                     {/* Gráfico 2 */}
-                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[350px] print:shadow-none print:border-slate-300">
-                        <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2">
-                            <SafeIcon name="AlertCircle" width={14} className="text-orange-500" /> Top Ajustes (Material)
+                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print-card">
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-slate-300 print:text-black">
+                            <SafeIcon name="AlertCircle" width={14} className="text-orange-500 print:text-black" /> Top Ajustes (Material)
                         </h3>
                         <div className="flex-1 w-full min-h-0">
                             <ResponsiveContainer width="100%" height="100%">
@@ -1940,15 +1960,15 @@
                 {/* 1. Analítica */}
                 <div className={`${activeTab === 'analitica' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
                     <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
-                        <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print:text-[10px]">
-                            <thead className="uppercase bg-slate-100 dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-slate-200 print:text-black">
+                        <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
+                            <thead className="uppercase bg-slate-100 dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print-header">
                                 <tr>
                                     <th className="px-3 py-3 min-w-[150px]">Material</th>
                                     <th className="px-2 py-3 text-right">Est. Ini</th>
                                     <th className="px-2 py-3 text-right">Entradas</th>
                                     <th className="px-2 py-3 text-right">Saídas</th>
-                                    <th className="px-2 py-3 text-right bg-slate-50 dark:bg-slate-800/50">Final (T)</th>
-                                    <th className="px-2 py-3 text-right bg-slate-50 dark:bg-slate-800/50">Final (R)</th>
+                                    <th className="px-2 py-3 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white">Final (T)</th>
+                                    <th className="px-2 py-3 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white">Final (R)</th>
                                     <th className="px-2 py-3 text-right">Var (%)</th>
                                     <th className="px-2 py-3 text-right">R$ Méd</th>
                                     <th className="px-2 py-3 text-right">R$ Aj.</th>
@@ -1956,16 +1976,16 @@
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                                 {analiticaData.map((row, i) => (
-                                    <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30">
-                                        <td className="px-3 py-2 font-medium truncate max-w-[250px] text-slate-700 dark:text-white" title={row.name}>{row.name}</td>
-                                        <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_in)}</td>
-                                        <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtNum(row.entradas)}</td>
-                                        <td className="px-2 py-2 text-right font-mono text-red-500">{fmtNum(row.saidas)}</td>
-                                        <td className="px-2 py-2 text-right font-mono font-bold text-slate-500">{fmtNum(row.est_fin_sap)}</td>
-                                        <td className="px-2 py-2 text-right font-mono font-bold text-blue-600">{fmtNum(row.est_fin_real)}</td>
-                                        <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'}`}>{fmtPerc(row.variacaoPct)}</td>
-                                        <td className="px-2 py-2 text-right font-mono text-slate-500">{fmtMoney(row.unitPrice)}</td>
-                                        <td className="px-2 py-2 text-right font-mono text-purple-600 font-bold">{fmtMoney(row.custoMedioAjustado)}</td>
+                                    <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-slate-50">
+                                        <td className="px-3 py-2 font-medium truncate max-w-[250px] text-slate-700 dark:text-white print:text-black" title={row.name}>{row.name}</td>
+                                        <td className="px-2 py-2 text-right font-mono print:text-black">{fmtNum(row.est_in)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-emerald-600 print:text-black">+{fmtNum(row.entradas)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-red-500 print:text-black">{fmtNum(row.saidas)}</td>
+                                        <td className="px-2 py-2 text-right font-mono font-bold text-slate-500 print:text-black">{fmtNum(row.est_fin_sap)}</td>
+                                        <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print:text-black">{fmtNum(row.est_fin_real)}</td>
+                                        <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print:text-black`}>{fmtPerc(row.variacaoPct)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-slate-500 print:text-black">{fmtMoney(row.unitPrice)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-purple-600 font-bold print:text-black">{fmtMoney(row.custoMedioAjustado)}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -5486,6 +5506,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
