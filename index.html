@@ -1455,6 +1455,45 @@
         </div>
     );
 };
+        const InsumosImport = ({ onImport, loading }) => {
+    const [date, setDate] = useState('');
+
+    return (
+        <div className="max-w-2xl mx-auto glass-card p-8 animate-enter">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                <Icons.Upload className="text-purple-500" /> Importação de Insumos
+            </h3>
+            <div className="space-y-6">
+                <div className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-lg border border-purple-100 dark:border-purple-800/30 text-xs text-purple-800 dark:text-purple-300">
+                    <strong>Colunas esperadas:</strong> REGIONAL | FILIAL | CÓD | GRUPO MATERIAL | CATEGORIA | EST. IN. SAP | + SAP | - SAP | EST. FIN. SAP | EST. FIN. REAL | DIF REAL X SAP | CUSTO | Nº CAMINHÕES | Nº IBC'S
+                </div>
+                
+                <MonthPicker label="Mês de Referência" value={date} onChange={setDate} />
+                
+                <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group cursor-pointer relative">
+                    <input 
+                        type="file" 
+                        accept=".xlsx, .csv" 
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                        disabled={loading || !date} 
+                        onChange={(e) => { 
+                            if(e.target.files[0]) onImport(e.target.files[0], date); 
+                            e.target.value = null; 
+                        }} 
+                    />
+                    <div className={`flex flex-col items-center ${!date ? 'opacity-50' : ''}`}>
+                        <div className="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 p-4 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                            <Icons.FileText width={32} height={32} />
+                        </div>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                            {loading ? 'Processando...' : 'Selecionar Arquivo Excel'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
        const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     // Estados
     const [activeTab, setActiveTab] = useState('regiao_material');
@@ -5256,6 +5295,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
