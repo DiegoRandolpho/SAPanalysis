@@ -1515,66 +1515,194 @@
     // Estados
     const [activeTab, setActiveTab] = useState('regiao_material');
 
-    // Processamento dos Gráficos (Memoizado)
-    const chartsData = useMemo(() => {
-        const lista = data?.lista || [];
-        if (lista.length === 0) return { regionais: [], materiais: [] };
+    // --- PROCESSAMENTO DE DADOS (KPIs e Tabelas) ---
+    const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, lista } = useMemo(() => {
+        const rawList = data?.lista || [];
+        
+        // Estruturas para acumular totais
+        let flow = {
+            ini_qty: 0, ini_val: 0,
+            in_qty: 0, in_val: 0,
+            out_qty: 0, out_val: 0,
+            fin_qty: 0, fin_val: 0,
+            fin_real_qty: 0,
+            var_qty: 0
+        };
 
+        let diff = {
+            qty: 0,
+            custo: 0,
+            caminhoes: 0,
+            ibcs: 0
+        };
+
+        // Processamento Linha a Linha para Tabela Analítica e KPIs
+        const processedList = rawList.map(item => {
+            // Conversão segura de valores
+            const est_in = Number(item.est_in_sap) || 0;
+            const entradas = Number(item.mais_sap) || 0;
+            const saidas = Number(item.menos_sap) || 0;
+            const est_fin_sap = Number(item.est_final_sap) || 0;
+            const est_fin_real = Number(item.est_final_real) || 0;
+            const dif_qty = Number(item.dif_real_sap) || 0;
+            const custo_dif = Number(item.custo_dif) || 0;
+            
+            // Lógica de Preço Unitário (Baseado na diferença, conforme solicitado)
+            // Se dif_qty for 0, evitamos divisão por zero assumindo 0 (ou poderíamos usar custo médio padrão se existisse)
+            const unitPrice = dif_qty !== 0 ? (custo_dif / dif_qty) : 0;
+
+            // Cálculos Monetários
+            const val_in = est_in * unitPrice;
+            const val_entradas = entradas * unitPrice;
+            const val_saidas = saidas * unitPrice;
+            const val_fin_real = est_fin_real * unitPrice;
+
+            // Fórmulas Específicas Solicitadas
+            const denominadorVar = entradas + est_in;
+            const variacaoPct = denominadorVar !== 0 ? (dif_qty / denominadorVar) : 0;
+            
+            // Custo Médio Ajustado ("CUSTO" / ("DIF REAL X SAP" + "EST. FIN. SAP"))
+            // Nota: (DIF + FIN_SAP) é matematicamente igual a EST_FIN_REAL
+            const denominadorCustoAj = dif_qty + est_fin_sap;
+            const custoMedioAjustado = denominadorCustoAj !== 0 ? (custo_dif / denominadorCustoAj) : 0;
+
+            // Acumuladores Globais
+            flow.ini_qty += est_in; flow.ini_val += val_in;
+            flow.in_qty += entradas; flow.in_val += val_entradas;
+            flow.out_qty += saidas; flow.out_val += val_saidas;
+            flow.fin_qty += est_fin_real; flow.fin_val += val_fin_real; // Usando Real para o fluxo final
+            
+            diff.qty += dif_qty;
+            diff.custo += custo_dif;
+            diff.caminhoes += (Number(item.num_caminhoes) || 0);
+            diff.ibcs += (Number(item.num_ibcs) || 0);
+
+            return {
+                ...item,
+                analitica: {
+                    unitPrice,
+                    custoMedioAjustado,
+                    variacaoPct,
+                    est_in,
+                    entradas,
+                    saidas,
+                    est_fin_sap,
+                    est_fin_real,
+                    dif_qty,
+                    custo_dif
+                }
+            };
+        });
+
+        // Gráficos (Lógica mantida)
         const regionaisMap = {};
-        lista.forEach(item => {
-            const key = item.regional || 'N/D';
-            const val = Number(item.custo_dif) || 0;
-            regionaisMap[key] = (regionaisMap[key] || 0) + val;
-        });
-        const regionaisArr = Object.entries(regionaisMap).map(([name, value]) => ({ name, value, abs: Math.abs(value) }));
-        const regionaisFinal = regionaisArr.sort((a, b) => b.abs - a.abs).slice(0, 10);
-
         const materiaisMap = {};
-        lista.forEach(item => {
-            const key = item.grupo_material || item.cod_material || 'N/D';
+        rawList.forEach(item => {
             const val = Number(item.custo_dif) || 0;
-            materiaisMap[key] = (materiaisMap[key] || 0) + val;
-        });
-        const materiaisArr = Object.entries(materiaisMap).map(([name, value]) => ({ name, value, abs: Math.abs(value) }));
-        const materiaisFinal = materiaisArr.sort((a, b) => b.abs - a.abs).slice(0, 10);
+            
+            const rKey = item.regional || 'N/D';
+            regionaisMap[rKey] = (regionaisMap[rKey] || 0) + val;
 
-        return { regionais: regionaisFinal, materiais: materiaisFinal };
+            const mKey = item.grupo_material || item.cod_material || 'N/D';
+            materiaisMap[mKey] = (materiaisMap[mKey] || 0) + val;
+        });
+
+        const regionaisArr = Object.entries(regionaisMap)
+            .map(([name, value]) => ({ name, value, abs: Math.abs(value) }))
+            .sort((a, b) => b.abs - a.abs).slice(0, 10);
+            
+        const materiaisArr = Object.entries(materiaisMap)
+            .map(([name, value]) => ({ name, value, abs: Math.abs(value) }))
+            .sort((a, b) => b.abs - a.abs).slice(0, 10);
+
+        return { 
+            chartsData: { regionais: regionaisArr, materiais: materiaisArr },
+            inventoryFlow: flow,
+            consolidatedDiff: diff,
+            analiticaData: processedList,
+            lista: rawList
+        };
     }, [data]);
 
     if (loading) return <div className="p-10 text-center text-slate-400 animate-pulse">Carregando indicadores de insumos...</div>;
     
-    const lista = data?.lista || [];
-    const kpis = data?.kpis || { total_custo_dif: 0, total_caminhoes: 0, total_ibcs: 0, total_dif_sap: 0 };
-
+    // Formatadores
     const fmtMoney = (v) => Utils.formatters.currency(v);
-    const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 
-    const KpiCard = ({ title, value, iconName, color, subtext }) => {
-        const Icon = Icons[Utils.cleanStr(iconName)] || Icons.Activity;
-        const colorClasses = {
-            red: "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400",
-            emerald: "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400",
-            blue: "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400",
-            orange: "bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400",
-            purple: "bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400",
-        };
-        const activeColor = colorClasses[color] || colorClasses.blue;
-
-        return (
-            <div className="glass-card p-4 flex items-center justify-between relative overflow-hidden print:border print:border-slate-300 print:shadow-none break-inside-avoid print:bg-white">
-                <div className="relative z-10 w-full min-w-0 pr-2">
-                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{title}</p>
-                    <h3 className="text-2xl font-black text-slate-800 dark:text-white whitespace-nowrap tracking-tight truncate print:text-xl print:text-black" title={value}>{value}</h3>
-                    <p className="text-[10px] text-slate-400 mt-1 font-medium">{subtext}</p>
-                </div>
-                <div className={`p-3 rounded-full flex-shrink-0 ${activeColor} print:hidden`}>
-                    {Icons[iconName] ? React.createElement(Icons[iconName], { width: 24, height: 24 }) : <Icons.Activity />}
-                </div>
+    // --- COMPONENTE: CARD FLUXO DE INVENTÁRIO ---
+    const FlowCard = ({ title, qty, val, icon: Icon, color, isVar }) => (
+        <div className="glass-card p-4 flex flex-col justify-between relative overflow-hidden print:border print:border-slate-300 print:shadow-none break-inside-avoid">
+            <div className="flex justify-between items-start mb-2">
+                <span className={`text-xs font-bold uppercase tracking-wider ${color}`}>{title}</span>
+                <Icon width={16} className={`opacity-50 ${color}`} />
             </div>
-        );
-    };
+            <div>
+                {isVar ? (
+                    <div className="flex flex-col">
+                        <span className={`text-xl font-black ${qty < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{fmtPerc(qty)}</span>
+                        <span className="text-[10px] text-slate-400">Var. Inicial vs Final</span>
+                    </div>
+                ) : (
+                    <>
+                        <div className="text-lg font-bold text-slate-800 dark:text-white">{fmtNum(qty)} <span className="text-xs font-normal text-slate-400">un</span></div>
+                        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">{fmtMoney(val)}</div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
 
+    // --- COMPONENTE: TABELA ANALÍTICA ---
+    const AnaliticaTable = () => (
+        <div className="glass-card flex flex-col print:shadow-none print:border print:border-slate-300 print:bg-white print:animate-none">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
+                <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
+                    <Icons.Table width={16} /> Detalhamento Analítico por Material
+                </h3>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300">
+                    <thead className="uppercase bg-slate-100 dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500">
+                        <tr>
+                            <th className="px-3 py-2 min-w-[150px]">Material</th>
+                            <th className="px-2 py-2 text-right">Est. Inicial</th>
+                            <th className="px-2 py-2 text-right">Entradas</th>
+                            <th className="px-2 py-2 text-right">Saídas</th>
+                            <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50">Final (Teórico)</th>
+                            <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50">Final (Real)</th>
+                            <th className="px-2 py-2 text-right">Variação (%)</th>
+                            <th className="px-2 py-2 text-right">Custo Médio</th>
+                            <th className="px-2 py-2 text-right">Custo Médio (Aj.)</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                        {analiticaData.map((row, i) => (
+                            <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                <td className="px-3 py-2 font-medium truncate max-w-[200px]" title={row.descricao_material || row.grupo_material}>
+                                    {row.descricao_material || row.grupo_material || row.cod_material}
+                                    <div className="text-[10px] text-slate-400">{row.filial}</div>
+                                </td>
+                                <td className="px-2 py-2 text-right font-mono">{fmtNum(row.analitica.est_in)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtNum(row.analitica.entradas)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-red-500">{fmtNum(row.analitica.saidas)}</td>
+                                <td className="px-2 py-2 text-right font-mono font-bold">{fmtNum(row.analitica.est_fin_sap)}</td>
+                                <td className="px-2 py-2 text-right font-mono font-bold text-blue-600">{fmtNum(row.analitica.est_fin_real)}</td>
+                                <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.analitica.variacaoPct) > 0.05 ? 'text-red-500' : 'text-slate-500'}`}>
+                                    {fmtPerc(row.analitica.variacaoPct)}
+                                </td>
+                                <td className="px-2 py-2 text-right font-mono">{fmtMoney(row.analitica.unitPrice)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-purple-600">{fmtMoney(row.analitica.custoMedioAjustado)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+
+    // --- COMPONENTE ANTIGO (Tabelas DrillDown) ---
     const DrillDownTable = ({ rawData, hierarchy, title, icon: Icon }) => {
         const [path, setPath] = useState([]);
 
@@ -1695,23 +1823,8 @@
             <style>{`
                 @media screen { .hide-on-screen { display: none !important; } }
                 @media print {
-                    /* Força RESET de visibilidade na impressão */
-                    .print-force-visible {
-                        display: block !important;
-                        visibility: visible !important;
-                        opacity: 1 !important;
-                        animation: none !important;
-                        transition: none !important;
-                        height: auto !important;
-                        overflow: visible !important;
-                        color: black !important;
-                    }
-                    /* Quebra de página */
-                    .print-page-break { 
-                        page-break-before: always; 
-                        margin-top: 20px; 
-                    }
-                    /* Remove scrollbars e sombras */
+                    .print-force-visible { display: block !important; visibility: visible !important; opacity: 1 !important; animation: none !important; color: black !important; }
+                    .print-page-break { page-break-before: always; margin-top: 20px; }
                     * { scrollbar-width: none !important; box-shadow: none !important; }
                     ::-webkit-scrollbar { display: none !important; }
                 }
@@ -1744,104 +1857,131 @@
                 </div>
             </div>
 
-            {/* KPIs */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 print:grid-cols-2 print:gap-4">
-                <KpiCard title="Custo Total" value={fmtMoney(kpis.total_custo_dif)} iconName="DollarSign" color={kpis.total_custo_dif > 0 ? "red" : "emerald"} subtext="Impacto financeiro" />
-                <KpiCard title="Diferença Total" value={fmtNum(kpis.total_dif_sap)} iconName="Activity" color="blue" subtext="Real vs SAP" />
-                <KpiCard title="Equiv. Caminhões" value={Utils.math.roundVolume(kpis.total_caminhoes)} iconName="Truck" color="orange" subtext="Volume (Caminhões)" />
-                <KpiCard title="Equiv. IBC's" value={Utils.math.roundVolume(kpis.total_ibcs)} iconName="Box" color="purple" subtext="Volume (IBCs)" />
+            {/* --- FLUXO DE INVENTÁRIO (Novos Cards) --- */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 print:grid-cols-5">
+                <FlowCard title="Estoque Inicial" qty={inventoryFlow.ini_qty} val={inventoryFlow.ini_val} icon={Icons.Database} color="text-slate-500" />
+                <FlowCard title="Entradas" qty={inventoryFlow.in_qty} val={inventoryFlow.in_val} icon={Icons.ArrowDownCircle} color="text-emerald-600" />
+                <FlowCard title="Saídas" qty={inventoryFlow.out_qty} val={inventoryFlow.out_val} icon={Icons.ArrowUpCircle} color="text-red-500" />
+                <FlowCard title="Estoque Final" qty={inventoryFlow.fin_qty} val={inventoryFlow.fin_val} icon={Icons.CheckCircle} color="text-blue-600" />
+                <FlowCard title="Variação Total" qty={(inventoryFlow.ini_qty > 0 ? (inventoryFlow.fin_qty - inventoryFlow.ini_qty)/inventoryFlow.ini_qty : 0)} val={0} icon={Icons.Activity} color="text-purple-600" isVar={true} />
             </div>
 
-            {/* GRÁFICOS */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:block print:space-y-6">
-                <div className="glass-card p-5 h-[400px] flex flex-col print:h-[300px] print:shadow-none print:border print:border-slate-300 print:break-inside-avoid print:mb-4">
-                    <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm mb-4 border-b pb-2 flex items-center gap-2 print:text-black">
-                        <Icons.BarChart2 width={16} className="text-purple-500" /> Top 10 Maiores Ajustes
-                    </h3>
-                    <div className="flex-1 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartsData.regionais} layout="vertical" margin={{top: 5, right: 30, left: 40, bottom: 5}}>
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" opacity={0.2} />
-                                <XAxis type="number" tick={{fontSize: 10, fill: 'black'}} tickFormatter={(v) => `R$ ${v/1000}k`} />
-                                <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} />
-                                <Bar dataKey="abs" name="Impacto Absoluto" radius={[0, 4, 4, 0]} barSize={20}>
-                                    {chartsData.regionais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} fillOpacity={1} /> ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+            {/* --- ÁREA DE DESTAQUE: CARD CONSOLIDADO E GRÁFICOS --- */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block">
+                
+                {/* 1. Card Consolidado de Diferença (Unificado) */}
+                <div className="lg:col-span-1 flex flex-col gap-6 print:mb-6">
+                    <div className="glass-card p-6 border-l-4 border-purple-500 bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/20 relative overflow-hidden h-full flex flex-col justify-center">
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <Icons.AlertTriangle width={100} height={100} />
+                        </div>
+                        <h3 className="text-sm font-bold uppercase text-slate-500 mb-2 tracking-widest">Diferença de Estoque</h3>
+                        
+                        <div className="mb-4">
+                            <span className="text-4xl font-black text-slate-800 dark:text-white block">{fmtNum(consolidatedDiff.qty)} <span className="text-lg font-normal text-slate-400">un</span></span>
+                            <span className={`text-xl font-bold ${consolidatedDiff.custo < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                                {consolidatedDiff.custo > 0 ? '+' : ''}{fmtMoney(consolidatedDiff.custo)}
+                            </span>
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-200 dark:border-slate-700/50 flex justify-between items-center text-sm">
+                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                                <Icons.Truck width={16} />
+                                <span className="font-bold">{Utils.math.roundVolume(consolidatedDiff.caminhoes)}</span> <span className="text-xs">Caminhões</span>
+                            </div>
+                            <div className="h-4 w-px bg-slate-300 dark:bg-slate-700"></div>
+                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                                <Icons.Box width={16} />
+                                <span className="font-bold">{Utils.math.roundVolume(consolidatedDiff.ibcs)}</span> <span className="text-xs">IBCs</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div className="glass-card p-5 h-[400px] flex flex-col print:h-[300px] print:shadow-none print:border print:border-slate-300 print:break-inside-avoid print:mb-8 print:break-after-page">
-                    <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm mb-4 border-b pb-2 flex items-center gap-2 print:text-black">
-                        <Icons.AlertCircle width={16} className="text-orange-500" /> Top 10 Materiais
-                    </h3>
-                    <div className="flex-1 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartsData.materiais} layout="vertical" margin={{top: 5, right: 30, left: 40, bottom: 5}}>
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" opacity={0.2} />
-                                <XAxis type="number" tick={{fontSize: 10, fill: 'black'}} tickFormatter={(v) => `R$ ${v/1000}k`} />
-                                <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 9, fontWeight: 'bold', fill: 'black'}} />
-                                <Bar dataKey="abs" name="Impacto Absoluto" radius={[0, 4, 4, 0]} barSize={20}>
-                                    {chartsData.materiais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} fillOpacity={1} /> ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+                {/* 2. Gráficos (Ocupam 2 colunas) */}
+                <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print:block">
+                    {/* Gráfico 1 */}
+                    <div className="glass-card p-4 h-[300px] flex flex-col print:h-[250px] print:mb-4 print:shadow-none print:border print:border-slate-300 print:break-inside-avoid">
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-2 flex items-center gap-2 uppercase print:text-black">
+                            <Icons.BarChart2 width={14} className="text-purple-500" /> Top Ajustes (Região)
+                        </h3>
+                        <div className="flex-1 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={chartsData.regionais} layout="vertical" margin={{top: 5, right: 30, left: 40, bottom: 5}}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" opacity={0.1} />
+                                    <XAxis type="number" tick={{fontSize: 9}} tickFormatter={(v) => `R$${v/1000}k`} />
+                                    <YAxis dataKey="name" type="category" width={90} tick={{fontSize: 9, fontWeight: 'bold'}} />
+                                    <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
+                                        {chartsData.regionais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Gráfico 2 */}
+                    <div className="glass-card p-4 h-[300px] flex flex-col print:h-[250px] print:shadow-none print:border print:border-slate-300 print:break-inside-avoid print:break-after-page">
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-2 flex items-center gap-2 uppercase print:text-black">
+                            <Icons.AlertCircle width={14} className="text-orange-500" /> Top Ajustes (Material)
+                        </h3>
+                        <div className="flex-1 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={chartsData.materiais} layout="vertical" margin={{top: 5, right: 30, left: 40, bottom: 5}}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" opacity={0.1} />
+                                    <XAxis type="number" tick={{fontSize: 9}} tickFormatter={(v) => `R$${v/1000}k`} />
+                                    <YAxis dataKey="name" type="category" width={110} tick={{fontSize: 9, fontWeight: 'bold'}} />
+                                    <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
+                                        {chartsData.materiais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* NAVEGAÇÃO (TELA) - Botões para alternar as 5 tabelas */}
+            {/* NAVEGAÇÃO DE ABAS */}
             <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit no-print flex-wrap">
-                <button onClick={() => setActiveTab('regiao_material')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'regiao_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Região + Material</button>
-                <button onClick={() => setActiveTab('material_regiao')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'material_regiao' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Material + Região</button>
-                <button onClick={() => setActiveTab('categoria_material')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'categoria_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Categoria + Material</button>
-                <button onClick={() => setActiveTab('regional_usina')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'regional_usina' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Regional + Usina</button>
-                <button onClick={() => setActiveTab('usina_material')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'usina_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Usina + Material</button>
+                {['regiao_material', 'material_regiao', 'categoria_material', 'regional_usina', 'usina_material'].map(tab => (
+                    <button key={tab} onClick={() => setActiveTab(tab)} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all uppercase ${activeTab === tab ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+                        {tab.replace('_', ' + ')}
+                    </button>
+                ))}
+                <button onClick={() => setActiveTab('analitica')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all uppercase flex items-center gap-1 ${activeTab === 'analitica' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 shadow-sm' : 'text-slate-500 hover:text-purple-600'}`}>
+                    <Icons.Table width={12} /> Analítica
+                </button>
             </div>
 
-            {/* TABELAS - Agora são 5 tabelas, cada uma em uma folha na impressão */}
+            {/* ÁREA DAS TABELAS (6 Tabelas ao total) */}
             <div className="min-h-[400px]">
-                {/* 1. Região + Material */}
-                <div className={`${activeTab === 'regiao_material' ? '' : 'hide-on-screen'} print-force-visible`}>
+                {/* 1. Analítica (NOVA) */}
+                <div className={`${activeTab === 'analitica' ? '' : 'hide-on-screen'} print-force-visible`}>
+                    <AnaliticaTable />
+                </div>
+
+                {/* 2. Região + Material */}
+                <div className={`${activeTab === 'regiao_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
                     <DrillDownTable rawData={lista} title="Classificação por Região" icon={Icons.Target} hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
                 
-                {/* 2. Material + Região (Com quebra) */}
+                {/* 3. Material + Região */}
                 <div className={`${activeTab === 'material_regiao' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
                     <DrillDownTable rawData={lista} title="Classificação por Material" icon={Icons.Box} hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
                 
-                {/* 3. Categoria + Material (Com quebra) */}
+                {/* 4. Categoria + Material */}
                 <div className={`${activeTab === 'categoria_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
                     <DrillDownTable rawData={lista} title="Classificação por Categoria" icon={Icons.ListFilter} hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
                 </div>
 
-                {/* 4. Regional + Usina (NOVA) */}
+                {/* 5. Regional + Usina */}
                 <div className={`${activeTab === 'regional_usina' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <DrillDownTable 
-                        rawData={lista} 
-                        title="Regional + Usina" 
-                        icon={Icons.Target} 
-                        hierarchy={[
-                            { key: 'regional', label: 'Encarregado / Regional' }, 
-                            { key: 'filial', label: 'Usina / Filial' }, 
-                            { key: 'grupo_material', label: 'Grupo de Material' }
-                        ]} 
-                    />
+                    <DrillDownTable rawData={lista} title="Regional + Usina" icon={Icons.Target} hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
                 </div>
 
-                {/* 5. Usina + Material (NOVA) */}
+                {/* 6. Usina + Material */}
                 <div className={`${activeTab === 'usina_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <DrillDownTable 
-                        rawData={lista} 
-                        title="Usina + Material" 
-                        icon={Icons.Briefcase} 
-                        hierarchy={[
-                            { key: 'filial', label: 'Usina / Filial' }, 
-                            { key: 'grupo_material', label: 'Grupo de Material' }
-                        ]} 
-                    />
+                    <DrillDownTable rawData={lista} title="Usina + Material" icon={Icons.Briefcase} hierarchy={[{ key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
                 </div>
             </div>
         </div>
@@ -5340,6 +5480,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
