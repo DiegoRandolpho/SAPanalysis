@@ -143,7 +143,7 @@
             normalizeKey: (key) => key ? key.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "") : '',
             cleanStr: (str) => str ? str.toString().trim().toUpperCase() : '',
             normalizeClass: (str) => str ? str.toString().trim().toUpperCase().replace(/\s+/g, ' ') : '',
-            ccheckPermission: (role, required) => {
+            checkPermission: (role, required) => {
     if (!role) return false;
     const r = role.toLowerCase();
     
@@ -5269,6 +5269,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
