@@ -1540,7 +1540,6 @@
         let total_ibcs = 0;
 
         rawList.forEach(item => {
-            // Mapeamento seguro das colunas vindas do SQL
             const est_in = Number(item.est_inicial_sap) || 0;
             const entradas = Number(item.entradas_sap) || 0;
             const saidas = Number(item.saidas_sap) || 0;
@@ -1561,7 +1560,7 @@
                     dif_qty: 0, custo_dif: 0
                 };
             }
-            // Acumula no grupo (Material)
+            
             groups[matKey].est_in += est_in;
             groups[matKey].entradas += entradas;
             groups[matKey].saidas += saidas;
@@ -1570,42 +1569,35 @@
             groups[matKey].dif_qty += dif_qty;
             groups[matKey].custo_dif += custo;
 
-            // Acumula nos totais globais
             total_dif_qty += dif_qty;
             total_custo_dif += custo;
             total_caminhoes += caminhoes;
             total_ibcs += ibcs;
 
-            // Dados para gráficos
             const rKey = item.regional || 'N/D';
             regionaisMap[rKey] = (regionaisMap[rKey] || 0) + custo;
             materiaisMap[matKey] = (materiaisMap[matKey] || 0) + custo;
         });
 
-        // Processa a Tabela Analítica (Calculando Preços e Variações nos totais agrupados)
+        // Processamento Analítico
         const processedAnalitica = Object.values(groups)
             .filter(g => {
-                // Filtro: Remove se Estoque Inicial E Final forem zero (pequena margem para float)
                 const isZeroInicial = Math.abs(g.est_in) < 0.01;
                 const isZeroFinal = Math.abs(g.est_fin_real) < 0.01;
                 return !(isZeroInicial && isZeroFinal);
             })
             .map(g => {
-                // Preço Unitário Médio
                 const unitPrice = g.dif_qty !== 0 ? (g.custo_dif / g.dif_qty) : 0;
 
-                // Variação %
                 let variacaoPct = 0;
                 if (Math.abs(g.dif_qty) > 0.001) {
                     const denominadorVar = g.entradas + g.est_in;
                     variacaoPct = denominadorVar !== 0 ? (g.dif_qty / denominadorVar) : 0;
                 }
 
-                // Custo Médio Ajustado
                 const denominadorCustoAj = g.dif_qty + g.est_fin_sap; 
                 const custoMedioAjustado = denominadorCustoAj !== 0 ? (g.custo_dif / denominadorCustoAj) : 0;
 
-                // Acumula totais financeiros para os cards de fluxo
                 total_est_in += (g.est_in * unitPrice);
                 total_entradas += (g.entradas * unitPrice);
                 total_saidas += (g.saidas * unitPrice);
@@ -1614,7 +1606,7 @@
 
                 return { ...g, unitPrice, custoMedioAjustado, variacaoPct };
             })
-            .sort((a, b) => a.custo_dif - b.custo_dif); // Ordena pelo custo (menor para maior, pois geralmente é negativo)
+            .sort((a, b) => a.custo_dif - b.custo_dif);
 
         const flow = {
             ini_qty: Object.values(groups).reduce((acc, curr) => acc + curr.est_in, 0),
@@ -1651,7 +1643,7 @@
     const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 
-    // --- Componente Card de Fluxo ---
+    // --- Componente Card de Fluxo (AJUSTADO: R$ em Destaque) ---
     const FlowCard = ({ title, qty, val, iconName, color, isVar }) => (
         <div className="glass-card p-4 flex flex-col justify-between relative overflow-hidden print:border print:border-black print:shadow-none break-inside-avoid print:bg-white">
             <div className="flex justify-between items-start mb-2">
@@ -1666,15 +1658,16 @@
                     </div>
                 ) : (
                     <>
-                        <div className="text-lg font-bold text-slate-800 dark:text-white print:text-black">{fmtNum(qty)} <span className="text-xs font-normal text-slate-400 print:text-black">un</span></div>
-                        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1 print:text-black">{fmtMoney(val)}</div>
+                        {/* INVERTIDO: Valor R$ Grande, Quantidade Pequena */}
+                        <div className="text-lg font-bold text-slate-800 dark:text-white print:text-black">{fmtMoney(val)}</div>
+                        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1 print:text-black">{fmtNum(qty)} <span className="font-normal opacity-70">un</span></div>
                     </>
                 )}
             </div>
         </div>
     );
 
-    // --- Componente Tabela Analítica (Otimizada para Impressão) ---
+    // --- Componente Tabela Analítica ---
     const AnaliticaTable = () => (
         <div className="glass-card flex flex-col print:shadow-none print:border print:border-black print:bg-white print:animate-none print:w-full print:mb-4">
             <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center print:bg-white print:border-black print:py-2">
@@ -1816,7 +1809,11 @@
             <style>{`
                 @media screen { .hide-on-screen { display: none !important; } }
                 @media print {
-                    /* Força RESET de visibilidade na impressão */
+                    /* Layout da Grid de Cards (3 por linha na impressão) */
+                    .print-grid-cols-3 {
+                        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                    }
+
                     .print-force-visible {
                         display: block !important;
                         visibility: visible !important;
@@ -1828,12 +1825,10 @@
                         color: black !important;
                         background: white !important;
                     }
-                    /* Quebra de página */
                     .print-page-break { 
                         page-break-before: always; 
                         margin-top: 20px; 
                     }
-                    /* Remove scrollbars, sombras e fundos coloridos */
                     * { scrollbar-width: none !important; box-shadow: none !important; text-shadow: none !important; }
                     ::-webkit-scrollbar { display: none !important; }
                     body, .glass-card, .report-container { background: white !important; color: black !important; }
@@ -1867,8 +1862,8 @@
                 </div>
             </div>
 
-            {/* --- FLUXO DE INVENTÁRIO --- */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 print:grid-cols-5">
+            {/* --- FLUXO DE INVENTÁRIO (Com Classe de Print Ajustada) --- */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 print:print-grid-cols-3">
                 <FlowCard title="Estoque Inicial" qty={inventoryFlow.ini_qty} val={inventoryFlow.ini_val} iconName="Database" color="text-slate-500" />
                 <FlowCard title="Entradas" qty={inventoryFlow.in_qty} val={inventoryFlow.in_val} iconName="ArrowDownCircle" color="text-emerald-600" />
                 <FlowCard title="Saídas" qty={inventoryFlow.out_qty} val={inventoryFlow.out_val} iconName="ArrowUpCircle" color="text-red-500" />
@@ -1879,7 +1874,7 @@
             {/* --- ÁREA DE DESTAQUE --- */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block">
                 
-                {/* 1. Card Consolidado */}
+                {/* 1. Card Consolidado (AJUSTADO: R$ em Destaque) */}
                 <div className="lg:col-span-1 flex flex-col gap-6 print:mb-6">
                     <div className="glass-card p-6 border-l-4 border-purple-500 bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/20 relative overflow-hidden h-full flex flex-col justify-center print:border print:border-black print:bg-white print:shadow-none">
                         <div className="absolute top-0 right-0 p-4 opacity-10">
@@ -1888,9 +1883,13 @@
                         <h3 className="text-sm font-bold uppercase text-slate-500 mb-2 tracking-widest print:text-black">Diferença de Estoque</h3>
                         
                         <div className="mb-4">
-                            <span className="text-4xl font-black text-slate-800 dark:text-white block print:text-black">{fmtNum(consolidatedDiff.qty)} <span className="text-lg font-normal text-slate-400 print:text-black">un</span></span>
-                            <span className={`text-xl font-bold ${consolidatedDiff.custo < 0 ? 'text-red-500' : 'text-emerald-600'} print:text-black`}>
+                            {/* VALOR R$ GRANDE EM CIMA */}
+                            <span className={`text-4xl font-bold ${consolidatedDiff.custo < 0 ? 'text-red-500' : 'text-emerald-600'} print:text-black`}>
                                 {consolidatedDiff.custo > 0 ? '+' : ''}{fmtMoney(consolidatedDiff.custo)}
+                            </span>
+                            {/* QUANTIDADE FÍSICA MENOR EM BAIXO */}
+                            <span className="text-lg font-medium text-slate-800 dark:text-white block print:text-black mt-1">
+                                {fmtNum(consolidatedDiff.qty)} <span className="text-sm text-slate-400 print:text-black">un</span>
                             </span>
                         </div>
 
@@ -5479,6 +5478,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
