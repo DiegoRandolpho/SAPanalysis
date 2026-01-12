@@ -1488,7 +1488,7 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
         const lista = data?.lista || [];
         if (lista.length === 0) return { regionais: [], materiais: [] };
 
-        // 1. Agrupamento por Regional (Encarregado)
+        // 1. Agrupamento por Regional (Encarregado) - Top 10 Absoluto
         const regionaisMap = {};
         lista.forEach(item => {
             const key = item.regional || 'N/D';
@@ -1496,18 +1496,19 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
             regionaisMap[key] = (regionaisMap[key] || 0) + val;
         });
 
-        // Separar ganhos e perdas
-        const regionaisArr = Object.entries(regionaisMap).map(([name, value]) => ({ name, value }));
-        const regionaisGanhos = regionaisArr.filter(i => i.value >= 0).sort((a, b) => b.value - a.value).slice(0, 10);
-        const regionaisPerdas = regionaisArr.filter(i => i.value < 0).sort((a, b) => a.value - b.value).slice(0, 10); // Menores valores (mais negativos) primeiro
-        
-        // Unir para o gráfico (Top Ganhos + Top Perdas)
-        const regionaisFinal = [...regionaisGanhos, ...regionaisPerdas].sort((a, b) => b.value - a.value);
+        const regionaisArr = Object.entries(regionaisMap).map(([name, value]) => ({ 
+            name, 
+            value,
+            abs: Math.abs(value) 
+        }));
 
-        // 2. Agrupamento por Material (Absoluto)
+        // Ordenar por valor absoluto descrescente e pegar Top 10
+        const regionaisFinal = regionaisArr.sort((a, b) => b.abs - a.abs).slice(0, 10);
+
+        // 2. Agrupamento por Material - Top 10 Absoluto
         const materiaisMap = {};
         lista.forEach(item => {
-            const key = item.grupo_material || item.cod_material || 'N/D'; // Usando Grupo Material para melhor visualização
+            const key = item.grupo_material || item.cod_material || 'N/D';
             const val = Number(item.custo_dif) || 0;
             materiaisMap[key] = (materiaisMap[key] || 0) + val;
         });
@@ -1518,7 +1519,6 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
             abs: Math.abs(value) 
         }));
 
-        // Ordenar por valor absoluto (Top 10 Impactos)
         const materiaisFinal = materiaisArr.sort((a, b) => b.abs - a.abs).slice(0, 10);
 
         return { regionais: regionaisFinal, materiais: materiaisFinal };
@@ -1532,6 +1532,7 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     // Formatação
     const fmtMoney = (v) => Utils.formatters.currency(v);
     const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 
     // --- COMPONENTE INTERNO DE TABELA COM DRILL-DOWN ---
     const DrillDownTable = ({ rawData, hierarchy, title, icon: Icon }) => {
@@ -1557,24 +1558,54 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
             filteredData.forEach(item => {
                 const keyVal = item[currentKey] || 'N/D';
                 if (!groups[keyVal]) {
-                    groups[keyVal] = { name: keyVal, caminhoes: 0, ibcs: 0, custo: 0, count: 0 };
+                    groups[keyVal] = { 
+                        name: keyVal, 
+                        caminhoes: 0, 
+                        ibcs: 0, 
+                        custo: 0, 
+                        dif_qty: 0,
+                        sap_qty: 0,
+                        real_qty: 0,
+                        count: 0 
+                    };
                 }
+                // Somas simples
                 groups[keyVal].caminhoes += (Number(item.num_caminhoes) || 0);
                 groups[keyVal].ibcs += (Number(item.num_ibcs) || 0);
                 groups[keyVal].custo += (Number(item.custo_dif) || 0);
+                
+                // Somas para cálculo da variação
+                groups[keyVal].dif_qty += (Number(item.dif_real_sap) || 0);
+                groups[keyVal].sap_qty += (Number(item.est_final_sap) || 0);
+                groups[keyVal].real_qty += (Number(item.est_final_real) || 0);
+                
                 groups[keyVal].count += 1;
             });
 
-            return Object.values(groups).sort((a, b) => a.custo - b.custo);
+            // Calcular variação para cada grupo e converter em array
+            return Object.values(groups).map(g => {
+                const divisor = g.sap_qty + g.real_qty;
+                const variacao = divisor === 0 ? 0 : g.dif_qty / divisor;
+                return { ...g, variacao };
+            }).sort((a, b) => a.custo - b.custo);
         }, [filteredData, currentLevelIndex, hierarchy, isLastLevel]);
 
-        // 3. Totais
+        // 3. Totais do nível atual
         const totals = useMemo(() => {
-            return groupedData.reduce((acc, curr) => ({
+            const t = groupedData.reduce((acc, curr) => ({
                 caminhoes: acc.caminhoes + curr.caminhoes,
                 ibcs: acc.ibcs + curr.ibcs,
-                custo: acc.custo + curr.custo
-            }), { caminhoes: 0, ibcs: 0, custo: 0 });
+                custo: acc.custo + curr.custo,
+                dif_qty: acc.dif_qty + curr.dif_qty,
+                sap_qty: acc.sap_qty + curr.sap_qty,
+                real_qty: acc.real_qty + curr.real_qty
+            }), { caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, sap_qty: 0, real_qty: 0 });
+
+            // Variação do Total Geral
+            const divTotal = t.sap_qty + t.real_qty;
+            t.variacao = divTotal === 0 ? 0 : t.dif_qty / divTotal;
+            
+            return t;
         }, [groupedData]);
 
         // Navegação
@@ -1612,6 +1643,7 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                                 <th className="px-4 py-3">{currentLabel}</th>
                                 <th className="px-4 py-3 text-right">Nº Caminhões</th>
                                 <th className="px-4 py-3 text-right">Nº IBC's</th>
+                                <th className="px-4 py-3 text-right">Variação (%)</th>
                                 <th className="px-4 py-3 text-right">Custo Total</th>
                                 <th className="px-4 py-3 text-center" width="50">Ação</th>
                             </tr>
@@ -1622,6 +1654,9 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                                     <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-200 group-hover:text-blue-600">{row.name}</td>
                                     <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(row.caminhoes)}</td>
                                     <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(row.ibcs)}</td>
+                                    <td className={`px-4 py-3 text-right font-mono font-bold ${Math.abs(row.variacao) > 0.05 ? 'text-red-500' : 'text-slate-600 dark:text-slate-400'}`}>
+                                        {fmtPerc(row.variacao)}
+                                    </td>
                                     <td className={`px-4 py-3 text-right font-mono font-bold ${row.custo < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{fmtMoney(row.custo)}</td>
                                     <td className="px-4 py-3 text-center text-slate-300 group-hover:text-blue-500"><Icons.ChevronRight width={14} /></td>
                                 </tr>
@@ -1632,6 +1667,7 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                                 <td className="px-4 py-3 uppercase text-xs tracking-wider">Total Geral</td>
                                 <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(totals.caminhoes)}</td>
                                 <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(totals.ibcs)}</td>
+                                <td className="px-4 py-3 text-right font-mono">{fmtPerc(totals.variacao)}</td>
                                 <td className={`px-4 py-3 text-right font-mono ${totals.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(totals.custo)}</td>
                                 <td></td>
                             </tr>
@@ -1670,12 +1706,12 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                 <Card title="Equiv. IBC's" value={Utils.math.roundVolume(kpis.total_ibcs)} iconName="box" color="purple" subtext="Volume em contentores" />
             </div>
 
-            {/* GRÁFICOS ANALÍTICOS (NOVO) */}
+            {/* GRÁFICOS ANALÍTICOS */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 no-print">
-                {/* Gráfico 1: Top Encarregados (Ganhos e Perdas) */}
+                {/* Gráfico 1: Top 10 Ajustes Absolutos por Encarregado */}
                 <div className="glass-card p-5 h-[400px] flex flex-col">
                     <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm mb-4 border-b pb-2 flex items-center gap-2">
-                        <Icons.BarChart2 width={16} className="text-purple-500" /> Performance Financeira por Encarregado
+                        <Icons.BarChart2 width={16} className="text-purple-500" /> Top 10 Maiores Ajustes Absolutos
                     </h3>
                     <div className="flex-1 w-full">
                         <ResponsiveContainer width="100%" height="100%">
@@ -1699,8 +1735,7 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                                         return null;
                                     }}
                                 />
-                                <ReferenceLine x={0} stroke="#94a3b8" />
-                                <Bar dataKey="value" name="Valor" radius={[4, 4, 4, 4]} barSize={20}>
+                                <Bar dataKey="abs" name="Impacto Absoluto" radius={[0, 4, 4, 0]} barSize={20}>
                                     {chartsData.regionais.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} />
                                     ))}
@@ -5257,6 +5292,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
