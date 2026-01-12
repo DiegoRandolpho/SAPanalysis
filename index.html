@@ -1511,7 +1511,7 @@
         </div>
     );
 };
-       vconst InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
+       const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     const [activeTab, setActiveTab] = useState('analitica');
 
     const SafeIcon = ({ name, className, width, height }) => {
@@ -5485,6 +5485,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
