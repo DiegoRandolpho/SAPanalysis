@@ -1780,7 +1780,6 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     // ÍCONES BLINDADOS
     const IconHome = Icons.Home || Icons.Layout || Icons.FileText;
     const IconTruck = Icons.Truck || Icons.Activity || Icons.FileText;
-    const IconBox = Icons.Box || Icons.Package || Icons.FileText;
     const IconUsers = Icons.Users || Icons.User || Icons.FileText;
     const IconBarChart = Icons.BarChart2 || Icons.BarChart || Icons.PieChart || Icons.FileText;
     const IconFuel = Icons.Fuel || Icons.Droplet || Icons.FileText;
@@ -1789,17 +1788,8 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     const IconChevronRight = Icons.ChevronRight || Icons.Chevron || Icons.ArrowRight;
     const IconMenu = Icons.Menu || Icons.List;
     const IconAlert = Icons.AlertTriangle || Icons.AlertCircle || Icons.Flag;
-    const IconUpload = Icons.UploadCloud || Icons.Upload;
+    const IconBox = Icons.Box || Icons.Package || Icons.FileText;
 
-    // Helper para botões principais
-    const MenuItem = ({ label, active, onClick, icon: Icon }) => (
-        <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 transition-all duration-200 text-sm font-medium border-l-4 ${active ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-600' : 'text-slate-600 dark:text-slate-400 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}>
-            {Icon && <Icon width={18} height={18} />}
-            {isSidebarOpen && <span>{label}</span>}
-        </button>
-    );
-
-    // Helper para sub-itens
     const SubMenuItem = ({ label, active, onClick, icon: Icon }) => (
         <button onClick={onClick} className={`w-full text-left py-2 pl-12 pr-4 text-sm transition-colors relative flex items-center gap-2 ${active ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
             {active && !Icon && <div className="absolute left-9 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></div>}
@@ -1810,7 +1800,6 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
 
     return (
         <aside className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-screen fixed left-0 top-0 z-40 transition-all duration-300 flex flex-col shadow-xl shadow-slate-200/50 dark:shadow-none`}>
-            {/* Logo */}
             <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 dark:border-slate-800">
                 {isSidebarOpen && <span className="font-extrabold text-xl tracking-tight text-slate-800 dark:text-white">TERSYS<span className="text-blue-600">.</span></span>}
                 <button onClick={toggleSidebar} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"><IconMenu width={20} /></button>
@@ -1819,102 +1808,99 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
             <div className="flex-1 overflow-y-auto py-4 custom-scrollbar">
                 <nav className="space-y-1">
                     
-                    {/* (REMOVIDO "DASHBOARD GERAL" SOLTO DAQUI) */}
+                    {/* TERCEIRIZAÇÃO (Apenas se tiver permissão) */}
+                    {Utils.checkPermission(userRole, 'terceirizacao') && (
+                        <div>
+                            <button onClick={() => toggleModule('terceirizacao')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.terceirizacao ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                                <div className="flex items-center gap-3"><IconUsers width={18} />{isSidebarOpen && <span>Terceirização</span>}</div>
+                                {isSidebarOpen && (expandedModules.terceirizacao ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
+                            </button>
+                            {isSidebarOpen && (
+                                <div className={`overflow-hidden transition-all duration-300 ${expandedModules.terceirizacao ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <div className="space-y-0.5 mb-2">
+                                        <SubMenuItem label="Visão Geral" active={view === 'dashboard'} onClick={() => setView('dashboard')} />
+                                        <SubMenuItem label="Cadastros" active={view === 'terceirizacao_cadastros'} onClick={() => setView('terceirizacao_cadastros')} />
+                                        <SubMenuItem label="Pagamentos" active={view === 'terceirizacao_pagamentos'} onClick={() => setView('terceirizacao_pagamentos')} />
+                                        <SubMenuItem label="Turnover" active={view === 'terceirizacao_turnover'} onClick={() => setView('terceirizacao_turnover')} />
+                                        <SubMenuItem label="Ativos/Frota" active={view === 'terceirizacao_ativos'} onClick={() => setView('terceirizacao_ativos')} />
+                                        <SubMenuItem label="De/Para" active={view === 'terceirizacao_depara'} onClick={() => setView('terceirizacao_depara')} />
+                                        <SubMenuItem label="Importar Arquivos" active={view === 'terceirizacao_import'} onClick={() => setView('terceirizacao_import')} />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
-                    {/* MÓDULO TERCEIRIZAÇÃO */}
-                    <div>
-                        <button onClick={() => toggleModule('terceirizacao')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.terceirizacao ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-                            <div className="flex items-center gap-3"><IconUsers width={18} />{isSidebarOpen && <span>Terceirização</span>}</div>
-                            {isSidebarOpen && (expandedModules.terceirizacao ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
-                        </button>
-                        {isSidebarOpen && (
-                            <div className={`overflow-hidden transition-all duration-300 ${expandedModules.terceirizacao ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                                <div className="space-y-0.5 mb-2">
-                                    <SubMenuItem label="Visão Geral" active={view === 'dashboard'} onClick={() => setView('dashboard')} />
-                                    <SubMenuItem label="Cadastros" active={view === 'terceirizacao_cadastros'} onClick={() => setView('terceirizacao_cadastros')} />
-                                    <SubMenuItem label="Pagamentos" active={view === 'terceirizacao_pagamentos'} onClick={() => setView('terceirizacao_pagamentos')} />
-                                    <SubMenuItem label="Turnover" active={view === 'terceirizacao_turnover'} onClick={() => setView('terceirizacao_turnover')} />
-                                    <SubMenuItem label="Ativos/Frota" active={view === 'terceirizacao_ativos'} onClick={() => setView('terceirizacao_ativos')} />
-                                    <SubMenuItem label="De/Para" active={view === 'terceirizacao_depara'} onClick={() => setView('terceirizacao_depara')} />
-                                    <SubMenuItem label="Importar Arquivos" active={view === 'terceirizacao_import'} onClick={() => setView('terceirizacao_import')} />
+                    {/* CONTROLADORIA (Apenas se tiver permissão) */}
+                    {Utils.checkPermission(userRole, 'controladoria') && (
+                        <div>
+                            <button onClick={() => toggleModule('controladoria')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.controladoria ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                                <div className="flex items-center gap-3"><IconBarChart width={18} />{isSidebarOpen && <span>Controladoria</span>}</div>
+                                {isSidebarOpen && (expandedModules.controladoria ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
+                            </button>
+                            {isSidebarOpen && (
+                                <div className={`overflow-hidden transition-all duration-300 ${expandedModules.controladoria ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <div className="space-y-0.5 mb-2">
+                                        <SubMenuItem label="Dashboard" active={view === 'controladoria' && subView === 'dash'} onClick={() => setView('controladoria', 'dash')} />
+                                        <SubMenuItem label="DRE Gerencial" active={view === 'controladoria' && subView === 'dre'} onClick={() => setView('controladoria', 'dre')} />
+                                        <SubMenuItem label="Relatórios" active={view === 'controladoria' && subView === 'report'} onClick={() => setView('controladoria', 'report')} />
+                                        <SubMenuItem label="Config De/Para" active={view === 'controladoria' && subView === 'depara'} onClick={() => setView('controladoria', 'depara')} />
+                                        <SubMenuItem label="Importar Dados" active={view === 'controladoria' && subView === 'import'} onClick={() => setView('controladoria', 'import')} />
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
 
-                    {/* MÓDULO CONTROLADORIA */}
-                    <div>
-                        <button onClick={() => toggleModule('controladoria')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.controladoria ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-                            <div className="flex items-center gap-3"><IconBarChart width={18} />{isSidebarOpen && <span>Controladoria</span>}</div>
-                            {isSidebarOpen && (expandedModules.controladoria ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
-                        </button>
-                        {isSidebarOpen && (
-                            <div className={`overflow-hidden transition-all duration-300 ${expandedModules.controladoria ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0'}`}>
-                                <div className="space-y-0.5 mb-2">
-                                    <SubMenuItem label="Dashboard" active={view === 'controladoria' && subView === 'dash'} onClick={() => setView('controladoria', 'dash')} />
-                                    <SubMenuItem label="DRE Gerencial" active={view === 'controladoria' && subView === 'dre'} onClick={() => setView('controladoria', 'dre')} />
-                                    <SubMenuItem label="Relatórios" active={view === 'controladoria' && subView === 'report'} onClick={() => setView('controladoria', 'report')} />
-                                    <SubMenuItem label="Config De/Para" active={view === 'controladoria' && subView === 'depara'} onClick={() => setView('controladoria', 'depara')} />
-                                    
-                                    {/* Link Importar Controladoria Restaurado */}
-                                    <SubMenuItem label="Importar Dados" active={view === 'controladoria' && subView === 'import'} onClick={() => setView('controladoria', 'import')} />
+                    {/* DIESEL (Apenas se tiver permissão) */}
+                    {Utils.checkPermission(userRole, 'diesel') && (
+                        <div>
+                            <button onClick={() => toggleModule('diesel')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.diesel ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                                <div className="flex items-center gap-3"><IconFuel width={18} />{isSidebarOpen && <span>Diesel & Frota</span>}</div>
+                                {isSidebarOpen && (expandedModules.diesel ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
+                            </button>
+                            {isSidebarOpen && (
+                                <div className={`overflow-hidden transition-all duration-300 ${expandedModules.diesel ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <div className="space-y-0.5 mb-2">
+                                        <SubMenuItem label="Dashboard" active={view === 'diesel' && subView === 'dash'} onClick={() => setView('diesel', 'dash')} />
+                                        <SubMenuItem label="Registro de Chamados" active={view === 'diesel_chamados'} onClick={() => setView('diesel_chamados')} />
+                                        <SubMenuItem label="Gestão de Frota" active={view === 'diesel_frota'} onClick={() => setView('diesel_frota')} />
+                                        <SubMenuItem label="Extratos / Lançamentos" active={view === 'diesel_extratos'} onClick={() => setView('diesel_extratos')} />
+                                        <SubMenuItem label="Importar Arquivos" active={view === 'diesel' && subView === 'import'} onClick={() => setView('diesel', 'import')} />
+                                        <SubMenuItem label="Auditoria" icon={IconAlert} active={view === 'diesel_alertas'} onClick={() => setView('diesel_alertas', 'dash')} />
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
-    
-                    {/* MÓDULO DIESEL */}
-                    <div>
-                        <button onClick={() => toggleModule('diesel')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.diesel ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-                            <div className="flex items-center gap-3"><IconFuel width={18} />{isSidebarOpen && <span>Diesel & Frota</span>}</div>
-                            {isSidebarOpen && (expandedModules.diesel ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
-                        </button>
-                        {isSidebarOpen && (
-                            <div className={`overflow-hidden transition-all duration-300 ${expandedModules.diesel ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'}`}>
-                                <div className="space-y-0.5 mb-2">
-                                    <SubMenuItem label="Dashboard" active={view === 'diesel' && subView === 'dash'} onClick={() => setView('diesel', 'dash')} />
-                                    <SubMenuItem label="Registro de Chamados" active={view === 'diesel_chamados'} onClick={() => setView('diesel_chamados')} />
-                                    <SubMenuItem label="Gestão de Frota" active={view === 'diesel_frota'} onClick={() => setView('diesel_frota')} />
-                                    <SubMenuItem label="Extratos / Lançamentos" active={view === 'diesel_extratos'} onClick={() => setView('diesel_extratos')} />
-                                    <SubMenuItem label="Importar Arquivos" active={view === 'diesel' && subView === 'import'} onClick={() => setView('diesel', 'import')} />
-                                    
-                                    {/* Auditoria Unificada (Sem duplicidade) */}
-                                    <SubMenuItem 
-                                        label="Auditoria" 
-                                        icon={IconAlert}
-                                        active={view === 'diesel_alertas'} 
-                                        onClick={() => setView('diesel_alertas', 'dash')} 
-                                    />
+                            )}
+                        </div>
+                    )}
+
+                    {/* INSUMOS (Apenas se tiver permissão) */}
+                    {Utils.checkPermission(userRole, 'insumos') && (
+                        <div>
+                            <button onClick={() => toggleModule('insumos')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.insumos ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                                <div className="flex items-center gap-3"><IconBox width={18} />{isSidebarOpen && <span>Insumos</span>}</div>
+                                {isSidebarOpen && (expandedModules.insumos ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
+                            </button>
+                            {isSidebarOpen && (
+                                <div className={`overflow-hidden transition-all duration-300 ${expandedModules.insumos ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <div className="space-y-0.5 mb-2">
+                                        <SubMenuItem label="Visão Geral" active={view === 'insumos' && subView === 'dash'} onClick={() => setView('insumos', 'dash')} />
+                                        <SubMenuItem label="Importação" active={view === 'insumos' && subView === 'import'} onClick={() => setView('insumos', 'import')} />
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
-                    <div>
-    <button onClick={() => toggleModule('insumos')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.insumos ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-        <div className="flex items-center gap-3"><IconBox width={18} />{isSidebarOpen && <span>Insumos</span>}</div>
-        {isSidebarOpen && (expandedModules.insumos ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
-    </button>
-    {isSidebarOpen && (
-        <div className={`overflow-hidden transition-all duration-300 ${expandedModules.insumos ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
-            <div className="space-y-0.5 mb-2">
-                <SubMenuItem label="Visão Geral" active={view === 'insumos' && subView === 'dash'} onClick={() => setView('insumos', 'dash')} />
-                <SubMenuItem label="Importação" active={view === 'insumos' && subView === 'import'} onClick={() => setView('insumos', 'import')} />
-            </div>
-        </div>
-    )}
-</div>
+                            )}
+                        </div>
+                    )}
+
                 </nav>
             </div>
             
-            {/* User Profile */}
             <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                 <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
                     <div className="relative group cursor-pointer">
                         <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-spin-slow"></div>
                         <div className="relative w-9 h-9 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center ring-2 ring-white dark:ring-slate-900">
-                             <span className="font-extrabold text-xs text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
-                                {session?.user?.email?.substring(0,2).toUpperCase() || 'US'}
-                            </span>
+                             <span className="font-extrabold text-xs text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">{session?.user?.email?.substring(0,2).toUpperCase() || 'US'}</span>
                         </div>
                     </div>
                     {isSidebarOpen && (
@@ -4694,14 +4680,31 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
             const addLog = (msg, type='info') => setLogs(p => [{msg, type}, ...p]);
 
             const checkUserRole = async (userId, email) => {
-                const { data } = await supabaseClient.from('user_roles').select('role').eq('user_id', userId).single();
-                let role = data?.role || (email.includes('admin') ? 'admin' : 'terceirizacao');
-                setUserRole(role);
-                // Redirecionamento inicial baseado na role
-                if (role === 'controladoria') handleSetView('controladoria', 'dash');
-                else if (role === 'diesel') handleSetView('diesel', 'dash');
-                else handleSetView('dashboard');
-            };
+    const { data } = await supabaseClient.from('user_roles').select('role').eq('user_id', userId).single();
+    
+    // Define a role (ou usa fallback se não achar no banco)
+    let role = data?.role || (email.includes('admin') ? 'admin' : 'terceirizacao');
+    setUserRole(role);
+    
+    // REDIRECIONAMENTO COM BASE NA ROLE
+    if (role === 'controladoria') {
+        handleSetView('controladoria', 'dash');
+        setExpandedModules(p => ({...p, controladoria: true})); // Abre o menu automaticamente
+    } 
+    else if (role === 'diesel') {
+        handleSetView('diesel', 'dash');
+        setExpandedModules(p => ({...p, diesel: true}));
+    }
+    // ADICIONE ISTO:
+    else if (role === 'insumos') {
+        handleSetView('insumos', 'dash');
+        setExpandedModules(p => ({...p, insumos: true}));
+    }
+    // Padrão (Terceirização/Admin)
+    else {
+        handleSetView('dashboard');
+    }
+};
 
             const handleSetView = (v, sv) => { 
                 setView(v);
@@ -5266,6 +5269,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
