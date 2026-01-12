@@ -1801,15 +1801,13 @@
                         break-inside: avoid;
                     }
 
-                    /* VISIBILIDADE */
-                    .print-force-visible {
-                        display: block !important;
-                    }
+                    /* VISIBILIDADE E QUEBRAS DE PÁGINA */
+                    .print-force-visible { display: block !important; }
                     .hide-on-screen { display: none; }
-                    .print-page-break { page-break-before: always; margin-top: 2rem; }
+                    .print-page-break { page-break-before: always; margin-top: 1rem; }
                     .no-print { display: none !important; }
 
-                    /* TABELAS ZEBRADAS */
+                    /* TABELAS ZEBRADAS NA IMPRESSÃO */
                     .print-header { background-color: #f1f5f9 !important; border-bottom: 2px solid #cbd5e1 !important; }
                     tr:nth-child(even) { background-color: #f8fafc !important; }
                     th { background-color: #f1f5f9 !important; color: black !important; }
@@ -1820,7 +1818,7 @@
                 }
             `}</style>
             
-            {/* CABEÇALHO PRINT */}
+            {/* CABEÇALHO PRINT - PERSONALIZADO */}
             <div className="hidden print:flex justify-between items-center border-b-2 border-slate-800 pb-4 mb-6">
                 <div className="flex items-center gap-4">
                      <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-10 object-contain" />
@@ -1849,7 +1847,9 @@
                 </div>
             </div>
 
-            {/* --- BLOCO 1: FLUXO E DIFERENÇA --- */}
+            {/* === PÁGINA 1: DASHBOARD GERAL === */}
+            
+            {/* 1. Cards de Fluxo */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 print-grid-cols-3">
                 <FlowCard title="Estoque Inicial" qty={inventoryFlow.ini_qty} val={inventoryFlow.ini_val} iconName="Database" color="text-slate-500" />
                 <FlowCard title="Entradas" qty={inventoryFlow.in_qty} val={inventoryFlow.in_val} iconName="ArrowDownCircle" color="text-emerald-600" />
@@ -1858,21 +1858,19 @@
                 <VariationCard qty={(inventoryFlow.ini_qty > 0 ? (inventoryFlow.fin_qty - inventoryFlow.ini_qty)/inventoryFlow.ini_qty : 0)} />
             </div>
 
-            {/* --- BLOCO 2: CONSOLIDADO E GRÁFICOS --- */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block">
+            {/* 2. Destaque e Gráficos */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block mt-6">
                 
-                {/* 1. Card Consolidado (Total Width na Impressão) */}
+                {/* Consolidado */}
                 <div className="lg:col-span-1 print:mb-6">
                     <div className="bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/50 p-6 shadow-sm relative overflow-hidden h-full flex flex-col justify-center print-card">
                         <div className="absolute top-0 right-0 p-4 opacity-5">
                             <SafeIcon name="AlertTriangle" width={120} height={120} className="text-purple-900" />
                         </div>
-                        
                         <div className="flex items-center gap-2 mb-4">
                             <div className="p-2 bg-purple-100 rounded-lg text-purple-700 print:bg-slate-200"><SafeIcon name="AlertTriangle" width={20} /></div>
                             <h3 className="text-sm font-bold uppercase text-purple-900 dark:text-purple-300 tracking-wider print:text-black">Diferença de Estoque</h3>
                         </div>
-                        
                         <div className="mb-6">
                             <span className={`text-4xl font-black ${consolidatedDiff.custo < 0 ? 'text-red-600' : 'text-emerald-600'} tracking-tight print:text-black`}>
                                 {consolidatedDiff.custo > 0 ? '+' : ''}{fmtMoney(consolidatedDiff.custo)}
@@ -1881,7 +1879,6 @@
                                 {fmtNum(consolidatedDiff.qty)} <span className="text-sm">unidades</span>
                             </span>
                         </div>
-
                         <div className="grid grid-cols-2 gap-4 border-t border-purple-100 dark:border-slate-700/50 pt-4 print:border-slate-300">
                             <div>
                                 <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">Caminhões</p>
@@ -1901,9 +1898,8 @@
                     </div>
                 </div>
 
-                {/* 2. Gráficos (Lado a Lado na Impressão) */}
+                {/* Gráficos */}
                 <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print-grid-charts">
-                    {/* Gráfico 1 */}
                     <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print-card">
                         <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-slate-300 print:text-black">
                             <SafeIcon name="BarChart2" width={14} className="text-purple-500 print:text-black" /> Top Ajustes (Região)
@@ -1921,8 +1917,6 @@
                             </ResponsiveContainer>
                         </div>
                     </div>
-
-                    {/* Gráfico 2 */}
                     <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print-card">
                         <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-slate-300 print:text-black">
                             <SafeIcon name="AlertCircle" width={14} className="text-orange-500 print:text-black" /> Top Ajustes (Material)
@@ -1943,6 +1937,8 @@
                 </div>
             </div>
 
+            {/* === PÁGINAS SEGUINTES: TABELAS === */}
+            
             {/* NAVEGAÇÃO DE ABAS */}
             <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit no-print flex-wrap mt-4">
                 <button onClick={() => setActiveTab('analitica')} className={`px-4 py-2 text-xs font-bold rounded-md transition-all uppercase flex items-center gap-2 ${activeTab === 'analitica' ? 'bg-white shadow-sm text-purple-700' : 'text-slate-500 hover:text-purple-600'}`}>
@@ -1955,9 +1951,8 @@
                 ))}
             </div>
 
-            {/* ÁREA DAS TABELAS */}
             <div className="min-h-[400px]">
-                {/* 1. Analítica */}
+                {/* 1. Analítica (Force Page Break Before) */}
                 <div className={`${activeTab === 'analitica' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
                     <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
                         <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
@@ -1993,7 +1988,7 @@
                     </StandardTable>
                 </div>
 
-                {/* Demais Tabelas (DrillDown) */}
+                {/* Demais Tabelas (Page Break Before Each) */}
                 <div className={`${activeTab === 'regiao_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
                     <DrillDownTable rawData={lista} title="Classificação por Região" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
@@ -5506,6 +5501,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
