@@ -1521,6 +1521,37 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
     const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 
+    // Componente Personalizado de Card KPI para Insumos (com ajuste de fonte para print)
+    const KpiCard = ({ title, value, iconName, color, subtext }) => {
+        const Icon = Icons[Utils.cleanStr(iconName)] || Icons.Activity; // Fallback seguro
+        
+        // Cores baseadas no props
+        const colorClasses = {
+            red: "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400",
+            emerald: "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400",
+            blue: "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400",
+            orange: "bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400",
+            purple: "bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400",
+        };
+        const activeColor = colorClasses[color] || colorClasses.blue;
+
+        return (
+            <div className="glass-card p-4 flex items-center justify-between relative overflow-hidden print:border print:border-slate-300 print:shadow-none">
+                <div className="relative z-10 w-full">
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{title}</p>
+                    {/* Ajuste Crítico: whitespace-nowrap e print:text-xl para caber no papel */}
+                    <h3 className="text-2xl font-black text-slate-800 dark:text-white whitespace-nowrap tracking-tight truncate print:text-lg" title={value}>
+                        {value}
+                    </h3>
+                    <p className="text-[10px] text-slate-400 mt-1 font-medium">{subtext}</p>
+                </div>
+                <div className={`p-3 rounded-full ${activeColor} print:bg-transparent`}>
+                    {Icons[iconName] ? React.createElement(Icons[iconName], { width: 24, height: 24 }) : <Icons.Activity />}
+                </div>
+            </div>
+        );
+    };
+
     // --- COMPONENTE INTERNO DE TABELA COM DRILL-DOWN ---
     const DrillDownTable = ({ rawData, hierarchy, title, icon: Icon }) => {
         const [path, setPath] = useState([]);
@@ -1581,7 +1612,6 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
             return t;
         }, [groupedData]);
 
-        // Navegação
         const handleDrill = (name) => setPath([...path, name]);
         const handleBack = () => setPath(path.slice(0, -1));
         const handleReset = () => setPath([]);
@@ -1597,8 +1627,9 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
 
         const currentLabel = hierarchy[currentLevelIndex].label;
 
+        // IMPORTANTE: overflow-hidden removido no print para permitir que a tabela cresça por várias páginas
         return (
-            <div className="glass-card overflow-hidden flex flex-col animate-enter print:shadow-none print:border print:border-slate-300 print:mb-8 print:break-inside-avoid">
+            <div className="glass-card flex flex-col animate-enter print:shadow-none print:border print:border-slate-300 print:mb-8 print:break-inside-auto print:overflow-visible">
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center print:bg-slate-100 print:border-slate-300">
                     <div className="flex items-center gap-2">
                         {path.length > 0 && (<button onClick={handleBack} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors mr-1 no-print"><Icons.ArrowLeft width={16} /></button>)}
@@ -1654,7 +1685,7 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
 
     // --- RENDERIZAÇÃO PRINCIPAL ---
     return (
-        <div className="space-y-6 animate-enter pb-10 report-container print:space-y-4 print:p-0 print:m-0 print:w-full">
+        <div className="space-y-6 animate-enter pb-10 report-container print:space-y-4 print:p-0 print:m-0 print:w-full print:bg-white">
             
             {/* CABEÇALHO DE IMPRESSÃO */}
             <div className="hidden print:flex flex-col mb-6">
@@ -1668,7 +1699,7 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                 </div>
             </div>
 
-            {/* Header Tela (Escondido na Impressão) */}
+            {/* Header Tela */}
             <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -1684,15 +1715,15 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                 </div>
             </div>
 
-            {/* KPIs Cards */}
+            {/* KPIs Cards - Usando Componente Ajustado */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 print:grid-cols-4 print:gap-2">
-                <Card title="Custo Total (Diferença)" value={fmtMoney(kpis.total_custo_dif)} iconName="dollarSign" color={kpis.total_custo_dif > 0 ? "red" : "emerald"} subtext="Impacto financeiro da quebra" />
-                <Card title="Diferença Total (Unid)" value={fmtNum(kpis.total_dif_sap)} iconName="activity" color="blue" subtext="Real vs SAP Acumulado" />
-                <Card title="Equiv. Caminhões" value={Utils.math.roundVolume(kpis.total_caminhoes)} iconName="truck" color="orange" subtext="Volume perdido/ganho" />
-                <Card title="Equiv. IBC's" value={Utils.math.roundVolume(kpis.total_ibcs)} iconName="box" color="purple" subtext="Volume em contentores" />
+                <KpiCard title="Custo Total" value={fmtMoney(kpis.total_custo_dif)} iconName="DollarSign" color={kpis.total_custo_dif > 0 ? "red" : "emerald"} subtext="Impacto financeiro da quebra" />
+                <KpiCard title="Diferença Total" value={fmtNum(kpis.total_dif_sap)} iconName="Activity" color="blue" subtext="Real vs SAP Acumulado" />
+                <KpiCard title="Equiv. Caminhões" value={Utils.math.roundVolume(kpis.total_caminhoes)} iconName="Truck" color="orange" subtext="Volume perdido/ganho" />
+                <KpiCard title="Equiv. IBC's" value={Utils.math.roundVolume(kpis.total_ibcs)} iconName="Box" color="purple" subtext="Volume em contentores" />
             </div>
 
-            {/* GRÁFICOS */}
+            {/* GRÁFICOS - Cores padronizadas para impressão (preto para texto, verde/vermelho sólidos para barras) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:block print:space-y-6">
                 
                 {/* Gráfico 1 */}
@@ -1704,10 +1735,10 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={chartsData.regionais} layout="vertical" margin={{top: 5, right: 30, left: 40, bottom: 5}}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" opacity={0.2} />
-                                <XAxis type="number" tick={{fontSize: 10}} tickFormatter={(v) => `R$ ${v/1000}k`} />
-                                <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 'bold'}} />
+                                <XAxis type="number" tick={{fontSize: 10, fill: 'black'}} tickFormatter={(v) => `R$ ${v/1000}k`} />
+                                <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} />
                                 <Bar dataKey="abs" name="Impacto Absoluto" radius={[0, 4, 4, 0]} barSize={20}>
-                                    {chartsData.regionais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
+                                    {chartsData.regionais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} fillOpacity={1} /> ))}
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
@@ -1723,10 +1754,10 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={chartsData.materiais} layout="vertical" margin={{top: 5, right: 30, left: 40, bottom: 5}}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" opacity={0.2} />
-                                <XAxis type="number" tick={{fontSize: 10}} tickFormatter={(v) => `R$ ${v/1000}k`} />
-                                <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 9, fontWeight: 'bold'}} />
+                                <XAxis type="number" tick={{fontSize: 10, fill: 'black'}} tickFormatter={(v) => `R$ ${v/1000}k`} />
+                                <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 9, fontWeight: 'bold', fill: 'black'}} />
                                 <Bar dataKey="abs" name="Impacto Absoluto" radius={[0, 4, 4, 0]} barSize={20}>
-                                    {chartsData.materiais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#f87171' : '#34d399'} fillOpacity={0.8} /> ))}
+                                    {chartsData.materiais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} fillOpacity={1} /> ))}
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
@@ -1734,28 +1765,24 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                 </div>
             </div>
 
-            {/* NAVEGAÇÃO E TABELAS - Correção: Renderizar todas, mas esconder visualmente */}
-            
-            {/* Botões de Navegação (Tela) */}
+            {/* NAVEGAÇÃO (TELA) */}
             <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit no-print">
                 <button onClick={() => setActiveTab('regiao_material')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'regiao_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Região + Material</button>
                 <button onClick={() => setActiveTab('material_regiao')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'material_regiao' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Material + Região</button>
                 <button onClick={() => setActiveTab('categoria_material')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'categoria_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Categoria + Material</button>
             </div>
 
-            {/* Tabelas - Lógica Modificada para Impressão de TODAS */}
+            {/* TABELAS - Renderiza TODAS no print, mas esconde as inativas na tela */}
             <div className="min-h-[400px]">
-                {/* TABELA 1: Região + Material */}
+                {/* 1. Região + Material */}
                 <div className={`${activeTab === 'regiao_material' ? 'block' : 'hidden'} print:block print:break-before-page`}>
                     <DrillDownTable rawData={lista} title="Classificação por Região" icon={Icons.Target} hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
-
-                {/* TABELA 2: Material + Região */}
+                {/* 2. Material + Região */}
                 <div className={`${activeTab === 'material_regiao' ? 'block' : 'hidden'} print:block print:break-before-page`}>
                     <DrillDownTable rawData={lista} title="Classificação por Material" icon={Icons.Box} hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
-
-                {/* TABELA 3: Categoria + Material */}
+                {/* 3. Categoria + Material */}
                 <div className={`${activeTab === 'categoria_material' ? 'block' : 'hidden'} print:block print:break-before-page`}>
                     <DrillDownTable rawData={lista} title="Classificação por Categoria" icon={Icons.ListFilter} hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
                 </div>
@@ -5256,6 +5283,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
