@@ -1471,54 +1471,298 @@
 };
 
 const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
+    // Estados
+    const [activeTab, setActiveTab] = useState('regiao_material'); // Tabs: regiao_material, material_regiao, categoria_material
+
     if (loading) return <div className="p-10 text-center text-slate-400 animate-pulse">Carregando indicadores de insumos...</div>;
+    
     const lista = data?.lista || [];
     const kpis = data?.kpis || { total_custo_dif: 0, total_caminhoes: 0, total_ibcs: 0, total_dif_sap: 0 };
+
+    // Formatação
     const fmtMoney = (v) => Utils.formatters.currency(v);
     const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 
-    return (
-        <div className="space-y-6 animate-enter pb-10 report-container">
-            <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
-                <div><h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><Icons.LayoutDashboard className="text-purple-500" /> Visão Geral: Insumos</h2></div>
-                <button onClick={() => window.print()} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all"><Icons.Download width={16} /> PDF</button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card title="Custo Total (Diferença)" value={fmtMoney(kpis.total_custo_dif)} iconName="dollarSign" color={kpis.total_custo_dif > 0 ? "red" : "emerald"} subtext="Impacto financeiro da quebra" />
-                <Card title="Diferença Total (Unid)" value={fmtNum(kpis.total_dif_sap)} iconName="activity" color="blue" subtext="Real vs SAP Acumulado" />
-                <Card title="Equiv. Caminhões" value={Utils.math.roundVolume(kpis.total_caminhoes)} iconName="truck" color="orange" subtext="Volume perdido/ganho" />
-                <Card title="Equiv. IBC's" value={Utils.math.roundVolume(kpis.total_ibcs)} iconName="box" color="purple" subtext="Volume em contentores" />
-            </div>
-            <div className="glass-card overflow-hidden print:border-slate-300">
-                <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center print:bg-slate-100">
-                    <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2"><Icons.Table width={16} /> Detalhamento por Produto e Filial</h3>
-                    <span className="text-xs font-bold bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded text-slate-600 dark:text-slate-300 no-print">{lista.length} Itens</span>
+    // --- COMPONENTE INTERNO DE TABELA COM DRILL-DOWN ---
+    const DrillDownTable = ({ rawData, hierarchy, title, icon: Icon }) => {
+        // hierarchy: Array de objetos [{ key: 'regional', label: 'Encarregado' }, ...]
+        const [path, setPath] = useState([]); // Armazena as seleções: ['JOAO', 'CIMENTO']
+
+        // 1. Filtrar dados com base no caminho atual
+        const filteredData = useMemo(() => {
+            return rawData.filter(item => {
+                return path.every((val, index) => item[hierarchy[index].key] === val);
+            });
+        }, [rawData, path, hierarchy]);
+
+        // 2. Agrupar dados para o nível atual
+        const currentLevelIndex = path.length;
+        const isLastLevel = currentLevelIndex >= hierarchy.length;
+        
+        const groupedData = useMemo(() => {
+            if (isLastLevel) return []; // Se chegou no fim, não agrupa mais (ou mostra lista final)
+
+            const currentKey = hierarchy[currentLevelIndex].key;
+            const groups = {};
+
+            filteredData.forEach(item => {
+                const keyVal = item[currentKey] || 'N/D';
+                if (!groups[keyVal]) {
+                    groups[keyVal] = { 
+                        name: keyVal, 
+                        caminhoes: 0, 
+                        ibcs: 0, 
+                        custo: 0,
+                        count: 0
+                    };
+                }
+                groups[keyVal].caminhoes += (Number(item.num_caminhoes) || 0);
+                groups[keyVal].ibcs += (Number(item.num_ibcs) || 0);
+                groups[keyVal].custo += (Number(item.custo_dif) || 0);
+                groups[keyVal].count += 1;
+            });
+
+            return Object.values(groups).sort((a, b) => a.custo - b.custo); // Ordena por custo (menor/negativo primeiro)
+        }, [filteredData, currentLevelIndex, hierarchy, isLastLevel]);
+
+        // 3. Calcular Totais da Visualização Atual
+        const totals = useMemo(() => {
+            return groupedData.reduce((acc, curr) => ({
+                caminhoes: acc.caminhoes + curr.caminhoes,
+                ibcs: acc.ibcs + curr.ibcs,
+                custo: acc.custo + curr.custo
+            }), { caminhoes: 0, ibcs: 0, custo: 0 });
+        }, [groupedData]);
+
+        // Navegação
+        const handleDrill = (name) => {
+            setPath([...path, name]);
+        };
+
+        const handleBack = () => {
+            setPath(path.slice(0, -1));
+        };
+
+        const handleReset = () => {
+            setPath([]);
+        };
+
+        if (isLastLevel) {
+            return (
+                <div className="flex flex-col items-center justify-center p-10 text-slate-500">
+                    <p>Fim do detalhamento.</p>
+                    <button onClick={handleBack} className="mt-2 text-blue-600 underline">Voltar</button>
                 </div>
+            );
+        }
+
+        const currentLabel = hierarchy[currentLevelIndex].label;
+
+        return (
+            <div className="glass-card overflow-hidden flex flex-col animate-enter">
+                {/* Header da Tabela */}
+                <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        {path.length > 0 && (
+                            <button onClick={handleBack} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors mr-1">
+                                <Icons.ArrowLeft width={16} />
+                            </button>
+                        )}
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
+                            {Icon && <Icon width={16} />} 
+                            {path.length === 0 ? title : (
+                                <span className="flex items-center gap-2">
+                                    <span className="opacity-50 cursor-pointer hover:underline" onClick={handleReset}>{title}</span>
+                                    {path.map((p, i) => (
+                                        <React.Fragment key={i}>
+                                            <Icons.ChevronRight width={12} className="opacity-40" />
+                                            <span className={i === path.length - 1 ? "font-bold text-blue-600 dark:text-blue-400" : "opacity-50 cursor-pointer hover:underline"}
+                                                  onClick={() => setPath(path.slice(0, i + 1))}>
+                                                {p}
+                                            </span>
+                                        </React.Fragment>
+                                    ))}
+                                </span>
+                            )}
+                        </h3>
+                    </div>
+                    <span className="text-xs font-bold bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded text-slate-600 dark:text-slate-300">
+                        Nível: {currentLabel}
+                    </span>
+                </div>
+
+                {/* Tabela */}
                 <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300">
                         <thead className="uppercase bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 font-bold text-slate-500">
                             <tr>
-                                <th className="px-3 py-2">Regional / Filial</th><th className="px-3 py-2">Produto</th><th className="px-3 py-2">Categoria</th><th className="px-3 py-2 text-right">Est. Inicial</th><th className="px-3 py-2 text-right text-green-600">(+) Ent</th><th className="px-3 py-2 text-right text-red-600">(-) Sai</th><th className="px-3 py-2 text-right bg-slate-50 dark:bg-slate-800">Final SAP</th><th className="px-3 py-2 text-right bg-blue-50 dark:bg-blue-900/10 font-bold text-blue-600">Final Real</th><th className="px-3 py-2 text-right">Diferença</th><th className="px-3 py-2 text-right">Custo Dif.</th>
+                                <th className="px-4 py-3">{currentLabel}</th>
+                                <th className="px-4 py-3 text-right">Nº Caminhões</th>
+                                <th className="px-4 py-3 text-right">Nº IBC's</th>
+                                <th className="px-4 py-3 text-right">Custo Total</th>
+                                <th className="px-4 py-3 text-center" width="50">Ação</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                            {lista.map((row, i) => (
-                                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                    <td className="px-3 py-2"><div className="font-bold">{row.regional}</div><div className="text-[10px] text-slate-400">{row.filial}</div></td>
-                                    <td className="px-3 py-2"><div className="truncate max-w-[150px]" title={row.descricao_material}>{row.cod_material} - {row.grupo_material}</div></td>
-                                    <td className="px-3 py-2 text-[10px]">{row.categoria}</td>
-                                    <td className="px-3 py-2 text-right">{fmtNum(row.est_inicial_sap)}</td>
-                                    <td className="px-3 py-2 text-right text-green-600">{fmtNum(row.entradas_sap)}</td>
-                                    <td className="px-3 py-2 text-right text-red-600">{fmtNum(row.saidas_sap)}</td>
-                                    <td className="px-3 py-2 text-right bg-slate-50 dark:bg-slate-800 font-mono">{fmtNum(row.est_final_sap)}</td>
-                                    <td className="px-3 py-2 text-right bg-blue-50 dark:bg-blue-900/10 font-bold text-blue-600 font-mono">{fmtNum(row.est_final_real)}</td>
-                                    <td className={`px-3 py-2 text-right font-bold ${row.dif_real_sap < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{row.dif_real_sap > 0 ? '+' : ''}{fmtNum(row.dif_real_sap)}</td>
-                                    <td className={`px-3 py-2 text-right font-mono ${Math.abs(row.custo_dif) > 1000 ? 'font-bold' : ''}`}>{fmtMoney(row.custo_dif)}</td>
+                            {groupedData.map((row, i) => (
+                                <tr key={i} onClick={() => handleDrill(row.name)} className="hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer group">
+                                    <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                        {row.name}
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(row.caminhoes)}</td>
+                                    <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(row.ibcs)}</td>
+                                    <td className={`px-4 py-3 text-right font-mono font-bold ${row.custo < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                        {fmtMoney(row.custo)}
+                                    </td>
+                                    <td className="px-4 py-3 text-center text-slate-300 group-hover:text-blue-500">
+                                        <Icons.ChevronRight width={14} />
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
+                        {/* Linha de Total Geral */}
+                        <tfoot className="bg-slate-50 dark:bg-slate-800 border-t-2 border-slate-200 dark:border-slate-600 font-bold text-slate-800 dark:text-white">
+                            <tr>
+                                <td className="px-4 py-3 uppercase text-xs tracking-wider">Total Geral</td>
+                                <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(totals.caminhoes)}</td>
+                                <td className="px-4 py-3 text-right font-mono">{Utils.math.roundVolume(totals.ibcs)}</td>
+                                <td className={`px-4 py-3 text-right font-mono ${totals.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(totals.custo)}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
+            </div>
+        );
+    };
+
+    // --- RENDERIZAÇÃO PRINCIPAL ---
+
+    return (
+        <div className="space-y-6 animate-enter pb-10 report-container">
+            {/* Header e Filtros */}
+            <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <Icons.LayoutDashboard className="text-purple-500" /> Visão Geral: Insumos
+                    </h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                        Controle de estoque físico x sistêmico e perdas.
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm">
+                        <span className="text-xs font-bold text-slate-500 uppercase"><Icons.Calendar width={14} className="inline mr-1"/> Período:</span>
+                        <input 
+                            type="month" 
+                            className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none"
+                            value={filters.periodo}
+                            onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))}
+                        />
+                    </div>
+                    <button 
+                        onClick={() => window.print()} 
+                        className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all"
+                    >
+                        <Icons.Download width={16} /> PDF
+                    </button>
+                </div>
+            </div>
+
+            {/* KPIs Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card 
+                    title="Custo Total (Diferença)" 
+                    value={fmtMoney(kpis.total_custo_dif)} 
+                    iconName="dollarSign" 
+                    color={kpis.total_custo_dif > 0 ? "red" : "emerald"}
+                    subtext="Impacto financeiro da quebra"
+                />
+                <Card 
+                    title="Diferença Total (Unid)" 
+                    value={fmtNum(kpis.total_dif_sap)} 
+                    iconName="activity" 
+                    color="blue"
+                    subtext="Real vs SAP Acumulado"
+                />
+                <Card 
+                    title="Equiv. Caminhões" 
+                    value={Utils.math.roundVolume(kpis.total_caminhoes)} 
+                    iconName="truck" 
+                    color="orange"
+                    subtext="Volume perdido/ganho"
+                />
+                <Card 
+                    title="Equiv. IBC's" 
+                    value={Utils.math.roundVolume(kpis.total_ibcs)} 
+                    iconName="box" 
+                    color="purple"
+                    subtext="Volume em contentores"
+                />
+            </div>
+
+            {/* Navegação de Abas */}
+            <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit no-print">
+                <button 
+                    onClick={() => setActiveTab('regiao_material')}
+                    className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'regiao_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                >
+                    Região + Material
+                </button>
+                <button 
+                    onClick={() => setActiveTab('material_regiao')}
+                    className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'material_regiao' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                >
+                    Material + Região
+                </button>
+                <button 
+                    onClick={() => setActiveTab('categoria_material')}
+                    className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'categoria_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                >
+                    Categoria + Material
+                </button>
+            </div>
+
+            {/* Renderização Condicional das Tabelas Drill-Down */}
+            <div className="min-h-[400px]">
+                {activeTab === 'regiao_material' && (
+                    <DrillDownTable 
+                        rawData={lista} 
+                        title="Classificação por Região"
+                        icon={Icons.Map || Icons.Target}
+                        hierarchy={[
+                            { key: 'regional', label: 'Encarregado / Regional' },
+                            { key: 'grupo_material', label: 'Grupo de Material' },
+                            { key: 'filial', label: 'Usina / Filial' }
+                        ]}
+                    />
+                )}
+
+                {activeTab === 'material_regiao' && (
+                    <DrillDownTable 
+                        rawData={lista} 
+                        title="Classificação por Material"
+                        icon={Icons.Box || Icons.Package}
+                        hierarchy={[
+                            { key: 'grupo_material', label: 'Grupo de Material' },
+                            { key: 'regional', label: 'Encarregado / Regional' },
+                            { key: 'filial', label: 'Usina / Filial' }
+                        ]}
+                    />
+                )}
+
+                {activeTab === 'categoria_material' && (
+                    <DrillDownTable 
+                        rawData={lista} 
+                        title="Classificação por Categoria"
+                        icon={Icons.ListFilter || Icons.Filter}
+                        hierarchy={[
+                            { key: 'categoria', label: 'Categoria' },
+                            { key: 'grupo_material', label: 'Grupo de Material' },
+                            { key: 'regional', label: 'Encarregado / Regional' }
+                        ]}
+                    />
+                )}
             </div>
         </div>
     );
@@ -5013,6 +5257,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
