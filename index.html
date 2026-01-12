@@ -1512,57 +1512,45 @@
     );
 };
        const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
-    // ESTADO: Aba padrão agora é 'analitica'
     const [activeTab, setActiveTab] = useState('analitica');
 
-    // --- HELPER: ÍCONE SEGURO ---
     const SafeIcon = ({ name, className, width, height }) => {
         const IconComponent = Icons[name] || Icons.Activity;
         return <IconComponent className={className} width={width || 16} height={height || 16} />;
     };
 
-    // --- PROCESSAMENTO DE DADOS (Agrupamento e Cálculos) ---
+    // --- PROCESSAMENTO DE DADOS ---
     const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, lista } = useMemo(() => {
         const rawList = data?.lista || [];
         
-        // 1. Dicionários para Agrupamento
-        const groups = {}; // Para tabela Analítica (Agrupado por Material)
-        const regionaisMap = {}; // Para Gráfico
-        const materiaisMap = {}; // Para Gráfico
+        const groups = {}; 
+        const regionaisMap = {};
+        const materiaisMap = {};
 
-        // Acumuladores Globais para os Cards de Fluxo
+        // Totais Globais
         let total_est_in = 0;
         let total_entradas = 0;
         let total_saidas = 0;
         let total_est_fin_sap = 0;
         let total_est_fin_real = 0;
-        
         let total_dif_qty = 0;
         let total_custo_dif = 0;
         let total_caminhoes = 0;
         let total_ibcs = 0;
 
-        // 2. Iteração Única sobre a Lista Bruta
         rawList.forEach(item => {
-            // --- CORREÇÃO AQUI: MAPEAMENTO EXATO COM AS COLUNAS DO SQL ---
             const est_in = Number(item.est_inicial_sap) || 0;
             const entradas = Number(item.entradas_sap) || 0;
             const saidas = Number(item.saidas_sap) || 0;
-            
             const est_fin_sap = Number(item.est_final_sap) || 0;
             const est_fin_real = Number(item.est_final_real) || 0;
-            
             const dif_qty = Number(item.dif_real_sap) || 0;
             const custo = Number(item.custo_dif) || 0;
-            
             const caminhoes = Number(item.num_caminhoes) || 0;
             const ibcs = Number(item.num_ibcs) || 0;
-            // -------------------------------------------------------------
 
-            // Chave de Agrupamento por Material
             const matKey = item.grupo_material || item.cod_material || 'Outros';
 
-            // Agrupamento Analítico
             if (!groups[matKey]) {
                 groups[matKey] = {
                     name: matKey,
@@ -1579,63 +1567,60 @@
             groups[matKey].dif_qty += dif_qty;
             groups[matKey].custo_dif += custo;
 
-            // Totais Globais (Diff Card e Flow Cards)
             total_dif_qty += dif_qty;
             total_custo_dif += custo;
             total_caminhoes += caminhoes;
             total_ibcs += ibcs;
 
-            // Dados para Gráficos
             const rKey = item.regional || 'N/D';
             regionaisMap[rKey] = (regionaisMap[rKey] || 0) + custo;
             materiaisMap[matKey] = (materiaisMap[matKey] || 0) + custo;
         });
 
-        // 3. Processamento da Tabela Analítica (Calculando Preços e Variações nos totais agrupados)
-        const processedAnalitica = Object.values(groups).map(g => {
-            // Lógica de Preço Unitário baseada no grupo: Custo Total / Diferença Total
-            // Evita divisão por zero
-            const unitPrice = g.dif_qty !== 0 ? (g.custo_dif / g.dif_qty) : 0;
+        // PROCESSAMENTO ANALÍTICO (Com Filtros e Correções)
+        const processedAnalitica = Object.values(groups)
+            .filter(g => {
+                // 1. FILTRO: Remove se Estoque Inicial E Final forem zero (pequena margem para float)
+                const isZeroInicial = Math.abs(g.est_in) < 0.01;
+                const isZeroFinal = Math.abs(g.est_fin_real) < 0.01;
+                // Mantém apenas se PELO MENOS UM deles for diferente de zero
+                return !(isZeroInicial && isZeroFinal);
+            })
+            .map(g => {
+                const unitPrice = g.dif_qty !== 0 ? (g.custo_dif / g.dif_qty) : 0;
 
-            // Variação %: Ajuste / (Total Entradas + Estoque Inicial)
-            const denominadorVar = g.entradas + g.est_in;
-            const variacaoPct = denominadorVar !== 0 ? (g.dif_qty / denominadorVar) : 0;
+                // 2. CORREÇÃO VARIAÇÃO: Se ajuste (dif_qty) for 0, variação é 0%.
+                let variacaoPct = 0;
+                if (Math.abs(g.dif_qty) > 0.001) {
+                    const denominadorVar = g.entradas + g.est_in;
+                    variacaoPct = denominadorVar !== 0 ? (g.dif_qty / denominadorVar) : 0;
+                }
 
-            // Custo Médio Ajustado: Custo Total / (Dif Qty + Est Final SAP)
-            const denominadorCustoAj = g.dif_qty + g.est_fin_sap; // Matematicamente igual a Est Final Real
-            const custoMedioAjustado = denominadorCustoAj !== 0 ? (g.custo_dif / denominadorCustoAj) : 0;
+                const denominadorCustoAj = g.dif_qty + g.est_fin_sap; 
+                const custoMedioAjustado = denominadorCustoAj !== 0 ? (g.custo_dif / denominadorCustoAj) : 0;
 
-            // Acumula para os Cards de Fluxo (Calculando R$ com base no preço unitário do item agrupado)
-            total_est_in += (g.est_in * unitPrice);
-            total_entradas += (g.entradas * unitPrice);
-            total_saidas += (g.saidas * unitPrice);
-            total_est_fin_sap += (g.est_fin_sap * unitPrice);
-            total_est_fin_real += (g.est_fin_real * unitPrice);
+                // Acumula Totais Financeiros (apenas dos itens visíveis)
+                total_est_in += (g.est_in * unitPrice);
+                total_entradas += (g.entradas * unitPrice);
+                total_saidas += (g.saidas * unitPrice);
+                total_est_fin_sap += (g.est_fin_sap * unitPrice);
+                total_est_fin_real += (g.est_fin_real * unitPrice);
 
-            return {
-                ...g,
-                unitPrice,
-                custoMedioAjustado,
-                variacaoPct
-            };
-        }).sort((a, b) => b.custo_dif - a.custo_dif); // Ordenar por custo descendente (maior prejuízo/lucro)
+                return { ...g, unitPrice, custoMedioAjustado, variacaoPct };
+            })
+            .sort((a, b) => b.custo_dif - a.custo_dif);
 
-        // 4. Totais para Cards de Fluxo (Calculados acima durante o map do analítico)
         const flow = {
             ini_qty: Object.values(groups).reduce((acc, curr) => acc + curr.est_in, 0),
             ini_val: total_est_in,
-            
             in_qty: Object.values(groups).reduce((acc, curr) => acc + curr.entradas, 0),
             in_val: total_entradas,
-            
             out_qty: Object.values(groups).reduce((acc, curr) => acc + curr.saidas, 0),
             out_val: total_saidas,
-            
             fin_qty: Object.values(groups).reduce((acc, curr) => acc + curr.est_fin_real, 0),
             fin_val: total_est_fin_real
         };
 
-        // 5. Formatação Gráficos
         const regionaisArr = Object.entries(regionaisMap)
             .map(([name, value]) => ({ name, value, abs: Math.abs(value) }))
             .sort((a, b) => b.abs - a.abs).slice(0, 10);
@@ -1647,12 +1632,7 @@
         return { 
             chartsData: { regionais: regionaisArr, materiais: materiaisArr },
             inventoryFlow: flow,
-            consolidatedDiff: {
-                qty: total_dif_qty,
-                custo: total_custo_dif,
-                caminhoes: total_caminhoes,
-                ibcs: total_ibcs
-            },
+            consolidatedDiff: { qty: total_dif_qty, custo: total_custo_dif, caminhoes: total_caminhoes, ibcs: total_ibcs },
             analiticaData: processedAnalitica,
             lista: rawList
         };
@@ -1660,12 +1640,10 @@
 
     if (loading) return <div className="p-10 text-center text-slate-400 animate-pulse">Carregando indicadores de insumos...</div>;
     
-    // Formatadores
     const fmtMoney = (v) => Utils.formatters.currency(v);
     const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 
-    // --- COMPONENTE: CARD FLUXO ---
     const FlowCard = ({ title, qty, val, iconName, color, isVar }) => (
         <div className="glass-card p-4 flex flex-col justify-between relative overflow-hidden print:border print:border-slate-300 print:shadow-none break-inside-avoid">
             <div className="flex justify-between items-start mb-2">
@@ -1688,45 +1666,46 @@
         </div>
     );
 
-    // --- COMPONENTE: TABELA ANALÍTICA (Sem Filial, Agrupada) ---
+    // --- 3. CORREÇÃO DE IMPRESSÃO (Tabela Analítica Compacta) ---
     const AnaliticaTable = () => (
-        <div className="glass-card flex flex-col print:shadow-none print:border print:border-slate-300 print:bg-white print:animate-none">
-            <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
+        <div className="glass-card flex flex-col print:shadow-none print:border print:border-slate-300 print:bg-white print:animate-none print:w-full">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center print:py-2">
                 <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
                     <SafeIcon name="Table" width={16} /> Detalhamento Analítico por Material (Consolidado)
                 </h3>
             </div>
-            <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300">
-                    <thead className="uppercase bg-slate-100 dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500">
+            <div className="overflow-x-auto print:overflow-visible">
+                {/* CSS: print:text-[9px] e print:leading-tight para caber tudo */}
+                <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print:text-[9px] print:leading-tight">
+                    <thead className="uppercase bg-slate-100 dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-slate-200 print:text-black">
                         <tr>
-                            <th className="px-3 py-2 min-w-[150px]">Material</th>
-                            <th className="px-2 py-2 text-right">Est. Inicial</th>
-                            <th className="px-2 py-2 text-right">Entradas</th>
-                            <th className="px-2 py-2 text-right">Saídas</th>
-                            <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50">Final (Teórico)</th>
-                            <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50">Final (Real)</th>
-                            <th className="px-2 py-2 text-right">Variação (%)</th>
-                            <th className="px-2 py-2 text-right">Custo Médio</th>
-                            <th className="px-2 py-2 text-right">Custo Médio (Aj.)</th>
+                            <th className="px-3 py-2 min-w-[150px] print:px-1 print:py-1 print:min-w-[100px]">Material</th>
+                            <th className="px-2 py-2 text-right print:px-1 print:py-1">Est. Ini</th>
+                            <th className="px-2 py-2 text-right print:px-1 print:py-1">Entradas</th>
+                            <th className="px-2 py-2 text-right print:px-1 print:py-1">Saídas</th>
+                            <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-transparent print:px-1 print:py-1">Final (T)</th>
+                            <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-transparent print:px-1 print:py-1">Final (R)</th>
+                            <th className="px-2 py-2 text-right print:px-1 print:py-1">Var (%)</th>
+                            <th className="px-2 py-2 text-right print:px-1 print:py-1">R$ Méd</th>
+                            <th className="px-2 py-2 text-right print:px-1 print:py-1">R$ Aj.</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-slate-300">
                         {analiticaData.map((row, i) => (
-                            <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                <td className="px-3 py-2 font-medium truncate max-w-[250px]" title={row.name}>
+                            <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 break-inside-avoid">
+                                <td className="px-3 py-2 font-medium truncate max-w-[250px] print:max-w-[120px] print:px-1 print:py-1 print:text-black" title={row.name}>
                                     {row.name}
                                 </td>
-                                <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_in)}</td>
-                                <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtNum(row.entradas)}</td>
-                                <td className="px-2 py-2 text-right font-mono text-red-500">{fmtNum(row.saidas)}</td>
-                                <td className="px-2 py-2 text-right font-mono font-bold">{fmtNum(row.est_fin_sap)}</td>
-                                <td className="px-2 py-2 text-right font-mono font-bold text-blue-600">{fmtNum(row.est_fin_real)}</td>
-                                <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-500' : 'text-slate-500'}`}>
+                                <td className="px-2 py-2 text-right font-mono print:px-1 print:py-1">{fmtNum(row.est_in)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-emerald-600 print:px-1 print:py-1 print:text-black">+{fmtNum(row.entradas)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-red-500 print:px-1 print:py-1 print:text-black">{fmtNum(row.saidas)}</td>
+                                <td className="px-2 py-2 text-right font-mono font-bold print:px-1 print:py-1">{fmtNum(row.est_fin_sap)}</td>
+                                <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print:px-1 print:py-1 print:text-black">{fmtNum(row.est_fin_real)}</td>
+                                <td className={`px-2 py-2 text-right font-bold print:px-1 print:py-1 ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-500 print:text-black' : 'text-slate-500 print:text-black'}`}>
                                     {fmtPerc(row.variacaoPct)}
                                 </td>
-                                <td className="px-2 py-2 text-right font-mono">{fmtMoney(row.unitPrice)}</td>
-                                <td className="px-2 py-2 text-right font-mono text-purple-600">{fmtMoney(row.custoMedioAjustado)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:px-1 print:py-1">{fmtMoney(row.unitPrice)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-purple-600 print:px-1 print:py-1 print:text-black">{fmtMoney(row.custoMedioAjustado)}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -1735,7 +1714,6 @@
         </div>
     );
 
-    // --- COMPONENTE DRILLDOWN ---
     const DrillDownTable = ({ rawData, hierarchy, title, iconName }) => {
         const [path, setPath] = useState([]);
         const filteredData = useMemo(() => rawData.filter(item => path.every((val, index) => item[hierarchy[index].key] === val)), [rawData, path, hierarchy]);
@@ -1750,7 +1728,6 @@
                 const keyVal = item[currentKey] || 'N/D';
                 if (!groups[keyVal]) groups[keyVal] = { name: keyVal, caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, sap_qty: 0, real_qty: 0 };
                 
-                // --- MAPEAMENTO TAMBÉM NAS SUB-TABELAS ---
                 groups[keyVal].caminhoes += (Number(item.num_caminhoes) || 0);
                 groups[keyVal].ibcs += (Number(item.num_ibcs) || 0);
                 groups[keyVal].custo += (Number(item.custo_dif) || 0);
@@ -1835,6 +1812,8 @@
                     .print-page-break { page-break-before: always; margin-top: 20px; }
                     * { scrollbar-width: none !important; box-shadow: none !important; }
                     ::-webkit-scrollbar { display: none !important; }
+                    /* Ajustes globais para tentar caber tudo */
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 }
             `}</style>
             
@@ -1908,7 +1887,6 @@
 
                 {/* 2. Gráficos */}
                 <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print:block">
-                    {/* Gráfico 1 */}
                     <div className="glass-card p-4 h-[300px] flex flex-col print:h-[250px] print:mb-4 print:shadow-none print:border print:border-slate-300 print:break-inside-avoid">
                         <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-2 flex items-center gap-2 uppercase print:text-black">
                             <SafeIcon name="BarChart2" width={14} className="text-purple-500" /> Top Ajustes (Região)
@@ -1927,7 +1905,6 @@
                         </div>
                     </div>
 
-                    {/* Gráfico 2 */}
                     <div className="glass-card p-4 h-[300px] flex flex-col print:h-[250px] print:shadow-none print:border print:border-slate-300 print:break-inside-avoid print:break-after-page">
                         <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-2 flex items-center gap-2 uppercase print:text-black">
                             <SafeIcon name="AlertCircle" width={14} className="text-orange-500" /> Top Ajustes (Material)
@@ -1948,7 +1925,7 @@
                 </div>
             </div>
 
-            {/* NAVEGAÇÃO DE ABAS - Reordenada */}
+            {/* NAVEGAÇÃO DE ABAS */}
             <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit no-print flex-wrap">
                 <button onClick={() => setActiveTab('analitica')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all uppercase flex items-center gap-1 ${activeTab === 'analitica' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 shadow-sm' : 'text-slate-500 hover:text-purple-600'}`}>
                     <SafeIcon name="Table" width={12} /> Analítica
@@ -1960,34 +1937,23 @@
                 ))}
             </div>
 
-            {/* ÁREA DAS TABELAS - Reordenada para Analítica ser a primeira */}
+            {/* ÁREA DAS TABELAS */}
             <div className="min-h-[400px]">
-                {/* 1. Analítica (Agrupada por Material, sem Filial) */}
                 <div className={`${activeTab === 'analitica' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
                     <AnaliticaTable />
                 </div>
-
-                {/* 2. Região + Material */}
                 <div className={`${activeTab === 'regiao_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
                     <DrillDownTable rawData={lista} title="Classificação por Região" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
-                
-                {/* 3. Material + Região */}
                 <div className={`${activeTab === 'material_regiao' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
                     <DrillDownTable rawData={lista} title="Classificação por Material" iconName="Box" hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
-                
-                {/* 4. Categoria + Material */}
                 <div className={`${activeTab === 'categoria_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
                     <DrillDownTable rawData={lista} title="Classificação por Categoria" iconName="ListFilter" hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
                 </div>
-
-                {/* 5. Regional + Usina */}
                 <div className={`${activeTab === 'regional_usina' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
                     <DrillDownTable rawData={lista} title="Regional + Usina" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
                 </div>
-
-                {/* 6. Usina + Material */}
                 <div className={`${activeTab === 'usina_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
                     <DrillDownTable rawData={lista} title="Usina + Material" iconName="Briefcase" hierarchy={[{ key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
                 </div>
@@ -5488,6 +5454,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
