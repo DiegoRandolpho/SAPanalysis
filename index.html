@@ -1455,31 +1455,7 @@
         </div>
     );
 };
-        const InsumosImport = ({ onImport, loading }) => {
-    const [date, setDate] = useState('');
-    return (
-        <div className="max-w-2xl mx-auto glass-card p-8 animate-enter">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                <Icons.Upload className="text-purple-500" /> Importação de Insumos
-            </h3>
-            <div className="space-y-6">
-                <div className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-lg border border-purple-100 dark:border-purple-800/30 text-xs text-purple-800 dark:text-purple-300">
-                    <strong>Colunas esperadas:</strong> REGIONAL | FILIAL | CÓD | GRUPO MATERIAL | CATEGORIA | EST. IN. SAP | + SAP | - SAP | EST. FIN. SAP | EST. FIN. REAL | DIF REAL X SAP | CUSTO | Nº CAMINHÕES | Nº IBC'S
-                </div>
-                <MonthPicker label="Mês de Referência" value={date} onChange={setDate} />
-                <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group cursor-pointer relative">
-                    <input type="file" accept=".xlsx, .csv" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled={loading || !date} onChange={(e) => { if(e.target.files[0]) onImport(e.target.files[0], date); e.target.value = null; }} />
-                    <div className={`flex flex-col items-center ${!date ? 'opacity-50' : ''}`}>
-                        <div className="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 p-4 rounded-full mb-3 group-hover:scale-110 transition-transform"><Icons.FileText width={32} height={32} /></div>
-                        <span className="font-bold text-slate-700 dark:text-slate-300">{loading ? 'Processando...' : 'Selecionar Arquivo Excel'}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
+       const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     // Estados
     const [activeTab, setActiveTab] = useState('regiao_material');
 
@@ -1707,7 +1683,86 @@ const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm">
                         <span className="text-xs font-bold text-slate-500 uppercase"><Icons.Calendar width={14} className="inline mr-1"/> Período:</span>
-                        <input type="month" className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev
+                        <input type="month" className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} />
+                    </div>
+                    <button onClick={() => window.print()} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all"><Icons.Download width={16} /> PDF</button>
+                </div>
+            </div>
+
+            {/* KPIs */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 print:grid-cols-2 print:gap-4">
+                <KpiCard title="Custo Total" value={fmtMoney(kpis.total_custo_dif)} iconName="DollarSign" color={kpis.total_custo_dif > 0 ? "red" : "emerald"} subtext="Impacto financeiro" />
+                <KpiCard title="Diferença Total" value={fmtNum(kpis.total_dif_sap)} iconName="Activity" color="blue" subtext="Real vs SAP" />
+                <KpiCard title="Equiv. Caminhões" value={Utils.math.roundVolume(kpis.total_caminhoes)} iconName="Truck" color="orange" subtext="Volume (Caminhões)" />
+                <KpiCard title="Equiv. IBC's" value={Utils.math.roundVolume(kpis.total_ibcs)} iconName="Box" color="purple" subtext="Volume (IBCs)" />
+            </div>
+
+            {/* GRÁFICOS */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:block print:space-y-6">
+                <div className="glass-card p-5 h-[400px] flex flex-col print:h-[300px] print:shadow-none print:border print:border-slate-300 print:break-inside-avoid print:mb-4">
+                    <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm mb-4 border-b pb-2 flex items-center gap-2 print:text-black">
+                        <Icons.BarChart2 width={16} className="text-purple-500" /> Top 10 Maiores Ajustes
+                    </h3>
+                    <div className="flex-1 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartsData.regionais} layout="vertical" margin={{top: 5, right: 30, left: 40, bottom: 5}}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" opacity={0.2} />
+                                <XAxis type="number" tick={{fontSize: 10, fill: 'black'}} tickFormatter={(v) => `R$ ${v/1000}k`} />
+                                <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} />
+                                <Bar dataKey="abs" name="Impacto Absoluto" radius={[0, 4, 4, 0]} barSize={20}>
+                                    {chartsData.regionais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} fillOpacity={1} /> ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                <div className="glass-card p-5 h-[400px] flex flex-col print:h-[300px] print:shadow-none print:border print:border-slate-300 print:break-inside-avoid print:mb-8 print:break-after-page">
+                    <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm mb-4 border-b pb-2 flex items-center gap-2 print:text-black">
+                        <Icons.AlertCircle width={16} className="text-orange-500" /> Top 10 Materiais
+                    </h3>
+                    <div className="flex-1 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartsData.materiais} layout="vertical" margin={{top: 5, right: 30, left: 40, bottom: 5}}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" opacity={0.2} />
+                                <XAxis type="number" tick={{fontSize: 10, fill: 'black'}} tickFormatter={(v) => `R$ ${v/1000}k`} />
+                                <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 9, fontWeight: 'bold', fill: 'black'}} />
+                                <Bar dataKey="abs" name="Impacto Absoluto" radius={[0, 4, 4, 0]} barSize={20}>
+                                    {chartsData.materiais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} fillOpacity={1} /> ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+
+            {/* NAVEGAÇÃO (TELA) */}
+            <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit no-print">
+                <button onClick={() => setActiveTab('regiao_material')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'regiao_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Região + Material</button>
+                <button onClick={() => setActiveTab('material_regiao')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'material_regiao' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Material + Região</button>
+                <button onClick={() => setActiveTab('categoria_material')} className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'categoria_material' ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Categoria + Material</button>
+            </div>
+
+            {/* TABELAS */}
+            <div className="min-h-[400px]">
+                {/* 1. Região + Material */}
+                <div className={`${activeTab === 'regiao_material' ? '' : 'hide-on-screen'} print-force-visible`}>
+                    <DrillDownTable rawData={lista} title="Classificação por Região" icon={Icons.Target} hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
+                </div>
+                
+                {/* 2. Material + Região (Com quebra) */}
+                <div className={`${activeTab === 'material_regiao' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
+                    <DrillDownTable rawData={lista} title="Classificação por Material" icon={Icons.Box} hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
+                </div>
+                
+                {/* 3. Categoria + Material (Com quebra) */}
+                <div className={`${activeTab === 'categoria_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
+                    <DrillDownTable rawData={lista} title="Classificação por Categoria" icon={Icons.ListFilter} hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
+                </div>
+            </div>
+        </div>
+    );
+};
         const Sidebar = ({ isSidebarOpen, toggleSidebar, toggleModule, expandedModules, userRole, setView, view, subView, handleLogout, session }) => {
     // ÍCONES BLINDADOS
     const IconHome = Icons.Home || Icons.Layout || Icons.FileText;
@@ -5201,6 +5256,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
