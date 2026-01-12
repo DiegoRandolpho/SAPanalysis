@@ -1649,7 +1649,6 @@
     const StandardTable = ({ children, title, iconName }) => (
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-table-container overflow-hidden break-inside-avoid w-full">
             <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print-header">
-                {/* FORÇANDO TEXTO PRETO NO TÍTULO */}
                 <h3 className="font-black text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 uppercase tracking-wide print:text-black">
                     <SafeIcon name={iconName} width={16} className="text-purple-600 print:text-black" /> {title}
                 </h3>
@@ -1659,6 +1658,76 @@
             </div>
         </div>
     );
+
+    // --- NOVA TABELA ANALÍTICA COM RODAPÉ DE TOTAL ---
+    const AnaliticaTable = () => {
+        // Cálculo dos Totais da Tabela
+        const totals = useMemo(() => {
+            return analiticaData.reduce((acc, row) => ({
+                est_in: acc.est_in + row.est_in,
+                entradas: acc.entradas + row.entradas,
+                saidas: acc.saidas + row.saidas,
+                est_fin_sap: acc.est_fin_sap + row.est_fin_sap,
+                est_fin_real: acc.est_fin_real + row.est_fin_real,
+                dif_qty: acc.dif_qty + row.dif_qty,
+                custo_dif: acc.custo_dif + row.custo_dif
+            }), { est_in: 0, entradas: 0, saidas: 0, est_fin_sap: 0, est_fin_real: 0, dif_qty: 0, custo_dif: 0 });
+        }, []);
+
+        // Cálculo de Médias Ponderadas para o Rodapé
+        const totalVarPct = (totals.entradas + totals.est_in) === 0 ? 0 : totals.dif_qty / (totals.entradas + totals.est_in);
+        const totalUnitPrice = totals.dif_qty !== 0 ? totals.custo_dif / totals.dif_qty : 0;
+        const totalAdjPrice = (totals.dif_qty + totals.est_fin_sap) !== 0 ? totals.custo_dif / (totals.dif_qty + totals.est_fin_sap) : 0;
+
+        return (
+            <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
+                <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
+                    <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
+                        <tr>
+                            <th className="px-3 py-2 min-w-[150px] print:border print:border-black">Material</th>
+                            <th className="px-2 py-2 text-right print:border print:border-black">Est. Ini</th>
+                            <th className="px-2 py-2 text-right print:border print:border-black">Entradas</th>
+                            <th className="px-2 py-2 text-right print:border print:border-black">Saídas</th>
+                            <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black">Final (T)</th>
+                            <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black">Final (R)</th>
+                            <th className="px-2 py-2 text-right print:border print:border-black">Var (%)</th>
+                            <th className="px-2 py-2 text-right print:border print:border-black">R$ Méd</th>
+                            <th className="px-2 py-2 text-right print:border print:border-black">R$ Aj.</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
+                        {analiticaData.map((row, i) => (
+                            <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
+                                <td className="px-3 py-2 font-medium truncate max-w-[250px] text-slate-700 dark:text-white print:text-black print:border print:border-black" title={row.name}>{row.name}</td>
+                                <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black">{fmtNum(row.est_in)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black">+{fmtNum(row.entradas)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black">{fmtNum(row.saidas)}</td>
+                                <td className="px-2 py-2 text-right font-mono font-bold text-slate-500 print:text-black print:border print:border-black">{fmtNum(row.est_fin_sap)}</td>
+                                <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print-color-force print:border print:border-black">{fmtNum(row.est_fin_real)}</td>
+                                <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print-color-force print:border print:border-black`}>{fmtPerc(row.variacaoPct)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-slate-500 print:text-black print:border print:border-black">{fmtMoney(row.unitPrice)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-purple-600 font-bold print-color-force print:border print:border-black">{fmtMoney(row.custoMedioAjustado)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                    {/* RODAPÉ COM TOTAIS */}
+                    <tfoot className="bg-slate-100 dark:bg-slate-900 border-t-2 border-slate-300 font-black text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
+                        <tr>
+                            <td className="px-3 py-2 uppercase text-xs print:border print:border-black">TOTAL GERAL</td>
+                            <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(totals.est_in)}</td>
+                            <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black">+{fmtNum(totals.entradas)}</td>
+                            <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black">{fmtNum(totals.saidas)}</td>
+                            <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(totals.est_fin_sap)}</td>
+                            <td className="px-2 py-2 text-right font-mono text-blue-600 print-color-force print:border print:border-black">{fmtNum(totals.est_fin_real)}</td>
+                            <td className={`px-2 py-2 text-right font-mono ${Math.abs(totalVarPct) > 0.05 ? 'text-red-600' : 'text-slate-600'} print-color-force print:border print:border-black`}>{fmtPerc(totalVarPct)}</td>
+                            <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtMoney(totalUnitPrice)}</td>
+                            <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtMoney(totalAdjPrice)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </StandardTable>
+        );
+    };
 
     const DrillDownTable = ({ rawData, hierarchy, title, iconName }) => {
         const [path, setPath] = useState([]);
@@ -1700,7 +1769,6 @@
                     </div>
                 )}
                 <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
-                    {/* CABEÇALHO TABELA PRETO */}
                     <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
                         <tr>
                             <th className="px-4 py-2 print:border print:border-black print:text-black">{currentLabel}</th>
@@ -1713,7 +1781,7 @@
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
                         {groupedData.map((row, i) => (
-                            <tr key={i} onClick={() => handleDrill(row.name)} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-slate-50">
+                            <tr key={i} onClick={() => handleDrill(row.name)} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
                                 <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print:text-black print:border print:border-black">{row.name}</td>
                                 <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black">{Utils.math.roundVolume(row.caminhoes)}</td>
                                 <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black">{Utils.math.roundVolume(row.ibcs)}</td>
@@ -1744,47 +1812,33 @@
                 @media print {
                     @page { margin: 0.5cm; size: A4; }
                     
-                    /* RESET ABSOLUTO: FUNDO BRANCO E TEXTO PRETO */
+                    /* RESET GERAL */
                     body, #root, main, .report-container {
                         background-color: white !important;
-                        background-image: none !important;
-                        color: black !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
 
-                    /* REMOVE FUNDOS ESCUROS E SOMBRAS */
-                    .glass-card, .bg-white, .dark\\:bg-slate-800, .bg-gradient-to-br, .bg-slate-50, .dark\\:bg-slate-900 {
-                        background: white !important;
-                        background-image: none !important;
-                        box-shadow: none !important;
-                        border-radius: 4px !important;
-                    }
-
-                    /* CARDS: Bordas pretas finas */
-                    .print-card, .print-table-container {
-                        border: 1px solid #000 !important;
-                    }
-
-                    /* TEXTOS: Forçar Preto nos títulos */
-                    h1, h2, h3, h4, th, .text-slate-500, .text-slate-700, .text-slate-600 {
-                        color: black !important;
-                        text-shadow: none !important;
-                    }
-
-                    /* CORES DE DESTAQUE: Permitir Vermelho/Verde/Roxo */
+                    /* ESTILOS DE COR FORÇADOS */
                     .text-red-500, .text-red-600 { color: #dc2626 !important; }
                     .text-emerald-500, .text-emerald-600 { color: #059669 !important; }
                     .text-purple-600, .text-purple-700 { color: #7c3aed !important; }
                     .print-color-force { -webkit-print-color-adjust: exact; }
 
-                    /* LAYOUT DE GRIDS */
+                    /* CARDS */
+                    .print-card {
+                        background-color: #f8fafc !important;
+                        border: 1px solid #cbd5e1 !important;
+                        box-shadow: none !important;
+                        color: black !important;
+                    }
+
+                    /* GRIDS */
                     .print-grid-cols-3 { 
                         display: grid !important;
                         grid-template-columns: repeat(3, 1fr) !important;
                         gap: 10px !important;
                     }
-
                     .print-grid-charts {
                         display: grid !important;
                         grid-template-columns: 1fr 1fr !important;
@@ -1793,22 +1847,28 @@
                         break-inside: avoid;
                     }
 
-                    /* TABELAS */
-                    /* Cabeçalho branco com borda preta */
-                    .print-header { background-color: white !important; border-bottom: 2px solid black !important; }
-                    th { background-color: white !important; color: black !important; border: 1px solid black !important; }
-                    td { border: 1px solid black !important; color: black !important; }
-                    
-                    /* Zebrado muito suave em cinza claro, se necessário, ou branco */
-                    tr:nth-child(even) { background-color: #fcfcfc !important; }
+                    /* PÁGINAS */
+                    .print-page-1-container {
+                        display: block;
+                        height: auto !important;
+                        margin-bottom: 20px;
+                    }
+                    .print-page-break { 
+                        page-break-before: always; 
+                        margin-top: 20px; 
+                        display: block !important;
+                    }
 
-                    /* PAGINAÇÃO */
-                    .print-page-1-container { display: block; margin-bottom: 20px; }
-                    .print-page-break { page-break-before: always; margin-top: 20px; display: block !important; }
+                    /* VISIBILIDADE */
                     .print-force-visible { display: block !important; }
                     .hide-on-screen { display: none; }
                     .no-print { display: none !important; }
 
+                    /* TABELAS */
+                    .print-header { background-color: white !important; border-bottom: 2px solid black !important; color: black !important; }
+                    th { background-color: white !important; color: black !important; border: 1px solid black !important; }
+                    td { border: 1px solid black !important; color: black !important; }
+                    
                     /* GRÁFICOS */
                     .recharts-wrapper { width: 100% !important; height: 100% !important; }
                 }
@@ -1893,7 +1953,7 @@
                     <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print-grid-charts">
                         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
                             <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print:text-black print:mb-1">
-                                <SafeIcon name="BarChart2" width={14} className="text-purple-500 print:text-black" /> Top Ajustes (Região)
+                                <SafeIcon name="BarChart2" width={14} className="text-purple-500 print:text-purple-700" /> Top Ajustes (Região)
                             </h3>
                             <div className="flex-1 w-full min-h-0">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -1901,7 +1961,7 @@
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                                         <XAxis type="number" tick={{fontSize: 9, fill: 'black'}} tickFormatter={(v) => `R$${v/1000}k`} />
                                         <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} interval={0} />
-                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
+                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={20}>
                                             {chartsData.regionais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
                                         </Bar>
                                     </BarChart>
@@ -1910,7 +1970,7 @@
                         </div>
                         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
                             <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print:text-black print:mb-1">
-                                <SafeIcon name="AlertCircle" width={14} className="text-orange-500 print:text-black" /> Top Ajustes (Material)
+                                <SafeIcon name="AlertCircle" width={14} className="text-orange-500 print:text-orange-600" /> Top Ajustes (Material)
                             </h3>
                             <div className="flex-1 w-full min-h-0">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -1918,7 +1978,7 @@
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                                         <XAxis type="number" tick={{fontSize: 9, fill: 'black'}} tickFormatter={(v) => `R$${v/1000}k`} />
                                         <YAxis dataKey="name" type="category" width={110} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} interval={0} />
-                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
+                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={20}>
                                             {chartsData.materiais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
                                         </Bar>
                                     </BarChart>
@@ -1945,38 +2005,7 @@
             <div className="min-h-[400px]">
                 {/* 1. Analítica (Quebra de Página ANTES) */}
                 <div className={`${activeTab === 'analitica' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
-                        <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
-                            <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
-                                <tr>
-                                    <th className="px-3 py-2 min-w-[150px] print:border print:border-black">Material</th>
-                                    <th className="px-2 py-2 text-right print:border print:border-black">Est. Ini</th>
-                                    <th className="px-2 py-2 text-right print:border print:border-black">Entradas</th>
-                                    <th className="px-2 py-2 text-right print:border print:border-black">Saídas</th>
-                                    <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black">Final (T)</th>
-                                    <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black">Final (R)</th>
-                                    <th className="px-2 py-2 text-right print:border print:border-black">Var (%)</th>
-                                    <th className="px-2 py-2 text-right print:border print:border-black">R$ Méd</th>
-                                    <th className="px-2 py-2 text-right print:border print:border-black">R$ Aj.</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
-                                {analiticaData.map((row, i) => (
-                                    <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
-                                        <td className="px-3 py-2 font-medium truncate max-w-[250px] text-slate-700 dark:text-white print:text-black print:border print:border-black" title={row.name}>{row.name}</td>
-                                        <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black">{fmtNum(row.est_in)}</td>
-                                        <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black">+{fmtNum(row.entradas)}</td>
-                                        <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black">{fmtNum(row.saidas)}</td>
-                                        <td className="px-2 py-2 text-right font-mono font-bold text-slate-500 print:text-black print:border print:border-black">{fmtNum(row.est_fin_sap)}</td>
-                                        <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print-color-force print:border print:border-black">{fmtNum(row.est_fin_real)}</td>
-                                        <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print-color-force print:border print:border-black`}>{fmtPerc(row.variacaoPct)}</td>
-                                        <td className="px-2 py-2 text-right font-mono text-slate-500 print:text-black print:border print:border-black">{fmtMoney(row.unitPrice)}</td>
-                                        <td className="px-2 py-2 text-right font-mono text-purple-600 font-bold print-color-force print:border print:border-black">{fmtMoney(row.custoMedioAjustado)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </StandardTable>
+                    <AnaliticaTable />
                 </div>
 
                 {/* Demais Tabelas */}
@@ -5492,6 +5521,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
