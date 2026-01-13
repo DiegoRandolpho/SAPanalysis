@@ -52,63 +52,73 @@
         .content-transition { transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .picker-popover { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
         /* --- CSS DE IMPRESSÃO (MODO RETRATO / PORTRAIT) --- */
+/* --- CSS DE IMPRESSÃO (CORREÇÃO DE CORTE DE PÁGINA) --- */
 @media print {
     @page { 
-        size: landscape; /* Força orientação paisagem para caber mais colunas */
+        size: portrait; 
         margin: 5mm; 
     }
-
-    /* 1. DESTRAVAR A ALTURA (CRUCIAL PARA CORRIGIR O CORTE) */
-    html, body, #root, main, .h-screen, .overflow-y-auto, .flex-1, .content-transition {
+    
+    /* 1. DESTRAVAR ALTURA: Essencial para imprimir múltiplas páginas */
+    html, body, #root, main, .h-screen, .min-h-screen, .overflow-y-auto, .flex-1 {
         height: auto !important;
         min-height: 0 !important;
-        width: 100% !important;
         overflow: visible !important;
-        display: block !important;
-        position: static !important;
+        display: block !important; /* Remove comportamento flex que pode travar altura */
+    }
+
+    /* 2. OCULTAR UI */
+    nav, header, aside, .sidebar, .filters-area, .status-log, button, .no-print, .fixed { 
+        display: none !important; 
+    }
+
+    /* 3. LAYOUT DO RELATÓRIO */
+    .report-container {
+        width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
-    }
-
-    /* 2. LIMPEZA VISUAL (REMOVE DARK MODE E FUNDOS ESCUROS) */
-    * {
-        background-color: transparent !important;
+        background: white !important;
         color: black !important;
+    }
+
+    /* Remove margens laterais da sidebar */
+    .ml-64, .ml-20 { margin-left: 0 !important; }
+
+    /* Estilo dos Cards e Elementos */
+    .glass-card {
+        background: #ffffff !important;
+        border: 1px solid #000000 !important;
         box-shadow: none !important;
-        text-shadow: none !important;
-        border-color: #000 !important; /* Bordas pretas para contraste */
+        border-radius: 4px !important;
+        margin-bottom: 10px !important;
+        page-break-inside: avoid; /* Tenta não quebrar cards ao meio */
     }
 
-    /* Reativa fundo branco apenas nos cards e tabelas para leitura */
-    .report-container, .glass-card, table, tr, td, th, .print-table-container {
-        background-color: white !important;
-    }
-
-    /* 3. ESCONDER ELEMENTOS DE NAVEGAÇÃO */
-    nav, aside, header, .sidebar, button, .no-print, .fixed, .z-40, .z-50 {
-        display: none !important;
-    }
-
-    /* 4. CONFIGURAÇÃO DE TABELAS (EVITA QUEBRA NO MEIO DA LINHA) */
-    table {
-        width: 100% !important;
-        border-collapse: collapse !important;
-        font-size: 9px !important; /* Fonte menor para caber tudo */
-    }
-
-    thead { display: table-header-group !important; } /* Repete cabeçalho em cada página */
-    tfoot { display: table-footer-group !important; }
-    tr { page-break-inside: avoid !important; } /* Não corta linhas ao meio */
-    
-    td, th {
-        border: 1px solid #666 !important;
-        padding: 4px !important;
+    /* 4. CONFIGURAÇÃO DA TABELA (PRINCIPAL) */
+    table { 
+        width: 100% !important; 
+        border-collapse: collapse !important; 
+        font-size: 9px !important; 
     }
     
-    /* Forçar visualização de abas ocultas se necessário */
-    .hide-on-screen {
-        display: block !important;
+    /* Faz o cabeçalho da tabela repetir em cada nova página */
+    thead { display: table-header-group !important; }
+    
+    /* Evita que uma linha da tabela seja cortada ao meio */
+    tr { page-break-inside: avoid !important; }
+    
+    th, td {
+        border: 1px solid #000000 !important;
+        padding: 3px !important;
+        color: black !important;
     }
+    th { background-color: #e5e7eb !important; font-weight: bold !important; }
+
+    /* Gráficos */
+    .recharts-wrapper { width: 100% !important; }
+    
+    /* Forçar quebra de página antes da tabela se necessário (opcional) */
+    /* .break-before { page-break-before: always; } */
 }
     </style>
 </head>
@@ -783,7 +793,7 @@
                         </div>
                     </div>
                     <div className="overflow-x-auto custom-scrollbar">
-                        <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content border-collapse">
+                        <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300">
                             <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
                                 <tr>
                                     {headers.map(h => (
@@ -1636,90 +1646,19 @@
         </div>
     );
 
-   const StandardTable = ({ children, title, iconName }) => (
-        // CORREÇÃO: Removido 'break-inside-avoid', adicionado 'print:overflow-visible' e 'print:block'
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-table-container overflow-hidden print:overflow-visible print:block w-full print:border-0 print:shadow-none">
-            <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print-header print:bg-white print:border-black print:border-b-2">
+    const StandardTable = ({ children, title, iconName }) => (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-table-container overflow-hidden break-inside-avoid w-full">
+            <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print-header">
+                {/* FORÇANDO TEXTO PRETO NO TÍTULO */}
                 <h3 className="font-black text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 uppercase tracking-wide print:text-black">
                     <SafeIcon name={iconName} width={16} className="text-purple-600 print:text-black" /> {title}
                 </h3>
             </div>
-            {/* CORREÇÃO: overflow-visible na impressão para permitir rolagem de página */}
             <div className="overflow-x-auto print:overflow-visible w-full">
                 {children}
             </div>
         </div>
     );
-
-    // --- NOVA TABELA ANALÍTICA COM RODAPÉ DE TOTAL ---
-    const AnaliticaTable = () => {
-        // Cálculo dos Totais da Tabela
-        const totals = useMemo(() => {
-            return analiticaData.reduce((acc, row) => ({
-                est_in: acc.est_in + row.est_in,
-                entradas: acc.entradas + row.entradas,
-                saidas: acc.saidas + row.saidas,
-                est_fin_sap: acc.est_fin_sap + row.est_fin_sap,
-                est_fin_real: acc.est_fin_real + row.est_fin_real,
-                dif_qty: acc.dif_qty + row.dif_qty,
-                custo_dif: acc.custo_dif + row.custo_dif
-            }), { est_in: 0, entradas: 0, saidas: 0, est_fin_sap: 0, est_fin_real: 0, dif_qty: 0, custo_dif: 0 });
-        }, []);
-
-        // Cálculo de Médias Ponderadas para o Rodapé
-        const totalVarPct = (totals.entradas + totals.est_in) === 0 ? 0 : totals.dif_qty / (totals.entradas + totals.est_in);
-        const totalUnitPrice = totals.dif_qty !== 0 ? totals.custo_dif / totals.dif_qty : 0;
-        const totalAdjPrice = (totals.dif_qty + totals.est_fin_sap) !== 0 ? totals.custo_dif / (totals.dif_qty + totals.est_fin_sap) : 0;
-
-        return (
-            <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
-                <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
-                    <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
-                        <tr>
-                            <th className="px-3 py-2 min-w-[150px] print:border print:border-black">Material</th>
-                            <th className="px-2 py-2 text-right print:border print:border-black">Est. Ini</th>
-                            <th className="px-2 py-2 text-right print:border print:border-black">Entradas</th>
-                            <th className="px-2 py-2 text-right print:border print:border-black">Saídas</th>
-                            <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black">Final (T)</th>
-                            <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black">Final (R)</th>
-                            <th className="px-2 py-2 text-right print:border print:border-black">Var (%)</th>
-                            <th className="px-2 py-2 text-right print:border print:border-black">R$ Méd</th>
-                            <th className="px-2 py-2 text-right print:border print:border-black">R$ Aj.</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
-                        {analiticaData.map((row, i) => (
-                            <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
-                                <td className="px-3 py-2 font-medium truncate max-w-[250px] text-slate-700 dark:text-white print:text-black print:border print:border-black" title={row.name}>{row.name}</td>
-                                <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black">{fmtNum(row.est_in)}</td>
-                                <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black">+{fmtNum(row.entradas)}</td>
-                                <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black">{fmtNum(row.saidas)}</td>
-                                <td className="px-2 py-2 text-right font-mono font-bold text-slate-500 print:text-black print:border print:border-black">{fmtNum(row.est_fin_sap)}</td>
-                                <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print-color-force print:border print:border-black">{fmtNum(row.est_fin_real)}</td>
-                                <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print-color-force print:border print:border-black`}>{fmtPerc(row.variacaoPct)}</td>
-                                <td className="px-2 py-2 text-right font-mono text-slate-500 print:text-black print:border print:border-black">{fmtMoney(row.unitPrice)}</td>
-                                <td className="px-2 py-2 text-right font-mono text-purple-600 font-bold print-color-force print:border print:border-black">{fmtMoney(row.custoMedioAjustado)}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                    {/* RODAPÉ COM TOTAIS */}
-                    <tfoot className="bg-slate-100 dark:bg-slate-900 border-t-2 border-slate-300 font-black text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
-                        <tr>
-                            <td className="px-3 py-2 uppercase text-xs print:border print:border-black">TOTAL GERAL</td>
-                            <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(totals.est_in)}</td>
-                            <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black">+{fmtNum(totals.entradas)}</td>
-                            <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black">{fmtNum(totals.saidas)}</td>
-                            <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(totals.est_fin_sap)}</td>
-                            <td className="px-2 py-2 text-right font-mono text-blue-600 print-color-force print:border print:border-black">{fmtNum(totals.est_fin_real)}</td>
-                            <td className={`px-2 py-2 text-right font-mono ${Math.abs(totalVarPct) > 0.05 ? 'text-red-600' : 'text-slate-600'} print-color-force print:border print:border-black`}>{fmtPerc(totalVarPct)}</td>
-                            <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtMoney(totalUnitPrice)}</td>
-                            <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtMoney(totalAdjPrice)}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </StandardTable>
-        );
-    };
 
     const DrillDownTable = ({ rawData, hierarchy, title, iconName }) => {
         const [path, setPath] = useState([]);
@@ -1761,6 +1700,7 @@
                     </div>
                 )}
                 <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
+                    {/* CABEÇALHO TABELA PRETO */}
                     <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
                         <tr>
                             <th className="px-4 py-2 print:border print:border-black print:text-black">{currentLabel}</th>
@@ -1773,7 +1713,7 @@
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
                         {groupedData.map((row, i) => (
-                            <tr key={i} onClick={() => handleDrill(row.name)} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
+                            <tr key={i} onClick={() => handleDrill(row.name)} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-slate-50">
                                 <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print:text-black print:border print:border-black">{row.name}</td>
                                 <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black">{Utils.math.roundVolume(row.caminhoes)}</td>
                                 <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black">{Utils.math.roundVolume(row.ibcs)}</td>
@@ -1800,6 +1740,81 @@
 
     return (
         <div className="space-y-6 pb-10 report-container">
+            <style>{`
+                @media print {
+                    @page { margin: 0.5cm; size: A4; }
+                    
+                    /* RESET ABSOLUTO: FUNDO BRANCO E TEXTO PRETO */
+                    body, #root, main, .report-container {
+                        background-color: white !important;
+                        background-image: none !important;
+                        color: black !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+
+                    /* REMOVE FUNDOS ESCUROS E SOMBRAS */
+                    .glass-card, .bg-white, .dark\\:bg-slate-800, .bg-gradient-to-br, .bg-slate-50, .dark\\:bg-slate-900 {
+                        background: white !important;
+                        background-image: none !important;
+                        box-shadow: none !important;
+                        border-radius: 4px !important;
+                    }
+
+                    /* CARDS: Bordas pretas finas */
+                    .print-card, .print-table-container {
+                        border: 1px solid #000 !important;
+                    }
+
+                    /* TEXTOS: Forçar Preto nos títulos */
+                    h1, h2, h3, h4, th, .text-slate-500, .text-slate-700, .text-slate-600 {
+                        color: black !important;
+                        text-shadow: none !important;
+                    }
+
+                    /* CORES DE DESTAQUE: Permitir Vermelho/Verde/Roxo */
+                    .text-red-500, .text-red-600 { color: #dc2626 !important; }
+                    .text-emerald-500, .text-emerald-600 { color: #059669 !important; }
+                    .text-purple-600, .text-purple-700 { color: #7c3aed !important; }
+                    .print-color-force { -webkit-print-color-adjust: exact; }
+
+                    /* LAYOUT DE GRIDS */
+                    .print-grid-cols-3 { 
+                        display: grid !important;
+                        grid-template-columns: repeat(3, 1fr) !important;
+                        gap: 10px !important;
+                    }
+
+                    .print-grid-charts {
+                        display: grid !important;
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 10px !important;
+                        height: 220px !important;
+                        break-inside: avoid;
+                    }
+
+                    /* TABELAS */
+                    /* Cabeçalho branco com borda preta */
+                    .print-header { background-color: white !important; border-bottom: 2px solid black !important; }
+                    th { background-color: white !important; color: black !important; border: 1px solid black !important; }
+                    td { border: 1px solid black !important; color: black !important; }
+                    
+                    /* Zebrado muito suave em cinza claro, se necessário, ou branco */
+                    tr:nth-child(even) { background-color: #fcfcfc !important; }
+
+                    /* PAGINAÇÃO */
+                    .print-page-1-container { display: block; margin-bottom: 20px; }
+                    .print-page-break { page-break-before: always; margin-top: 20px; display: block !important; }
+                    .print-force-visible { display: block !important; }
+                    .hide-on-screen { display: none; }
+                    .no-print { display: none !important; }
+
+                    /* GRÁFICOS */
+                    .recharts-wrapper { width: 100% !important; height: 100% !important; }
+                }
+            `}</style>
+            
+            {/* CABEÇALHO PRINT */}
             <div className="hidden print:flex justify-between items-center border-b-2 border-black pb-4 mb-6">
                 <div className="flex items-center gap-4">
                      <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-10 object-contain" />
@@ -1878,7 +1893,7 @@
                     <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print-grid-charts">
                         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
                             <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print:text-black print:mb-1">
-                                <SafeIcon name="BarChart2" width={14} className="text-purple-500 print:text-purple-700" /> Top Ajustes (Região)
+                                <SafeIcon name="BarChart2" width={14} className="text-purple-500 print:text-black" /> Top Ajustes (Região)
                             </h3>
                             <div className="flex-1 w-full min-h-0">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -1886,7 +1901,7 @@
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                                         <XAxis type="number" tick={{fontSize: 9, fill: 'black'}} tickFormatter={(v) => `R$${v/1000}k`} />
                                         <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} interval={0} />
-                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={20}>
+                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
                                             {chartsData.regionais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
                                         </Bar>
                                     </BarChart>
@@ -1895,7 +1910,7 @@
                         </div>
                         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
                             <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print:text-black print:mb-1">
-                                <SafeIcon name="AlertCircle" width={14} className="text-orange-500 print:text-orange-600" /> Top Ajustes (Material)
+                                <SafeIcon name="AlertCircle" width={14} className="text-orange-500 print:text-black" /> Top Ajustes (Material)
                             </h3>
                             <div className="flex-1 w-full min-h-0">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -1903,7 +1918,7 @@
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                                         <XAxis type="number" tick={{fontSize: 9, fill: 'black'}} tickFormatter={(v) => `R$${v/1000}k`} />
                                         <YAxis dataKey="name" type="category" width={110} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} interval={0} />
-                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={20}>
+                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
                                             {chartsData.materiais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
                                         </Bar>
                                     </BarChart>
@@ -1930,7 +1945,38 @@
             <div className="min-h-[400px]">
                 {/* 1. Analítica (Quebra de Página ANTES) */}
                 <div className={`${activeTab === 'analitica' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <AnaliticaTable />
+                    <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
+                        <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
+                            <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
+                                <tr>
+                                    <th className="px-3 py-2 min-w-[150px] print:border print:border-black">Material</th>
+                                    <th className="px-2 py-2 text-right print:border print:border-black">Est. Ini</th>
+                                    <th className="px-2 py-2 text-right print:border print:border-black">Entradas</th>
+                                    <th className="px-2 py-2 text-right print:border print:border-black">Saídas</th>
+                                    <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black">Final (T)</th>
+                                    <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black">Final (R)</th>
+                                    <th className="px-2 py-2 text-right print:border print:border-black">Var (%)</th>
+                                    <th className="px-2 py-2 text-right print:border print:border-black">R$ Méd</th>
+                                    <th className="px-2 py-2 text-right print:border print:border-black">R$ Aj.</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
+                                {analiticaData.map((row, i) => (
+                                    <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
+                                        <td className="px-3 py-2 font-medium truncate max-w-[250px] text-slate-700 dark:text-white print:text-black print:border print:border-black" title={row.name}>{row.name}</td>
+                                        <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black">{fmtNum(row.est_in)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black">+{fmtNum(row.entradas)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black">{fmtNum(row.saidas)}</td>
+                                        <td className="px-2 py-2 text-right font-mono font-bold text-slate-500 print:text-black print:border print:border-black">{fmtNum(row.est_fin_sap)}</td>
+                                        <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print-color-force print:border print:border-black">{fmtNum(row.est_fin_real)}</td>
+                                        <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print-color-force print:border print:border-black`}>{fmtPerc(row.variacaoPct)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-slate-500 print:text-black print:border print:border-black">{fmtMoney(row.unitPrice)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-purple-600 font-bold print-color-force print:border print:border-black">{fmtMoney(row.custoMedioAjustado)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </StandardTable>
                 </div>
 
                 {/* Demais Tabelas */}
@@ -5240,7 +5286,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                         session={session}
                     />
 
-                   <div className={`flex-1 content-transition ${isSidebarOpen ? 'ml-64' : 'ml-20'} overflow-y-auto h-screen print:h-auto print:overflow-visible print:ml-0 print:w-full print:block`}>
+                    <div className={`flex-1 content-transition ${isSidebarOpen ? 'ml-64' : 'ml-20'} overflow-y-auto h-screen`}>
                         <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md h-16 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-8 sticky top-0 z-20 transition-colors duration-300">
                             <h1 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
                                 {view === 'controladoria' ? <><Icons.BarChart2 className="w-4 h-4 text-slate-400" /> Controladoria / <span className="text-purple-600 dark:text-purple-400 capitalize">{subView === 'centro_custo' ? 'Detalhe C. Custo' : (subView === 'dre' ? 'DRE Gerencial' : subView)}</span></> : 
@@ -5446,11 +5492,3 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
-
-
-
-
-
-
-
-
