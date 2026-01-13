@@ -52,14 +52,13 @@
         .content-transition { transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .picker-popover { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
         /* --- CSS DE IMPRESSÃO (MODO RETRATO / PORTRAIT) --- */
-/* --- CSS DE IMPRESSÃO (CORREÇÃO DE CORTE DE PÁGINA) --- */
 @media print {
     @page { 
-        size: landscape; /* Tabelas largas ficam melhor em paisagem */
+        size: landscape; /* Força orientação paisagem para caber mais colunas */
         margin: 5mm; 
     }
 
-    /* 1. RESET NUCLEAR DO LAYOUT */
+    /* 1. DESTRAVAR A ALTURA (CRUCIAL PARA CORRIGIR O CORTE) */
     html, body, #root, main, .h-screen, .overflow-y-auto, .flex-1, .content-transition {
         height: auto !important;
         min-height: 0 !important;
@@ -67,61 +66,46 @@
         overflow: visible !important;
         display: block !important;
         position: static !important;
-        background-color: white !important;
-        color: black !important;
         margin: 0 !important;
         padding: 0 !important;
     }
 
-    /* 2. ESCONDER TUDO QUE NÃO FOR O RELATÓRIO */
+    /* 2. LIMPEZA VISUAL (REMOVE DARK MODE E FUNDOS ESCUROS) */
+    * {
+        background-color: transparent !important;
+        color: black !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        border-color: #000 !important; /* Bordas pretas para contraste */
+    }
+
+    /* Reativa fundo branco apenas nos cards e tabelas para leitura */
+    .report-container, .glass-card, table, tr, td, th, .print-table-container {
+        background-color: white !important;
+    }
+
+    /* 3. ESCONDER ELEMENTOS DE NAVEGAÇÃO */
     nav, aside, header, .sidebar, button, .no-print, .fixed, .z-40, .z-50 {
         display: none !important;
     }
 
-    /* 3. FORÇAR CORES PARA PAPEL (ELIMINA DARK MODE) */
-    * {
-        background-color: transparent !important;
-        background-image: none !important;
-        color: black !important;
-        box-shadow: none !important;
-        text-shadow: none !important;
-        border-color: #000 !important;
-    }
-
-    /* Reativar fundo branco apenas onde importa */
-    .report-container, .glass-card, table, tr, td, th {
-        background-color: white !important;
-    }
-
-    /* 4. TABELAS QUE NÃO CORTAM */
+    /* 4. CONFIGURAÇÃO DE TABELAS (EVITA QUEBRA NO MEIO DA LINHA) */
     table {
         width: 100% !important;
         border-collapse: collapse !important;
-        font-size: 10px !important; /* Fonte menor para caber mais */
+        font-size: 9px !important; /* Fonte menor para caber tudo */
     }
 
-    thead { display: table-header-group !important; }
+    thead { display: table-header-group !important; } /* Repete cabeçalho em cada página */
     tfoot { display: table-footer-group !important; }
-    tr { page-break-inside: avoid !important; }
+    tr { page-break-inside: avoid !important; } /* Não corta linhas ao meio */
     
     td, th {
-        border: 1px solid #999 !important;
+        border: 1px solid #666 !important;
         padding: 4px !important;
-        color: black !important;
     }
     
-    /* Indicadores visuais de variação (Cores de texto mantidas se necessário) */
-    .print-color-force {
-        color: black !important; /* Mude para 'inherit' se quiser manter verde/vermelho no texto */
-        font-weight: bold !important;
-    }
-    
-    /* Gráficos */
-    .recharts-wrapper {
-        page-break-inside: avoid !important;
-    }
-
-    /* Forçar visibilidade das abas ocultas se quiser imprimir tudo */
+    /* Forçar visualização de abas ocultas se necessário */
     .hide-on-screen {
         display: block !important;
     }
@@ -5462,6 +5446,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
