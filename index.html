@@ -55,102 +55,77 @@
 /* --- CSS DE IMPRESSÃO (CORREÇÃO DE CORTE DE PÁGINA) --- */
 @media print {
     @page { 
-        size: portrait; 
+        size: landscape; /* Tabelas largas ficam melhor em paisagem */
         margin: 5mm; 
     }
-    
-    /* 1. DESTRAVAR ALTURA: Essencial para imprimir múltiplas páginas */
-    html, body, #root, main, .h-screen, .min-h-screen, .overflow-y-auto, .flex-1 {
+
+    /* 1. RESET NUCLEAR DO LAYOUT */
+    html, body, #root, main, .h-screen, .overflow-y-auto, .flex-1, .content-transition {
         height: auto !important;
         min-height: 0 !important;
-        overflow: visible !important;
-        display: block !important; /* Remove comportamento flex que pode travar altura */
-    }
-
-    /* 2. OCULTAR UI */
-    nav, header, aside, .sidebar, .filters-area, .status-log, button, .no-print, .fixed { 
-        display: none !important; 
-    }
-
-    /* 3. LAYOUT DO RELATÓRIO */
-    .report-container {
         width: 100% !important;
+        overflow: visible !important;
+        display: block !important;
+        position: static !important;
+        background-color: white !important;
+        color: black !important;
         margin: 0 !important;
         padding: 0 !important;
-        background: white !important;
+    }
+
+    /* 2. ESCONDER TUDO QUE NÃO FOR O RELATÓRIO */
+    nav, aside, header, .sidebar, button, .no-print, .fixed, .z-40, .z-50 {
+        display: none !important;
+    }
+
+    /* 3. FORÇAR CORES PARA PAPEL (ELIMINA DARK MODE) */
+    * {
+        background-color: transparent !important;
+        background-image: none !important;
         color: black !important;
-    }
-
-    /* Remove margens laterais da sidebar */
-    .ml-64, .ml-20 { margin-left: 0 !important; }
-
-    /* Estilo dos Cards e Elementos */
-    .glass-card {
-        background: #ffffff !important;
-        border: 1px solid #000000 !important;
         box-shadow: none !important;
-        border-radius: 4px !important;
-        margin-bottom: 10px !important;
-        page-break-inside: avoid; /* Tenta não quebrar cards ao meio */
+        text-shadow: none !important;
+        border-color: #000 !important;
     }
 
-    /* 4. CONFIGURAÇÃO DA TABELA (PRINCIPAL) */
-    table { 
-        width: 100% !important; 
-        border-collapse: collapse !important; 
-        font-size: 9px !important; 
+    /* Reativar fundo branco apenas onde importa */
+    .report-container, .glass-card, table, tr, td, th {
+        background-color: white !important;
     }
-    
-    /* Faz o cabeçalho da tabela repetir em cada nova página */
+
+    /* 4. TABELAS QUE NÃO CORTAM */
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 10px !important; /* Fonte menor para caber mais */
+    }
+
     thead { display: table-header-group !important; }
-    
-    /* Evita que uma linha da tabela seja cortada ao meio */
+    tfoot { display: table-footer-group !important; }
     tr { page-break-inside: avoid !important; }
     
-    th, td {
-        border: 1px solid #000000 !important;
-        padding: 3px !important;
+    td, th {
+        border: 1px solid #999 !important;
+        padding: 4px !important;
         color: black !important;
     }
-    th { background-color: #e5e7eb !important; font-weight: bold !important; }
-
+    
+    /* Indicadores visuais de variação (Cores de texto mantidas se necessário) */
+    .print-color-force {
+        color: black !important; /* Mude para 'inherit' se quiser manter verde/vermelho no texto */
+        font-weight: bold !important;
+    }
+    
     /* Gráficos */
-    .recharts-wrapper { width: 100% !important; }
-    
-    /* Forçar quebra de página antes da tabela se necessário (opcional) */
-    /* .break-before { page-break-before: always; } */
-}
-        .print-table-container {
-        overflow: visible !important; /* Permite que a tabela cresça */
-        height: auto !important;
-        display: block !important;
-        background-color: white !important;
-        border: none !important;
-    }
-
-    /* Remove fundos escuros das linhas e células */
-    .print-table-content tr, 
-    .print-table-content td, 
-    .print-table-content th {
-        background-color: white !important;
-        color: black !important;
-        border: 1px solid #000 !important; /* Borda fina preta para leitura */
-    }
-
-    /* Remove o efeito zebrado cinza/escuro na impressão, deixa tudo branco */
-    .print-table-content tr:nth-child(even) {
-        background-color: white !important;
-    }
-
-    /* Garante que o cabeçalho da tabela repita em cada página nova */
-    thead {
-        display: table-header-group !important;
-    }
-    
-    /* Garante que uma linha não seja cortada ao meio (o texto fica legível) */
-    tr {
+    .recharts-wrapper {
         page-break-inside: avoid !important;
     }
+
+    /* Forçar visibilidade das abas ocultas se quiser imprimir tudo */
+    .hide-on-screen {
+        display: block !important;
+    }
+}
     </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 transition-colors duration-300">
@@ -824,7 +799,7 @@
                         </div>
                     </div>
                     <div className="overflow-x-auto custom-scrollbar">
-                        <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300">
+                        <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content border-collapse">
                             <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
                                 <tr>
                                     {headers.map(h => (
@@ -5281,7 +5256,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                         session={session}
                     />
 
-                    <div className={`flex-1 content-transition ${isSidebarOpen ? 'ml-64' : 'ml-20'} overflow-y-auto h-screen`}>
+                   <div className={`flex-1 content-transition ${isSidebarOpen ? 'ml-64' : 'ml-20'} overflow-y-auto h-screen print:h-auto print:overflow-visible print:ml-0 print:w-full print:block`}>
                         <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md h-16 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-8 sticky top-0 z-20 transition-colors duration-300">
                             <h1 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
                                 {view === 'controladoria' ? <><Icons.BarChart2 className="w-4 h-4 text-slate-400" /> Controladoria / <span className="text-purple-600 dark:text-purple-400 capitalize">{subView === 'centro_custo' ? 'Detalhe C. Custo' : (subView === 'dre' ? 'DRE Gerencial' : subView)}</span></> : 
@@ -5487,6 +5462,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
