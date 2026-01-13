@@ -120,6 +120,37 @@
     /* Forçar quebra de página antes da tabela se necessário (opcional) */
     /* .break-before { page-break-before: always; } */
 }
+        .print-table-container {
+        overflow: visible !important; /* Permite que a tabela cresça */
+        height: auto !important;
+        display: block !important;
+        background-color: white !important;
+        border: none !important;
+    }
+
+    /* Remove fundos escuros das linhas e células */
+    .print-table-content tr, 
+    .print-table-content td, 
+    .print-table-content th {
+        background-color: white !important;
+        color: black !important;
+        border: 1px solid #000 !important; /* Borda fina preta para leitura */
+    }
+
+    /* Remove o efeito zebrado cinza/escuro na impressão, deixa tudo branco */
+    .print-table-content tr:nth-child(even) {
+        background-color: white !important;
+    }
+
+    /* Garante que o cabeçalho da tabela repita em cada página nova */
+    thead {
+        display: table-header-group !important;
+    }
+    
+    /* Garante que uma linha não seja cortada ao meio (o texto fica legível) */
+    tr {
+        page-break-inside: avoid !important;
+    }
     </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 transition-colors duration-300">
@@ -1646,13 +1677,15 @@
         </div>
     );
 
-    const StandardTable = ({ children, title, iconName }) => (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-table-container overflow-hidden break-inside-avoid w-full">
-            <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print-header">
+   const StandardTable = ({ children, title, iconName }) => (
+        // CORREÇÃO: Removido 'break-inside-avoid', adicionado 'print:overflow-visible' e 'print:block'
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-table-container overflow-hidden print:overflow-visible print:block w-full print:border-0 print:shadow-none">
+            <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print-header print:bg-white print:border-black print:border-b-2">
                 <h3 className="font-black text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 uppercase tracking-wide print:text-black">
                     <SafeIcon name={iconName} width={16} className="text-purple-600 print:text-black" /> {title}
                 </h3>
             </div>
+            {/* CORREÇÃO: overflow-visible na impressão para permitir rolagem de página */}
             <div className="overflow-x-auto print:overflow-visible w-full">
                 {children}
             </div>
@@ -1808,73 +1841,6 @@
 
     return (
         <div className="space-y-6 pb-10 report-container">
-            <style>{`
-                @media print {
-                    @page { margin: 0.5cm; size: A4; }
-                    
-                    /* RESET GERAL */
-                    body, #root, main, .report-container {
-                        background-color: white !important;
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                    }
-
-                    /* ESTILOS DE COR FORÇADOS */
-                    .text-red-500, .text-red-600 { color: #dc2626 !important; }
-                    .text-emerald-500, .text-emerald-600 { color: #059669 !important; }
-                    .text-purple-600, .text-purple-700 { color: #7c3aed !important; }
-                    .print-color-force { -webkit-print-color-adjust: exact; }
-
-                    /* CARDS */
-                    .print-card {
-                        background-color: #f8fafc !important;
-                        border: 1px solid #cbd5e1 !important;
-                        box-shadow: none !important;
-                        color: black !important;
-                    }
-
-                    /* GRIDS */
-                    .print-grid-cols-3 { 
-                        display: grid !important;
-                        grid-template-columns: repeat(3, 1fr) !important;
-                        gap: 10px !important;
-                    }
-                    .print-grid-charts {
-                        display: grid !important;
-                        grid-template-columns: 1fr 1fr !important;
-                        gap: 10px !important;
-                        height: 220px !important;
-                        break-inside: avoid;
-                    }
-
-                    /* PÁGINAS */
-                    .print-page-1-container {
-                        display: block;
-                        height: auto !important;
-                        margin-bottom: 20px;
-                    }
-                    .print-page-break { 
-                        page-break-before: always; 
-                        margin-top: 20px; 
-                        display: block !important;
-                    }
-
-                    /* VISIBILIDADE */
-                    .print-force-visible { display: block !important; }
-                    .hide-on-screen { display: none; }
-                    .no-print { display: none !important; }
-
-                    /* TABELAS */
-                    .print-header { background-color: white !important; border-bottom: 2px solid black !important; color: black !important; }
-                    th { background-color: white !important; color: black !important; border: 1px solid black !important; }
-                    td { border: 1px solid black !important; color: black !important; }
-                    
-                    /* GRÁFICOS */
-                    .recharts-wrapper { width: 100% !important; height: 100% !important; }
-                }
-            `}</style>
-            
-            {/* CABEÇALHO PRINT */}
             <div className="hidden print:flex justify-between items-center border-b-2 border-black pb-4 mb-6">
                 <div className="flex items-center gap-4">
                      <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-10 object-contain" />
@@ -5521,6 +5487,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
