@@ -54,72 +54,66 @@
         /* --- CSS DE IMPRESSÃO (MODO RETRATO / PORTRAIT) --- */
 /* --- CSS DE IMPRESSÃO (CORREÇÃO DE CORTE DE PÁGINA) --- */
 @media print {
-    @page { 
-        size: portrait; 
-        margin: 5mm; 
-    }
+            @page { 
+                size: portrait; 
+                margin: 5mm; 
+            }
+            
+            /* 1. RESET GERAL */
+            html, body, #root, main, .h-screen, .min-h-screen, .overflow-y-auto, .flex-1 {
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+                display: block !important;
+                background-color: white !important;
+                color: black !important;
+            }
+
+            /* 2. OCULTAR ELEMENTOS DE UI */
+            nav, header, aside, .sidebar, .filters-area, .status-log, button, .no-print, .fixed { 
+                display: none !important; 
+            }
+
+            /* 3. FORÇAR CORES E FUNDOS */
+            .report-container {
+                width: 100% !important;
+                background: white !important;
+                color: black !important;
+            }
+
+            /* Forçar texto preto onde necessário */
+            .print-text-black {
+                color: #000000 !important;
+                -webkit-text-fill-color: #000000 !important;
+            }
+
+            /* Forçar cores de destaque (Vermelho/Verde/Roxo) mesmo na impressão */
+            .text-red-500, .text-red-600 { color: #dc2626 !important; -webkit-print-color-adjust: exact; }
+            .text-emerald-500, .text-emerald-600 { color: #059669 !important; -webkit-print-color-adjust: exact; }
+            .text-purple-600, .text-purple-700 { color: #7c3aed !important; -webkit-print-color-adjust: exact; }
+            .text-blue-600, .text-blue-700 { color: #2563eb !important; -webkit-print-color-adjust: exact; }
+            
+            /* Remove sombras e fundos escuros dos cards */
+            .glass-card, .bg-white, .dark\:bg-slate-800, .bg-slate-50, .dark\:bg-slate-900 {
+                background: white !important;
+                box-shadow: none !important;
+                border: 1px solid #ddd !important;
+            }
+
+            /* 4. TABELAS E GRÁFICOS */
+            table { width: 100% !important; border-collapse: collapse !important; font-size: 9px !important; }
+            thead { display: table-header-group !important; }
+            tr { page-break-inside: avoid !important; }
+            th, td { border: 1px solid #000 !important; padding: 2px !important; color: black !important; }
+            
+            /* Correção para gráficos e layouts */
+            .recharts-wrapper { width: 100% !important; }
+            .print-card { border: 1px solid #000 !important; break-inside: avoid; }
+            .print-page-break { page-break-before: always; display: block !important; }
+            .print-force-visible { display: block !important; }
+            .hide-on-screen { display: none; }
+        }
     
-    /* 1. DESTRAVAR ALTURA: Essencial para imprimir múltiplas páginas */
-    html, body, #root, main, .h-screen, .min-h-screen, .overflow-y-auto, .flex-1 {
-        height: auto !important;
-        min-height: 0 !important;
-        overflow: visible !important;
-        display: block !important; /* Remove comportamento flex que pode travar altura */
-    }
-
-    /* 2. OCULTAR UI */
-    nav, header, aside, .sidebar, .filters-area, .status-log, button, .no-print, .fixed { 
-        display: none !important; 
-    }
-
-    /* 3. LAYOUT DO RELATÓRIO */
-    .report-container {
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        background: white !important;
-        color: black !important;
-    }
-
-    /* Remove margens laterais da sidebar */
-    .ml-64, .ml-20 { margin-left: 0 !important; }
-
-    /* Estilo dos Cards e Elementos */
-    .glass-card {
-        background: #ffffff !important;
-        border: 1px solid #000000 !important;
-        box-shadow: none !important;
-        border-radius: 4px !important;
-        margin-bottom: 10px !important;
-        page-break-inside: avoid; /* Tenta não quebrar cards ao meio */
-    }
-
-    /* 4. CONFIGURAÇÃO DA TABELA (PRINCIPAL) */
-    table { 
-        width: 100% !important; 
-        border-collapse: collapse !important; 
-        font-size: 9px !important; 
-    }
-    
-    /* Faz o cabeçalho da tabela repetir em cada nova página */
-    thead { display: table-header-group !important; }
-    
-    /* Evita que uma linha da tabela seja cortada ao meio */
-    tr { page-break-inside: avoid !important; }
-    
-    th, td {
-        border: 1px solid #000000 !important;
-        padding: 3px !important;
-        color: black !important;
-    }
-    th { background-color: #e5e7eb !important; font-weight: bold !important; }
-
-    /* Gráficos */
-    .recharts-wrapper { width: 100% !important; }
-    
-    /* Forçar quebra de página antes da tabela se necessário (opcional) */
-    /* .break-before { page-break-before: always; } */
-}
     </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 transition-colors duration-300">
@@ -1616,17 +1610,19 @@
 
     // --- Componentes ---
 
+    // 1. FLOW CARD (CORRIGIDO: Classe print-text-black adicionada no valor)
     const FlowCard = ({ title, qty, val, iconName, color }) => (
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
             <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print-text-black">{title}</span>
                 <div className={`p-1.5 rounded-md bg-opacity-10 ${color.replace('text-', 'bg-')} print-color-force`}>
                     <SafeIcon name={iconName} width={14} className={`${color} print-color-force`} />
                 </div>
             </div>
             <div>
-                <div className="text-lg font-bold text-slate-800 dark:text-white print:text-black">{fmtMoney(val)}</div>
-                <div className="text-xs font-medium text-slate-500 mt-1 print:text-black">{fmtNum(qty)} <span className="opacity-70 font-normal">un</span></div>
+                {/* AQUI: Adicionado print-text-black para forçar preto na impressão */}
+                <div className="text-lg font-bold text-slate-800 dark:text-white print-text-black">{fmtMoney(val)}</div>
+                <div className="text-xs font-medium text-slate-500 mt-1 print-text-black">{fmtNum(qty)} <span className="opacity-70 font-normal">un</span></div>
             </div>
         </div>
     );
@@ -1634,14 +1630,15 @@
     const VariationCard = ({ qty }) => (
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
              <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">Variação Total</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print-text-black">Variação Total</span>
                 <div className="p-1.5 rounded-md bg-purple-50 print-color-force">
                     <SafeIcon name="Activity" width={14} className="text-purple-600 print-color-force" />
                 </div>
             </div>
             <div className="flex flex-col">
+                {/* print-color-force garante que verde/vermelho saia na impressão */}
                 <span className={`text-2xl font-black ${qty < 0 ? 'text-red-500' : 'text-emerald-500'} print-color-force`}>{fmtPerc(qty)}</span>
-                <span className="text-[10px] text-slate-400 print:text-black">Var. Inicial vs Final</span>
+                <span className="text-[10px] text-slate-400 print-text-black">Var. Inicial vs Final</span>
             </div>
         </div>
     );
@@ -1649,8 +1646,8 @@
     const StandardTable = ({ children, title, iconName }) => (
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-table-container overflow-hidden break-inside-avoid w-full">
             <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print-header">
-                <h3 className="font-black text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 uppercase tracking-wide print:text-black">
-                    <SafeIcon name={iconName} width={16} className="text-purple-600 print:text-black" /> {title}
+                <h3 className="font-black text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 uppercase tracking-wide print-text-black">
+                    <SafeIcon name={iconName} width={16} className="text-purple-600 print-text-black" /> {title}
                 </h3>
             </div>
             <div className="overflow-x-auto print:overflow-visible w-full">
@@ -1658,76 +1655,6 @@
             </div>
         </div>
     );
-
-    // --- NOVA TABELA ANALÍTICA COM RODAPÉ DE TOTAL ---
-    const AnaliticaTable = () => {
-        // Cálculo dos Totais da Tabela
-        const totals = useMemo(() => {
-            return analiticaData.reduce((acc, row) => ({
-                est_in: acc.est_in + row.est_in,
-                entradas: acc.entradas + row.entradas,
-                saidas: acc.saidas + row.saidas,
-                est_fin_sap: acc.est_fin_sap + row.est_fin_sap,
-                est_fin_real: acc.est_fin_real + row.est_fin_real,
-                dif_qty: acc.dif_qty + row.dif_qty,
-                custo_dif: acc.custo_dif + row.custo_dif
-            }), { est_in: 0, entradas: 0, saidas: 0, est_fin_sap: 0, est_fin_real: 0, dif_qty: 0, custo_dif: 0 });
-        }, []);
-
-        // Cálculo de Médias Ponderadas para o Rodapé
-        const totalVarPct = (totals.entradas + totals.est_in) === 0 ? 0 : totals.dif_qty / (totals.entradas + totals.est_in);
-        const totalUnitPrice = totals.dif_qty !== 0 ? totals.custo_dif / totals.dif_qty : 0;
-        const totalAdjPrice = (totals.dif_qty + totals.est_fin_sap) !== 0 ? totals.custo_dif / (totals.dif_qty + totals.est_fin_sap) : 0;
-
-        return (
-            <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
-                <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
-                    <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
-                        <tr>
-                            <th className="px-3 py-2 min-w-[150px] print:border print:border-black">Material</th>
-                            <th className="px-2 py-2 text-right print:border print:border-black">Est. Ini</th>
-                            <th className="px-2 py-2 text-right print:border print:border-black">Entradas</th>
-                            <th className="px-2 py-2 text-right print:border print:border-black">Saídas</th>
-                            <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black">Final (T)</th>
-                            <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black">Final (R)</th>
-                            <th className="px-2 py-2 text-right print:border print:border-black">Var (%)</th>
-                            <th className="px-2 py-2 text-right print:border print:border-black">R$ Méd</th>
-                            <th className="px-2 py-2 text-right print:border print:border-black">R$ Aj.</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
-                        {analiticaData.map((row, i) => (
-                            <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
-                                <td className="px-3 py-2 font-medium truncate max-w-[250px] text-slate-700 dark:text-white print:text-black print:border print:border-black" title={row.name}>{row.name}</td>
-                                <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black">{fmtNum(row.est_in)}</td>
-                                <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black">+{fmtNum(row.entradas)}</td>
-                                <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black">{fmtNum(row.saidas)}</td>
-                                <td className="px-2 py-2 text-right font-mono font-bold text-slate-500 print:text-black print:border print:border-black">{fmtNum(row.est_fin_sap)}</td>
-                                <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print-color-force print:border print:border-black">{fmtNum(row.est_fin_real)}</td>
-                                <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print-color-force print:border print:border-black`}>{fmtPerc(row.variacaoPct)}</td>
-                                <td className="px-2 py-2 text-right font-mono text-slate-500 print:text-black print:border print:border-black">{fmtMoney(row.unitPrice)}</td>
-                                <td className="px-2 py-2 text-right font-mono text-purple-600 font-bold print-color-force print:border print:border-black">{fmtMoney(row.custoMedioAjustado)}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                    {/* RODAPÉ COM TOTAIS */}
-                    <tfoot className="bg-slate-100 dark:bg-slate-900 border-t-2 border-slate-300 font-black text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
-                        <tr>
-                            <td className="px-3 py-2 uppercase text-xs print:border print:border-black">TOTAL GERAL</td>
-                            <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(totals.est_in)}</td>
-                            <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black">+{fmtNum(totals.entradas)}</td>
-                            <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black">{fmtNum(totals.saidas)}</td>
-                            <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(totals.est_fin_sap)}</td>
-                            <td className="px-2 py-2 text-right font-mono text-blue-600 print-color-force print:border print:border-black">{fmtNum(totals.est_fin_real)}</td>
-                            <td className={`px-2 py-2 text-right font-mono ${Math.abs(totalVarPct) > 0.05 ? 'text-red-600' : 'text-slate-600'} print-color-force print:border print:border-black`}>{fmtPerc(totalVarPct)}</td>
-                            <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtMoney(totalUnitPrice)}</td>
-                            <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtMoney(totalAdjPrice)}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </StandardTable>
-        );
-    };
 
     const DrillDownTable = ({ rawData, hierarchy, title, iconName }) => {
         const [path, setPath] = useState([]);
@@ -1756,7 +1683,7 @@
         const totalsVar = (totals.sap_qty + totals.real_qty) === 0 ? 0 : totals.dif_qty / (totals.sap_qty + totals.real_qty);
         const handleDrill = (name) => setPath([...path, name]);
         const handleBack = () => setPath(path.slice(0, -1));
-        const handleReset = () => setPath([]);
+        
         if (isLastLevel) return <div className="p-6 text-center text-slate-400 no-print">Fim do nível. <button onClick={handleBack} className="text-purple-600 underline">Voltar</button></div>;
         const currentLabel = hierarchy[currentLevelIndex].label;
 
@@ -1769,29 +1696,29 @@
                     </div>
                 )}
                 <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
-                    <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
+                    <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print-text-black print:border-black print:border-b-2">
                         <tr>
-                            <th className="px-4 py-2 print:border print:border-black print:text-black">{currentLabel}</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black">Caminhões</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black">IBC's</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black">Var (%)</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black">Custo Total</th>
+                            <th className="px-4 py-2 print:border print:border-black print-text-black">{currentLabel}</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print-text-black">Caminhões</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print-text-black">IBC's</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print-text-black">Var (%)</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print-text-black">Custo Total</th>
                             <th className="px-4 py-2 text-center no-print">Ação</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
                         {groupedData.map((row, i) => (
-                            <tr key={i} onClick={() => handleDrill(row.name)} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
-                                <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print:text-black print:border print:border-black">{row.name}</td>
-                                <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black">{Utils.math.roundVolume(row.caminhoes)}</td>
-                                <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black">{Utils.math.roundVolume(row.ibcs)}</td>
+                            <tr key={i} onClick={() => handleDrill(row.name)} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-slate-50">
+                                <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print-text-black print:border print:border-black">{row.name}</td>
+                                <td className="px-4 py-2 text-right font-mono print-text-black print:border print:border-black">{Utils.math.roundVolume(row.caminhoes)}</td>
+                                <td className="px-4 py-2 text-right font-mono print-text-black print:border print:border-black">{Utils.math.roundVolume(row.ibcs)}</td>
                                 <td className={`px-4 py-2 text-right font-mono font-bold ${Math.abs(row.variacao) > 0.05 ? 'text-red-600' : 'text-slate-600'} print-color-force print:border print:border-black`}>{fmtPerc(row.variacao)}</td>
                                 <td className={`px-4 py-2 text-right font-mono font-bold ${row.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force print:border print:border-black`}>{fmtMoney(row.custo)}</td>
                                 <td className="px-4 py-2 text-center no-print text-slate-400"><SafeIcon name="ChevronRight" width={14} /></td>
                             </tr>
                         ))}
                     </tbody>
-                    <tfoot className="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
+                    <tfoot className="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-800 print:bg-white print-text-black print:border-black print:border-t-2">
                         <tr>
                             <td className="px-4 py-2 uppercase text-xs">Total</td>
                             <td className="px-4 py-2 text-right font-mono">{Utils.math.roundVolume(totals.caminhoes)}</td>
@@ -1808,72 +1735,6 @@
 
     return (
         <div className="space-y-6 pb-10 report-container">
-            <style>{`
-                @media print {
-                    @page { margin: 0.5cm; size: A4; }
-                    
-                    /* RESET GERAL */
-                    body, #root, main, .report-container {
-                        background-color: white !important;
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                    }
-
-                    /* ESTILOS DE COR FORÇADOS */
-                    .text-red-500, .text-red-600 { color: #dc2626 !important; }
-                    .text-emerald-500, .text-emerald-600 { color: #059669 !important; }
-                    .text-purple-600, .text-purple-700 { color: #7c3aed !important; }
-                    .print-color-force { -webkit-print-color-adjust: exact; }
-
-                    /* CARDS */
-                    .print-card {
-                        background-color: #f8fafc !important;
-                        border: 1px solid #cbd5e1 !important;
-                        box-shadow: none !important;
-                        color: black !important;
-                    }
-
-                    /* GRIDS */
-                    .print-grid-cols-3 { 
-                        display: grid !important;
-                        grid-template-columns: repeat(3, 1fr) !important;
-                        gap: 10px !important;
-                    }
-                    .print-grid-charts {
-                        display: grid !important;
-                        grid-template-columns: 1fr 1fr !important;
-                        gap: 10px !important;
-                        height: 220px !important;
-                        break-inside: avoid;
-                    }
-
-                    /* PÁGINAS */
-                    .print-page-1-container {
-                        display: block;
-                        height: auto !important;
-                        margin-bottom: 20px;
-                    }
-                    .print-page-break { 
-                        page-break-before: always; 
-                        margin-top: 20px; 
-                        display: block !important;
-                    }
-
-                    /* VISIBILIDADE */
-                    .print-force-visible { display: block !important; }
-                    .hide-on-screen { display: none; }
-                    .no-print { display: none !important; }
-
-                    /* TABELAS */
-                    .print-header { background-color: white !important; border-bottom: 2px solid black !important; color: black !important; }
-                    th { background-color: white !important; color: black !important; border: 1px solid black !important; }
-                    td { border: 1px solid black !important; color: black !important; }
-                    
-                    /* GRÁFICOS */
-                    .recharts-wrapper { width: 100% !important; height: 100% !important; }
-                }
-            `}</style>
-            
             {/* CABEÇALHO PRINT */}
             <div className="hidden print:flex justify-between items-center border-b-2 border-black pb-4 mb-6">
                 <div className="flex items-center gap-4">
@@ -1918,29 +1779,30 @@
                 {/* 2. Destaque e Gráficos */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:grid print:grid-cols-1">
                     
-                    {/* Card Consolidado */}
+                    {/* Card Consolidado Diferença */}
                     <div className="lg:col-span-1 print:mb-6">
                         <div className="bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/50 p-6 shadow-sm relative overflow-hidden h-full flex flex-col justify-center print-card">
-                            <h3 className="text-sm font-bold uppercase text-purple-900 dark:text-purple-300 tracking-wider mb-4 print:text-black">Diferença de Estoque</h3>
+                            <h3 className="text-sm font-bold uppercase text-purple-900 dark:text-purple-300 tracking-wider mb-4 print-text-black">Diferença de Estoque</h3>
                             <div className="mb-6">
+                                {/* print-color-force aqui garante a cor */}
                                 <span className={`text-4xl font-black ${consolidatedDiff.custo < 0 ? 'text-red-600' : 'text-emerald-600'} tracking-tight print-color-force`}>
                                     {consolidatedDiff.custo > 0 ? '+' : ''}{fmtMoney(consolidatedDiff.custo)}
                                 </span>
-                                <span className="text-lg font-medium text-slate-600 dark:text-slate-400 block mt-1 print:text-black">
+                                <span className="text-lg font-medium text-slate-600 dark:text-slate-400 block mt-1 print-text-black">
                                     {fmtNum(consolidatedDiff.qty)} <span className="text-sm">unidades</span>
                                 </span>
                             </div>
                             <div className="grid grid-cols-2 gap-4 border-t border-purple-100 dark:border-slate-700/50 pt-4 print:border-black">
                                 <div>
-                                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">Caminhões</p>
-                                    <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 print:text-black">
+                                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print-text-black">Caminhões</p>
+                                    <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 print-text-black">
                                         <SafeIcon name="Truck" width={16} />
                                         <span className="font-bold text-lg">{Utils.math.roundVolume(consolidatedDiff.caminhoes)}</span>
                                     </div>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">IBC's</p>
-                                    <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 print:text-black">
+                                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print-text-black">IBC's</p>
+                                    <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 print-text-black">
                                         <SafeIcon name="Box" width={16} />
                                         <span className="font-bold text-lg">{Utils.math.roundVolume(consolidatedDiff.ibcs)}</span>
                                     </div>
@@ -1952,8 +1814,8 @@
                     {/* Gráficos */}
                     <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print-grid-charts">
                         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
-                            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print:text-black print:mb-1">
-                                <SafeIcon name="BarChart2" width={14} className="text-purple-500 print:text-purple-700" /> Top Ajustes (Região)
+                            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print-text-black print:mb-1">
+                                <SafeIcon name="BarChart2" width={14} className="text-purple-500 print-text-black" /> Top Ajustes (Região)
                             </h3>
                             <div className="flex-1 w-full min-h-0">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -1961,7 +1823,7 @@
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                                         <XAxis type="number" tick={{fontSize: 9, fill: 'black'}} tickFormatter={(v) => `R$${v/1000}k`} />
                                         <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} interval={0} />
-                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={20}>
+                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
                                             {chartsData.regionais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
                                         </Bar>
                                     </BarChart>
@@ -1969,8 +1831,8 @@
                             </div>
                         </div>
                         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
-                            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print:text-black print:mb-1">
-                                <SafeIcon name="AlertCircle" width={14} className="text-orange-500 print:text-orange-600" /> Top Ajustes (Material)
+                            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print-text-black print:mb-1">
+                                <SafeIcon name="AlertCircle" width={14} className="text-orange-500 print-text-black" /> Top Ajustes (Material)
                             </h3>
                             <div className="flex-1 w-full min-h-0">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -1978,7 +1840,7 @@
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                                         <XAxis type="number" tick={{fontSize: 9, fill: 'black'}} tickFormatter={(v) => `R$${v/1000}k`} />
                                         <YAxis dataKey="name" type="category" width={110} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} interval={0} />
-                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={20}>
+                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
                                             {chartsData.materiais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
                                         </Bar>
                                     </BarChart>
@@ -2005,7 +1867,38 @@
             <div className="min-h-[400px]">
                 {/* 1. Analítica (Quebra de Página ANTES) */}
                 <div className={`${activeTab === 'analitica' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <AnaliticaTable />
+                    <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
+                        <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
+                            <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print-text-black print:border-black print:border-b-2">
+                                <tr>
+                                    <th className="px-3 py-2 min-w-[150px] print:border print:border-black print-text-black">Material</th>
+                                    <th className="px-2 py-2 text-right print:border print:border-black print-text-black">Est. Ini</th>
+                                    <th className="px-2 py-2 text-right print:border print:border-black print-text-black">Entradas</th>
+                                    <th className="px-2 py-2 text-right print:border print:border-black print-text-black">Saídas</th>
+                                    <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black print-text-black">Final (T)</th>
+                                    <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black print-text-black">Final (R)</th>
+                                    <th className="px-2 py-2 text-right print:border print:border-black print-text-black">Var (%)</th>
+                                    <th className="px-2 py-2 text-right print:border print:border-black print-text-black">R$ Méd</th>
+                                    <th className="px-2 py-2 text-right print:border print:border-black print-text-black">R$ Aj.</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
+                                {analiticaData.map((row, i) => (
+                                    <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
+                                        <td className="px-3 py-2 font-medium truncate max-w-[250px] text-slate-700 dark:text-white print-text-black print:border print:border-black" title={row.name}>{row.name}</td>
+                                        <td className="px-2 py-2 text-right font-mono print-text-black print:border print:border-black">{fmtNum(row.est_in)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black">+{fmtNum(row.entradas)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black">{fmtNum(row.saidas)}</td>
+                                        <td className="px-2 py-2 text-right font-mono font-bold text-slate-500 print-text-black print:border print:border-black">{fmtNum(row.est_fin_sap)}</td>
+                                        <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print-color-force print:border print:border-black">{fmtNum(row.est_fin_real)}</td>
+                                        <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print-color-force print:border print:border-black`}>{fmtPerc(row.variacaoPct)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-slate-500 print-text-black print:border print:border-black">{fmtMoney(row.unitPrice)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-purple-600 font-bold print-color-force print:border print:border-black">{fmtMoney(row.custoMedioAjustado)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </StandardTable>
                 </div>
 
                 {/* Demais Tabelas */}
@@ -5521,4 +5414,5 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
