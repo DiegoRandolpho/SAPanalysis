@@ -2037,140 +2037,173 @@
 };
        
         const Sidebar = ({ isSidebarOpen, toggleSidebar, toggleModule, expandedModules, userRole, setView, view, subView, handleLogout, session }) => {
-    // ÍCONES BLINDADOS
-    const IconHome = Icons.Home || Icons.Layout || Icons.FileText;
-    const IconTruck = Icons.Truck || Icons.Activity || Icons.FileText;
-    const IconUsers = Icons.Users || Icons.User || Icons.FileText;
-    const IconBarChart = Icons.BarChart2 || Icons.BarChart || Icons.PieChart || Icons.FileText;
-    const IconFuel = Icons.Fuel || Icons.Droplet || Icons.FileText;
-    const IconLogOut = Icons.LogOut || Icons.X || Icons.FileText;
-    const IconChevronDown = Icons.ChevronDown || Icons.Chevron || Icons.ArrowDown;
-    const IconChevronRight = Icons.ChevronRight || Icons.Chevron || Icons.ArrowRight;
+    // Ícones seguros
     const IconMenu = Icons.Menu || Icons.List;
-    const IconAlert = Icons.AlertTriangle || Icons.AlertCircle || Icons.Flag;
-    const IconBox = Icons.Box || Icons.Package || Icons.FileText;
-
-    const SubMenuItem = ({ label, active, onClick, icon: Icon }) => (
-        <button onClick={onClick} className={`w-full text-left py-2 pl-12 pr-4 text-sm transition-colors relative flex items-center gap-2 ${active ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
-            {active && !Icon && <div className="absolute left-9 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></div>}
-            {Icon && <Icon width={14} height={14} />}
+    const IconLogOut = Icons.LogOut || Icons.X;
+    const IconSettings = Icons.Settings;
+    const IconShield = Icons.Shield;
+    
+    // Helper para Submenu
+    const SubMenuItem = ({ label, active, onClick }) => (
+        <button 
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            className={`w-full text-left pl-11 pr-4 py-2 text-xs font-medium transition-colors border-l-2 ${active ? 'border-purple-500 text-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-300' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
+        >
             {label}
         </button>
     );
 
     return (
-        <aside className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-screen fixed left-0 top-0 z-40 transition-all duration-300 flex flex-col shadow-xl shadow-slate-200/50 dark:shadow-none`}>
-            <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 dark:border-slate-800">
-                {isSidebarOpen && <span className="font-extrabold text-xl tracking-tight text-slate-800 dark:text-white">TERSYS<span className="text-blue-600">.</span></span>}
-                <button onClick={toggleSidebar} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"><IconMenu width={20} /></button>
+        <aside className={`${isSidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-screen fixed left-0 top-0 z-40 transition-all duration-300 flex flex-col shadow-xl shadow-slate-200/50 dark:shadow-none no-print`}>
+            
+            {/* Header / Logo */}
+            <div className="h-20 flex items-center justify-between px-6 border-b border-slate-100 dark:border-slate-800">
+                {isSidebarOpen ? (
+                    <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-black text-2xl tracking-tight">
+                        <div className="w-8 h-8 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-lg flex items-center justify-center text-white shadow-lg shadow-purple-500/30">
+                            <Icons.Activity width={20} />
+                        </div>
+                        TERSYS
+                    </div>
+                ) : (
+                    <div className="w-8 h-8 mx-auto bg-gradient-to-tr from-purple-600 to-blue-500 rounded-lg flex items-center justify-center text-white shadow-lg">
+                        <Icons.Activity width={20} />
+                    </div>
+                )}
+                <button onClick={toggleSidebar} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors absolute -right-3 top-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    {isSidebarOpen ? <Icons.ChevronLeft width={14} /> : <Icons.ChevronRightSmall width={14} />}
+                </button>
             </div>
 
+            {/* Perfil */}
+            <div className={`p-6 flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 transition-all ${!isSidebarOpen && 'justify-center px-2'}`}>
+                <div className="relative">
+                    <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 border-2 border-white dark:border-slate-600 shadow-md flex items-center justify-center font-bold text-slate-600 dark:text-slate-300">
+                        {session?.user?.email?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-slate-900 rounded-full"></div>
+                </div>
+                {isSidebarOpen && (
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                        <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{session?.user?.email?.split('@')[0]}</p>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold flex items-center gap-1">
+                            {userRole === 'admin' && <IconShield width={10} className="text-red-500"/>}
+                            {userRole}
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            {/* Menu Navegação */}
             <div className="flex-1 overflow-y-auto py-4 custom-scrollbar">
-                <nav className="space-y-1">
+                <nav className="space-y-1 px-3">
                     
-                    {/* TERCEIRIZAÇÃO (Apenas se tiver permissão) */}
+                    {/* 1. TERCEIRIZAÇÃO (Original) */}
                     {Utils.checkPermission(userRole, 'terceirizacao') && (
-                        <div>
-                            <button onClick={() => toggleModule('terceirizacao')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.terceirizacao ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-                                <div className="flex items-center gap-3"><IconUsers width={18} />{isSidebarOpen && <span>Terceirização</span>}</div>
-                                {isSidebarOpen && (expandedModules.terceirizacao ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
+                        <div className="overflow-hidden rounded-xl transition-all duration-300">
+                            <button 
+                                onClick={() => toggleModule('terceirizacao')}
+                                className={`w-full flex items-center gap-4 px-3 py-3 text-sm font-bold transition-all rounded-lg ${expandedModules.terceirizacao ? 'bg-purple-50 text-purple-700 dark:bg-slate-800 dark:text-purple-400' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'}`}
+                            >
+                                <Icons.Briefcase width={20} className={expandedModules.terceirizacao ? 'text-purple-600' : 'text-slate-400'} />
+                                {isSidebarOpen && <span className="flex-1 text-left">Terceirização</span>}
+                                {isSidebarOpen && <Icons.ChevronDown width={14} className={`transition-transform duration-300 ${expandedModules.terceirizacao ? 'rotate-180' : ''}`} />}
                             </button>
+                            
                             {isSidebarOpen && (
-                                <div className={`overflow-hidden transition-all duration-300 ${expandedModules.terceirizacao ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                                    <div className="space-y-0.5 mb-2">
-                                        <SubMenuItem label="Visão Geral" active={view === 'dashboard'} onClick={() => setView('dashboard')} />
-                                        <SubMenuItem label="Cadastros" active={view === 'terceirizacao_cadastros'} onClick={() => setView('terceirizacao_cadastros')} />
-                                        <SubMenuItem label="Pagamentos" active={view === 'terceirizacao_pagamentos'} onClick={() => setView('terceirizacao_pagamentos')} />
-                                        <SubMenuItem label="Turnover" active={view === 'terceirizacao_turnover'} onClick={() => setView('terceirizacao_turnover')} />
-                                        <SubMenuItem label="Ativos/Frota" active={view === 'terceirizacao_ativos'} onClick={() => setView('terceirizacao_ativos')} />
-                                        <SubMenuItem label="De/Para" active={view === 'terceirizacao_depara'} onClick={() => setView('terceirizacao_depara')} />
-                                        <SubMenuItem label="Importar Arquivos" active={view === 'terceirizacao_import'} onClick={() => setView('terceirizacao_import')} />
-                                    </div>
+                                <div className={`overflow-hidden transition-all duration-300 ${expandedModules.terceirizacao ? 'max-h-96 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+                                    <SubMenuItem label="Visão Geral" active={view === 'dashboard'} onClick={() => setView('dashboard')} />
+                                    <SubMenuItem label="Cadastros" active={view === 'terceirizacao_cadastros'} onClick={() => setView('terceirizacao_cadastros')} />
+                                    <SubMenuItem label="Lançamentos" active={view === 'terceirizacao_lancamentos'} onClick={() => setView('terceirizacao_lancamentos')} />
+                                    <SubMenuItem label="Relatórios" active={view === 'terceirizacao_relatorios'} onClick={() => setView('terceirizacao_relatorios')} />
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {/* CONTROLADORIA (Apenas se tiver permissão) */}
+                    {/* 2. CONTROLADORIA (Original) */}
                     {Utils.checkPermission(userRole, 'controladoria') && (
-                        <div>
-                            <button onClick={() => toggleModule('controladoria')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.controladoria ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-                                <div className="flex items-center gap-3"><IconBarChart width={18} />{isSidebarOpen && <span>Controladoria</span>}</div>
-                                {isSidebarOpen && (expandedModules.controladoria ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
+                        <div className="overflow-hidden rounded-xl transition-all duration-300 mt-2">
+                             <button 
+                                onClick={() => toggleModule('controladoria')}
+                                className={`w-full flex items-center gap-4 px-3 py-3 text-sm font-bold transition-all rounded-lg ${expandedModules.controladoria ? 'bg-purple-50 text-purple-700 dark:bg-slate-800 dark:text-purple-400' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'}`}
+                            >
+                                <Icons.BarChart2 width={20} className={expandedModules.controladoria ? 'text-purple-600' : 'text-slate-400'} />
+                                {isSidebarOpen && <span className="flex-1 text-left">Controladoria</span>}
+                                {isSidebarOpen && <Icons.ChevronDown width={14} className={`transition-transform duration-300 ${expandedModules.controladoria ? 'rotate-180' : ''}`} />}
                             </button>
-                            {isSidebarOpen && (
-                                <div className={`overflow-hidden transition-all duration-300 ${expandedModules.controladoria ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0'}`}>
-                                    <div className="space-y-0.5 mb-2">
-                                        <SubMenuItem label="Dashboard" active={view === 'controladoria' && subView === 'dash'} onClick={() => setView('controladoria', 'dash')} />
-                                        <SubMenuItem label="DRE Gerencial" active={view === 'controladoria' && subView === 'dre'} onClick={() => setView('controladoria', 'dre')} />
-                                        <SubMenuItem label="Relatórios" active={view === 'controladoria' && subView === 'report'} onClick={() => setView('controladoria', 'report')} />
-                                        <SubMenuItem label="Config De/Para" active={view === 'controladoria' && subView === 'depara'} onClick={() => setView('controladoria', 'depara')} />
-                                        <SubMenuItem label="Importar Dados" active={view === 'controladoria' && subView === 'import'} onClick={() => setView('controladoria', 'import')} />
-                                    </div>
+                             {isSidebarOpen && (
+                                <div className={`overflow-hidden transition-all duration-300 ${expandedModules.controladoria ? 'max-h-96 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+                                    <SubMenuItem label="DRE Analítico" active={view === 'controladoria' && subView === 'dash'} onClick={() => { setView('controladoria'); /* setSubView('dash'); */ }} />
+                                    <SubMenuItem label="Importar Dados" active={view === 'controladoria' && subView === 'import'} onClick={() => { setView('controladoria'); /* setSubView('import'); */ }} />
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {/* DIESEL (Apenas se tiver permissão) */}
+                    {/* 3. DIESEL (Atualizado para novas rotas) */}
                     {Utils.checkPermission(userRole, 'diesel') && (
-                        <div>
-                            <button onClick={() => toggleModule('diesel')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.diesel ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-                                <div className="flex items-center gap-3"><IconFuel width={18} />{isSidebarOpen && <span>Diesel & Frota</span>}</div>
-                                {isSidebarOpen && (expandedModules.diesel ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
+                        <div className="overflow-hidden rounded-xl transition-all duration-300 mt-2">
+                             <button 
+                                onClick={() => toggleModule('diesel')}
+                                className={`w-full flex items-center gap-4 px-3 py-3 text-sm font-bold transition-all rounded-lg ${expandedModules.diesel ? 'bg-purple-50 text-purple-700 dark:bg-slate-800 dark:text-purple-400' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'}`}
+                            >
+                                <Icons.Truck width={20} className={expandedModules.diesel ? 'text-purple-600' : 'text-slate-400'} />
+                                {isSidebarOpen && <span className="flex-1 text-left">Frota & Diesel</span>}
+                                {isSidebarOpen && <Icons.ChevronDown width={14} className={`transition-transform duration-300 ${expandedModules.diesel ? 'rotate-180' : ''}`} />}
                             </button>
-                            {isSidebarOpen && (
-                                <div className={`overflow-hidden transition-all duration-300 ${expandedModules.diesel ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'}`}>
-                                    <div className="space-y-0.5 mb-2">
-                                        <SubMenuItem label="Dashboard" active={view === 'diesel' && subView === 'dash'} onClick={() => setView('diesel', 'dash')} />
-                                        <SubMenuItem label="Registro de Chamados" active={view === 'diesel_chamados'} onClick={() => setView('diesel_chamados')} />
-                                        <SubMenuItem label="Gestão de Frota" active={view === 'diesel_frota'} onClick={() => setView('diesel_frota')} />
-                                        <SubMenuItem label="Extratos / Lançamentos" active={view === 'diesel_extratos'} onClick={() => setView('diesel_extratos')} />
-                                        <SubMenuItem label="Importar Arquivos" active={view === 'diesel' && subView === 'import'} onClick={() => setView('diesel', 'import')} />
-                                        <SubMenuItem label="Auditoria" icon={IconAlert} active={view === 'diesel_alertas'} onClick={() => setView('diesel_alertas', 'dash')} />
-                                    </div>
+                             {isSidebarOpen && (
+                                <div className={`overflow-hidden transition-all duration-300 ${expandedModules.diesel ? 'max-h-96 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+                                    <SubMenuItem label="Dashboard" active={view === 'diesel' && subView === 'dash'} onClick={() => setView('diesel', 'dash')} />
+                                    {/* Link direto para a tela de chamados atualizada */}
+                                    <SubMenuItem label="Chamados / Manut." active={view === 'diesel_chamados'} onClick={() => setView('diesel_chamados')} />
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {/* INSUMOS (Apenas se tiver permissão) */}
+                    {/* 4. INSUMOS (Atualizado) */}
                     {Utils.checkPermission(userRole, 'insumos') && (
-                        <div>
-                            <button onClick={() => toggleModule('insumos')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.insumos ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-                                <div className="flex items-center gap-3"><IconBox width={18} />{isSidebarOpen && <span>Insumos</span>}</div>
-                                {isSidebarOpen && (expandedModules.insumos ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
+                        <div className="overflow-hidden rounded-xl transition-all duration-300 mt-2">
+                             <button 
+                                onClick={() => toggleModule('insumos')}
+                                className={`w-full flex items-center gap-4 px-3 py-3 text-sm font-bold transition-all rounded-lg ${expandedModules.insumos ? 'bg-purple-50 text-purple-700 dark:bg-slate-800 dark:text-purple-400' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'}`}
+                            >
+                                <Icons.Package width={20} className={expandedModules.insumos ? 'text-purple-600' : 'text-slate-400'} />
+                                {isSidebarOpen && <span className="flex-1 text-left">Insumos Agrícolas</span>}
+                                {isSidebarOpen && <Icons.ChevronDown width={14} className={`transition-transform duration-300 ${expandedModules.insumos ? 'rotate-180' : ''}`} />}
                             </button>
-                            {isSidebarOpen && (
-                                <div className={`overflow-hidden transition-all duration-300 ${expandedModules.insumos ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
-                                    <div className="space-y-0.5 mb-2">
-                                        <SubMenuItem label="Visão Geral" active={view === 'insumos' && subView === 'dash'} onClick={() => setView('insumos', 'dash')} />
-                                        <SubMenuItem label="Importação" active={view === 'insumos' && subView === 'import'} onClick={() => setView('insumos', 'import')} />
-                                    </div>
+                             {isSidebarOpen && (
+                                <div className={`overflow-hidden transition-all duration-300 ${expandedModules.insumos ? 'max-h-96 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+                                    <SubMenuItem label="Inventário & Estoque" active={view === 'insumos' && subView === 'dash'} onClick={() => setView('insumos', 'dash')} />
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {/* 5. ADMINISTRAÇÃO (Novo - Exclusivo Admin) */}
+                    {userRole === 'admin' && (
+                        <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                             <p className={`px-4 text-[10px] font-bold text-slate-400 uppercase mb-2 ${!isSidebarOpen && 'text-center'}`}>{isSidebarOpen ? 'Sistema' : 'Sys'}</p>
+                             <button 
+                                onClick={() => setView('admin')}
+                                className={`w-full flex items-center gap-4 px-3 py-3 text-sm font-bold transition-all rounded-lg ${view === 'admin' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 border border-red-100 dark:border-red-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'}`}
+                            >
+                                <IconSettings width={20} className={view === 'admin' ? 'text-red-500' : 'text-slate-400'} />
+                                {isSidebarOpen && <span className="flex-1 text-left">Administração</span>}
+                            </button>
                         </div>
                     )}
 
                 </nav>
             </div>
-            
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-                <div className={`flex items-center gap-3 ${!isSidebarOpen && 'justify-center'}`}>
-                    <div className="relative group cursor-pointer">
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-spin-slow"></div>
-                        <div className="relative w-9 h-9 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center ring-2 ring-white dark:ring-slate-900">
-                             <span className="font-extrabold text-xs text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">{session?.user?.email?.substring(0,2).toUpperCase() || 'US'}</span>
-                        </div>
-                    </div>
-                    {isSidebarOpen && (
-                        <div className="flex-1 overflow-hidden">
-                            <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{session?.user?.email?.split('@')[0]}</p>
-                            <p className="text-xs text-slate-500 truncate capitalize">{userRole || 'Usuário'}</p>
-                        </div>
-                    )}
-                    {isSidebarOpen && (<button onClick={handleLogout} className="text-slate-400 hover:text-red-500 transition-colors"><IconLogOut width={18} /></button>)}
-                </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800">
+                <button onClick={handleLogout} className={`w-full flex items-center gap-3 px-4 py-2 text-sm font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 dark:hover:text-red-400 rounded-lg transition-all ${!isSidebarOpen && 'justify-center'}`}>
+                    <IconLogOut width={18} />
+                    {isSidebarOpen && <span>Sair do Sistema</span>}
+                </button>
             </div>
         </aside>
     );
@@ -4500,79 +4533,311 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         </div>
     );
 };
-       const DieselChamados = ({ categories }) => {
-    const [form, setForm] = useState({ 
-        titulo: '', 
-        categoria: '', // Novo campo
-        descricao: '', 
-        prioridade: 'normal' 
+       const DieselChamados = ({ supabaseClient, onNotify, session, categories = [] }) => {
+    const [loading, setLoading] = useState(false);
+    const [list, setList] = useState([]);
+    const [showModal, setShowModal] = useState(false);
+    
+    // Filtros
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterDate, setFilterDate] = useState('');
+
+    // Formulário
+    const [formData, setFormData] = useState({
+        id: null,
+        solicitante: '',
+        data_solicitacao: '',
+        hora_solicitacao: '',
+        inicio_atendimento: '',
+        fim_atendimento: '',
+        descricao: '',
+        status: 'Aberto',
+        categoria: '' // Novo campo de categoria
     });
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if(!form.categoria) return alert('Por favor, selecione uma categoria.');
-        
-        console.log("Enviando chamado:", form);
-        alert("Chamado registrado com sucesso!");
-        setForm({ titulo: '', categoria: '', descricao: '', prioridade: 'normal' });
+    // --- ÍCONES ---
+    // Usando fallback para garantir que não quebre se o ícone não existir no objeto Icons principal
+    const IconPlus = Icons.Plus || Icons.UserPlus;
+    const IconEdit = Icons.Edit || Icons.Pen;
+    const IconTrash = Icons.Trash2 || Icons.Trash;
+    const IconSearch = Icons.Search;
+    const IconClock = Icons.Clock || Icons.Activity;
+    const IconUser = Icons.User;
+    const IconCheck = Icons.CheckCircle || Icons.Check;
+    const IconX = Icons.X || Icons.XCircle;
+    const IconChevronDown = Icons.ChevronDown;
+    // --------------
+
+    useEffect(() => {
+        fetchChamados();
+    }, [filterDate]);
+
+    const fetchChamados = async () => {
+        setLoading(true);
+        try {
+            let query = supabaseClient
+                .from('diesel_chamados')
+                .select('*')
+                .order('data_solicitacao', { ascending: false })
+                .order('hora_solicitacao', { ascending: false });
+
+            if (filterDate) {
+                query = query.eq('data_solicitacao', filterDate);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+            setList(data || []);
+        } catch (error) {
+            onNotify("Erro ao carregar chamados: " + error.message, "error");
+        } finally {
+            setLoading(false);
+        }
     };
 
+    const handleNew = () => {
+        const now = new Date();
+        const currentTime = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const today = now.toISOString().split('T')[0];
+        const currentUser = session?.user?.email?.split('@')[0] || 'Sistema';
+
+        setFormData({
+            id: null,
+            solicitante: currentUser,
+            data_solicitacao: today,
+            hora_solicitacao: currentTime,
+            inicio_atendimento: '',
+            fim_atendimento: '',
+            descricao: '',
+            status: 'Aberto',
+            categoria: '' // Resetar categoria
+        });
+        setShowModal(true);
+    };
+
+    const handleEdit = (item) => {
+        setFormData({ ...item, categoria: item.categoria || '' }); // Garantir que categoria venha preenchida
+        setShowModal(true);
+    };
+
+    const handleDelete = async (id) => {
+        if (!confirm("Deseja excluir este chamado?")) return;
+        try {
+            const { error } = await supabaseClient.from('diesel_chamados').delete().eq('id', id);
+            if (error) throw error;
+            onNotify("Chamado excluído.", "success");
+            fetchChamados();
+        } catch (e) { onNotify(e.message, "error"); }
+    };
+
+    const handleSave = async (e) => {
+        e.preventDefault();
+        
+        // Validação simples
+        if (!formData.categoria) {
+            return onNotify("Por favor, selecione uma categoria.", "error");
+        }
+
+        setLoading(true);
+        try {
+            let statusCalc = 'Aberto';
+            if (formData.inicio_atendimento) statusCalc = 'Em Andamento';
+            if (formData.fim_atendimento) statusCalc = 'Concluído';
+
+            const usuarioLogado = session?.user?.email || 'Sistema';
+
+            const payload = {
+                solicitante: formData.solicitante,
+                data_solicitacao: formData.data_solicitacao,
+                hora_solicitacao: formData.hora_solicitacao,
+                inicio_atendimento: formData.inicio_atendimento,
+                fim_atendimento: formData.fim_atendimento,
+                descricao: formData.descricao,
+                status: statusCalc,
+                categoria: formData.categoria, // Salvando a categoria
+                ...(formData.id ? {} : { usuario_criacao: usuarioLogado })
+            };
+
+            if (formData.id) {
+                const { error } = await supabaseClient.from('diesel_chamados').update(payload).eq('id', formData.id);
+                if (error) throw error;
+            } else {
+                const { error } = await supabaseClient.from('diesel_chamados').insert(payload);
+                if (error) throw error;
+            }
+
+            onNotify("Chamado salvo com sucesso!", "success");
+            setShowModal(false);
+            fetchChamados();
+        } catch (error) {
+            onNotify("Erro: " + error.message, "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filteredList = list.filter(item => 
+        item.solicitante.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.descricao || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.categoria || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const formatUserDisplay = (email) => {
+        if (!email) return '-';
+        return email.split('@')[0];
+    };
+
+    const inputClass = "w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-orange-500 outline-none transition-all";
+    const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide";
+
     return (
-        <div className="max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
-            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
-                <Icons.AlertTriangle className="text-orange-500" /> Novo Chamado
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Título</label>
-                        <input 
-                            required
-                            type="text" 
-                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg p-2.5 text-sm outline-none focus:border-purple-500 dark:text-white"
-                            placeholder="Resumo do problema"
-                            value={form.titulo}
-                            onChange={e => setForm({...form, titulo: e.target.value})}
-                        />
+        <>
+            {/* CONTEÚDO PRINCIPAL (COM ANIMAÇÃO) */}
+            <div className="space-y-6 animate-enter pb-20">
+                
+                {/* Header e Filtros */}
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 backdrop-blur-sm shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg text-orange-600 dark:text-orange-400">
+                            <IconCheck className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Registro de Chamados</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Controle de atendimentos e solicitações.</p>
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label>
-                        <div className="relative">
-                            <select 
-                                required
-                                value={form.categoria}
-                                onChange={e => setForm({...form, categoria: e.target.value})}
-                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg p-2.5 text-sm outline-none focus:border-purple-500 appearance-none dark:text-white"
-                            >
-                                <option value="" disabled>Selecione o tipo de atendimento...</option>
-                                {categories.map((cat, i) => (
-                                    <option key={i} value={cat}>{cat}</option>
+
+                    <div className="flex gap-3 w-full md:w-auto items-end">
+                        <div className="relative w-full md:w-48">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Filtrar Data</span>
+                            <input type="date" className="w-full pl-3 pr-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-500 text-slate-700 dark:text-slate-200" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
+                        </div>
+                        <div className="relative w-full md:w-64">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Buscar</span>
+                            <IconSearch className="absolute left-3 top-8 text-slate-400 w-4 h-4" />
+                            <input type="text" placeholder="Solicitante, categoria ou descrição..." className="w-full pl-9 pr-4 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-500 text-slate-700 dark:text-slate-200" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                        </div>
+                        <button onClick={handleNew} className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-orange-500/30 transition-all flex items-center gap-2 h-[36px]">
+                            <IconPlus className="w-4 h-4" /> Novo Chamado
+                        </button>
+                    </div>
+                </div>
+
+                {/* Tabela */}
+                <div className="glass-card overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900">
+                    <div className="overflow-x-auto max-h-[70vh]">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th className="px-6 py-4">Data</th>
+                                    <th className="px-6 py-4">Hora Solic.</th>
+                                    <th className="px-6 py-4">Categoria</th>
+                                    <th className="px-6 py-4">Solicitante</th>
+                                    <th className="px-6 py-4 text-center">Início Atend.</th>
+                                    <th className="px-6 py-4 text-center">Fim Atend.</th>
+                                    <th className="px-6 py-4 text-center">Status</th>
+                                    <th className="px-6 py-4 text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                {filteredList.map((item) => (
+                                    <tr key={item.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                        <td className="px-6 py-3 font-mono text-slate-600 dark:text-slate-400">{new Date(item.data_solicitacao).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
+                                        <td className="px-6 py-3 font-mono text-slate-600 dark:text-slate-400">{item.hora_solicitacao}</td>
+                                        <td className="px-6 py-3">
+                                            <span className="bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border border-orange-100 dark:border-orange-800 px-2 py-1 rounded text-xs font-bold">
+                                                {item.categoria || 'Geral'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-3 font-bold text-slate-800 dark:text-slate-200">
+                                            {item.solicitante}
+                                            <div className="text-xs font-normal text-slate-400 truncate max-w-[150px]">{item.descricao}</div>
+                                        </td>
+                                        <td className="px-6 py-3 text-center font-mono text-blue-600 dark:text-blue-400 font-bold">{item.inicio_atendimento || '-'}</td>
+                                        <td className="px-6 py-3 text-center font-mono text-green-600 dark:text-green-400 font-bold">{item.fim_atendimento || '-'}</td>
+                                        <td className="px-6 py-3 text-center">
+                                            <span className={`px-2 py-1 rounded text-[10px] font-bold border ${item.status === 'Concluído' ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400' : item.status === 'Em Andamento' ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400'}`}>{item.status}</span>
+                                        </td>
+                                        <td className="px-6 py-3 text-right flex justify-end gap-2 opacity-80 group-hover:opacity-100">
+                                            <button onClick={() => handleEdit(item)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Editar"><IconEdit className="w-4 h-4" /></button>
+                                            <button onClick={() => handleDelete(item.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Excluir"><IconTrash className="w-4 h-4" /></button>
+                                        </td>
+                                    </tr>
                                 ))}
-                            </select>
-                            <Icons.ChevronDown className="absolute right-3 top-3 text-slate-400 pointer-events-none" width={16} />
+                                {filteredList.length === 0 && <tr><td colSpan="8" className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">Nenhum chamado encontrado.</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {/* MODAL */}
+            {showModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 min-h-screen">
+                    {/* Fundo Escuro */}
+                    <div 
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+                        onClick={() => setShowModal(false)}
+                    ></div>
+
+                    {/* Cartão Modal */}
+                    <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden animate-enter">
+                        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+                            <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
+                                {formData.id ? <IconEdit className="text-orange-500"/> : <IconPlus className="text-orange-500"/>}
+                                {formData.id ? 'Editar Chamado' : 'Iniciar Chamado'}
+                            </h3>
+                            <button onClick={() => setShowModal(false)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500 transition-colors"><IconX className="w-5 h-5" /></button>
+                        </div>
+
+                        <div className="p-6 overflow-y-auto max-h-[80vh] custom-scrollbar">
+                            <form id="formChamado" onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="md:col-span-2">
+                                    <label className={labelClass}>Solicitante</label>
+                                    <div className="relative">
+                                        <IconUser className="absolute left-3 top-2.5 text-slate-400 w-4 h-4" />
+                                        <input type="text" className={`${inputClass} pl-9`} value={formData.solicitante} onChange={e => setFormData({...formData, solicitante: e.target.value})} required placeholder="Nome do usuário" />
+                                    </div>
+                                </div>
+                                
+                                {/* SELEÇÃO DE CATEGORIA */}
+                                <div className="md:col-span-2">
+                                    <label className={labelClass}>Categoria do Atendimento</label>
+                                    <div className="relative">
+                                        <select 
+                                            className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-orange-500 outline-none appearance-none cursor-pointer"
+                                            value={formData.categoria}
+                                            onChange={e => setFormData({...formData, categoria: e.target.value})}
+                                            required
+                                        >
+                                            <option value="" disabled>Selecione uma categoria...</option>
+                                            {categories.map((cat, i) => (
+                                                <option key={i} value={cat}>{cat}</option>
+                                            ))}
+                                        </select>
+                                        <IconChevronDown className="absolute right-3 top-3 text-slate-400 pointer-events-none" width={16} />
+                                    </div>
+                                </div>
+
+                                <div><label className={labelClass}>Data Solicitação</label><div className="relative"><input type="date" className={inputClass} value={formData.data_solicitacao} onChange={e => setFormData({...formData, data_solicitacao: e.target.value})} required /></div></div>
+                                <div><label className={labelClass}>Hora Solicitação</label><div className="relative"><IconClock className="absolute left-3 top-2.5 text-slate-400 w-4 h-4" /><input type="time" className={`${inputClass} pl-9`} value={formData.hora_solicitacao} onChange={e => setFormData({...formData, hora_solicitacao: e.target.value})} required /></div></div>
+                                
+                                <div className="md:col-span-2 border-t border-slate-100 dark:border-slate-800 my-2 pt-2"><span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-3 block">Registro de Atendimento</span></div>
+                                
+                                <div><label className={labelClass}>Início Atendimento</label><input type="time" className={inputClass} value={formData.inicio_atendimento} onChange={e => setFormData({...formData, inicio_atendimento: e.target.value})} /></div>
+                                <div><label className={labelClass}>Fim Atendimento</label><input type="time" className={inputClass} value={formData.fim_atendimento} onChange={e => setFormData({...formData, fim_atendimento: e.target.value})} /></div>
+                                <div className="md:col-span-2"><label className={labelClass}>Descrição / Observação</label><textarea className={inputClass} rows="3" value={formData.descricao} onChange={e => setFormData({...formData, descricao: e.target.value})} placeholder="Detalhes do problema ou serviço..." /></div>
+                            </form>
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex justify-end gap-3">
+                            <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">Cancelar</button>
+                            <button type="submit" form="formChamado" disabled={loading} className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-orange-500/30 transition-all flex items-center gap-2">{loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <IconCheck className="w-4 h-4" />} Salvar Chamado</button>
                         </div>
                     </div>
                 </div>
-
-                <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Descrição Detalhada</label>
-                    <textarea 
-                        required
-                        rows={4}
-                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg p-2.5 text-sm outline-none focus:border-purple-500 dark:text-white"
-                        placeholder="Descreva o que aconteceu..."
-                        value={form.descricao}
-                        onChange={e => setForm({...form, descricao: e.target.value})}
-                    />
-                </div>
-
-                <div className="flex justify-end pt-4">
-                    <button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-lg flex items-center gap-2 transition-all">
-                        <Icons.Send width={16} /> Registrar Chamado
-                    </button>
-                </div>
-            </form>
-        </div>
+            )}
+        </>
     );
 };
 const AdminPanel = ({ categories, setCategories }) => {
@@ -4581,11 +4846,9 @@ const AdminPanel = ({ categories, setCategories }) => {
     const handleAdd = () => {
         if (!newCat.trim()) return;
         if (categories.includes(newCat)) return alert('Categoria já existe!');
-        
         const updated = [...categories, newCat];
         setCategories(updated);
         setNewCat('');
-        // Persistir simples
         localStorage.setItem('diesel_categories', JSON.stringify(updated));
     };
 
@@ -4601,65 +4864,49 @@ const AdminPanel = ({ categories, setCategories }) => {
             <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                 <Icons.Shield className="text-red-600" /> Painel Administrativo
             </h2>
-
-            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-sm max-w-2xl">
+            <div className="glass-card p-6 max-w-2xl">
                 <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
                     <Icons.List className="text-purple-500" width={18} /> Categorias de Chamado (Diesel)
                 </h3>
-                
                 <div className="flex gap-2 mb-6">
                     <input 
                         type="text" 
                         value={newCat}
                         onChange={(e) => setNewCat(e.target.value)}
-                        placeholder="Nova categoria (ex: Bomba Travada)"
+                        placeholder="Nova categoria..."
                         className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-purple-500"
                     />
-                    <button 
-                        onClick={handleAdd}
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
-                    >
-                        <Icons.PlusCircle width={16} /> Adicionar
+                    <button onClick={handleAdd} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2">
+                        <Icons.Plus width={16} /> Adicionar
                     </button>
                 </div>
-
                 <div className="space-y-2">
                     {categories.map((cat, i) => (
                         <div key={i} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-900/50 rounded-md border border-slate-100 dark:border-slate-700 hover:border-purple-200 transition-all">
                             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{cat}</span>
-                            <button 
-                                onClick={() => handleDelete(cat)}
-                                className="text-slate-400 hover:text-red-500 transition-colors p-1"
-                                title="Remover"
-                            >
-                                <Icons.Trash2 width={16} />
-                            </button>
+                            <button onClick={() => handleDelete(cat)} className="text-slate-400 hover:text-red-500 transition-colors p-1"><Icons.Trash2 width={16} /></button>
                         </div>
                     ))}
-                    {categories.length === 0 && (
-                        <p className="text-center text-slate-400 text-sm italic py-4">Nenhuma categoria cadastrada.</p>
-                    )}
                 </div>
             </div>
         </div>
     );
 };
         const App = () => {
-    // --- 1. ESTADO GERAL E USUÁRIO ---
-    // Defina role: 'user' para testar a visão restrita ou 'admin' para ver tudo
-    const [user, setUser] = useState({ name: 'Usuário Demo', role: 'admin' });
-    const [isDark, setIsDark] = useState(false);
-
-    // --- 2. NAVEGAÇÃO ---
-    const [view, setView] = useState('insumos'); // 'insumos', 'diesel', 'admin', 'controladoria'
-    const [subView, setSubView] = useState('dashboard'); // Sub-navegação interna das abas
-
-    // --- 3. DADOS DO INSUMOS (Manter lógica existente) ---
+    // --- ESTADOS GERAIS DO APP ---
+    const [supabaseClient, setSupabaseClient] = useState(null);
+    const [session, setSession] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [insumosData, setInsumosData] = useState({ lista: [] }); // Inicializa vazio
-    const [insumosFilters, setInsumosFilters] = useState({ periodo: new Date().toISOString().slice(0, 7) });
+    const [userRole, setUserRole] = useState(null); // 'admin', 'user', 'gestor', etc.
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isDark, setIsDark] = useState(false);
+    
+    // NAVEGAÇÃO
+    const [view, setViewInternal] = useState('dashboard'); // view principal
+    const [subView, setSubView] = useState('dash'); // subview interna
+    const [expandedModules, setExpandedModules] = useState({ terceirizacao: true, diesel: false, insumos: false, controladoria: false });
 
-    // --- 4. CATEGORIAS DIESEL (Persistência Local) ---
+    // --- NOVO: ESTADO DAS CATEGORIAS DIESEL (Com persistência) ---
     const [dieselCategories, setDieselCategories] = useState(() => {
         try {
             const saved = localStorage.getItem('diesel_categories');
@@ -4676,197 +4923,225 @@ const AdminPanel = ({ categories, setCategories }) => {
         }
     });
 
-    // --- 5. EFEITOS (Dark Mode e Mock de Dados) ---
+    // --- ESTADOS DE DADOS (Mockados ou Reais) ---
+    const [dashboardData, setDashboardData] = useState(null);
+    const [dieselData, setDieselData] = useState(null);
+    const [insumosData, setInsumosData] = useState({ lista: [] }); // Inicia vazio para Insumos
+    
+    // Filtros Globais
+    const [filters, setFilters] = useState({
+        ano: new Date().getFullYear(),
+        mes: new Date().getMonth() + 1,
+        regional: 'Todas',
+        filial: 'Todas',
+        dieselPeriodo: new Date().toISOString().slice(0, 7)
+    });
+    
+    const [insumosFilters, setInsumosFilters] = useState({ periodo: new Date().toISOString().slice(0, 7) });
+
+    // --- EFEITOS DE INICIALIZAÇÃO ---
+
+    // 1. Auth Mock (Simulando login para funcionar sem backend real neste exemplo)
     useEffect(() => {
-        if (isDark) document.documentElement.classList.add('dark');
-        else document.documentElement.classList.remove('dark');
+        // Simulação de Cliente Supabase e Sessão
+        const mockSupabase = {
+            from: (table) => ({
+                select: () => Promise.resolve({ data: [], error: null }),
+                insert: () => Promise.resolve({ error: null }),
+                update: () => Promise.resolve({ error: null }),
+                delete: () => Promise.resolve({ error: null }),
+                eq: function() { return this; },
+                order: function() { return this; }
+            }),
+            storage: { from: () => ({ getPublicUrl: () => ({ data: { publicUrl: '' } }) }) }
+        };
+        setSupabaseClient(mockSupabase);
+        
+        // Simulação de Usuário - TROQUE ROLE PARA TESTAR (admin / user)
+        setSession({ user: { email: 'demo@tersys.com.br' } });
+        setUserRole('admin'); // <--- AQUI VOCÊ CONTROLA A PERMISSÃO
+        
+        // Carrega theme
+        const savedTheme = localStorage.getItem('tersys_theme');
+        if (savedTheme === 'dark') setIsDark(true);
+    }, []);
+
+    // 2. Dark Mode Listener
+    useEffect(() => {
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('tersys_theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('tersys_theme', 'light');
+        }
     }, [isDark]);
 
-    // Simulação de carregamento de dados para Insumos (Substitua pelo seu fetch real)
+    // 3. Data Fetching Simulado (Insumos e outros)
     useEffect(() => {
-        if (view === 'insumos') {
+        const loadData = async () => {
             setLoading(true);
-            // Aqui você deve colocar sua chamada de API real.
-            // Exemplo simulado:
+            // Simulação de delay de rede
             setTimeout(() => {
-                // setInsumosData(dadosBuscados...);
+                // Aqui entrariam os fetchs reais. 
+                // Para insumos, mantemos vazio ou mock se tiver dados
                 setLoading(false);
             }, 800);
-        }
-    }, [insumosFilters, view]);
+        };
+        loadData();
+    }, [view, filters, insumosFilters]);
 
-    // --- 6. HANDLERS ---
-    const handleExport = (format) => {
-        alert(`Exportando relatório em ${format}...`);
+    // --- HANDLERS ---
+
+    const handleSetView = (newView, newSubView = null) => {
+        setViewInternal(newView);
+        if (newSubView) setSubView(newSubView);
+        
+        // Auto-scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+
+    const toggleModule = (module) => {
+        if (!isSidebarOpen) setIsSidebarOpen(true);
+        setExpandedModules(prev => ({ ...prev, [module]: !prev[module] }));
+    };
+
+    const handleLogout = () => {
+        if (confirm('Deseja sair do sistema?')) {
+            window.location.reload();
+        }
+    };
+
+    const addLog = (msg, type = 'info') => {
+        console.log(`[${type.toUpperCase()}] ${msg}`);
+        // Aqui poderia haver um sistema de Toast/Notification
+        alert(msg); 
+    };
+
+    // --- RENDER ---
+    if (!session) return <div className="h-screen flex items-center justify-center bg-slate-100 text-slate-400">Carregando Sessão...</div>;
+
     return (
-        <div className="flex h-screen bg-slate-50 dark:bg-slate-900 font-sans transition-colors duration-200">
+        <div className="min-h-screen flex bg-slate-100 dark:bg-slate-900 font-sans text-slate-800 dark:text-slate-200 overflow-hidden transition-colors duration-300">
             
-            {/* === SIDEBAR === */}
-            <aside className="w-64 bg-white dark:bg-slate-850 border-r border-slate-200 dark:border-slate-800 flex flex-col no-print z-20">
-                {/* Logo Area */}
-                <div className="h-16 flex items-center px-6 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-black text-xl tracking-tight">
-                        <div className="w-8 h-8 bg-gradient-to-tr from-purple-600 to-blue-500 rounded-lg flex items-center justify-center text-white shadow-md">
-                            <Icons.Activity width={20} />
-                        </div>
-                        TERSYS
-                    </div>
-                </div>
+            {/* MENU LATERAL */}
+            <Sidebar 
+                isSidebarOpen={isSidebarOpen}
+                toggleSidebar={toggleSidebar}
+                toggleModule={toggleModule}
+                expandedModules={expandedModules}
+                userRole={userRole}
+                setView={handleSetView}
+                view={view}
+                subView={subView}
+                handleLogout={handleLogout}
+                session={session}
+            />
 
-                {/* Menu */}
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
-                    <p className="px-2 text-xs font-bold text-slate-400 uppercase mb-2 tracking-wider">Módulos Operacionais</p>
-                    
+            {/* CONTEÚDO PRINCIPAL */}
+            <div className={`flex-1 content-transition ${isSidebarOpen ? 'ml-64' : 'ml-20'} overflow-y-auto h-screen relative`}>
+                
+                {/* Header Superior (Toggle Theme, Breadcrumbs, etc) */}
+                <header className="sticky top-0 z-30 bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-md px-8 py-4 flex justify-end no-print">
                     <button 
-                        onClick={() => { setView('insumos'); setSubView('dashboard'); }} 
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${view === 'insumos' ? 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                        onClick={() => setIsDark(!isDark)} 
+                        className="p-2 rounded-full bg-white dark:bg-slate-800 text-slate-400 hover:text-purple-500 shadow-sm border border-slate-200 dark:border-slate-700 transition-all"
+                        title="Alternar Tema"
                     >
-                        <Icons.Package width={18} /> Insumos Agrícolas
+                        {isDark ? <Icons.Sun width={18} /> : <Icons.Moon width={18} />}
                     </button>
-                    
-                    <button 
-                        onClick={() => { setView('diesel'); setSubView('dashboard'); }} 
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${view === 'diesel' ? 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                    >
-                        <Icons.Truck width={18} /> Controle Diesel
-                    </button>
+                </header>
 
-                    <button 
-                        onClick={() => { setView('controladoria'); setSubView('dashboard'); }} 
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${view === 'controladoria' ? 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                    >
-                        <Icons.BarChart2 width={18} /> Controladoria
-                    </button>
+                <main className="p-8 max-w-[1600px] mx-auto pb-20">
+                    <ErrorBoundary>
+                        
+                        {/* 1. VISÃO DASHBOARD (TERCEIRIZAÇÃO) */}
+                        {view === 'dashboard' && (
+                            <div className="animate-enter">
+                                <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Visão Geral: Terceirização</h2>
+                                {/* Aqui entraria o <TerceirizacaoDashboard /> original */}
+                                <div className="glass-card p-10 text-center text-slate-400">
+                                    Conteúdo do Dashboard de Terceirização...
+                                </div>
+                            </div>
+                        )}
 
-                    {/* MENU ADMIN - Condicional */}
-                    {user.role === 'admin' && (
-                        <div className="animate-enter">
-                            <div className="my-4 border-t border-slate-100 dark:border-slate-800"></div>
-                            <p className="px-2 text-xs font-bold text-slate-400 uppercase mb-2 tracking-wider">Sistema</p>
-                            <button 
-                                onClick={() => { setView('admin'); }} 
-                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${view === 'admin' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                            >
-                                <Icons.Settings width={18} /> Administração
-                            </button>
-                        </div>
-                    )}
-                </nav>
+                        {/* 2. DEMAIS TELAS DE TERCEIRIZAÇÃO (Placeholders para manter rotas) */}
+                        {view === 'terceirizacao_cadastros' && <div className="glass-card p-10">Tela de Cadastros</div>}
+                        {view === 'terceirizacao_lancamentos' && <div className="glass-card p-10">Tela de Lançamentos</div>}
+                        {view === 'terceirizacao_relatorios' && <div className="glass-card p-10">Tela de Relatórios</div>}
 
-                {/* Footer User Profile */}
-                <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-                     <div className="flex items-center gap-3 px-2">
-                        <div className="w-9 h-9 rounded-full bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 text-sm shadow-sm">
-                            {user.name.charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{user.name}</p>
-                            <p className="text-xs text-slate-400 truncate capitalize flex items-center gap-1">
-                                {user.role === 'admin' && <Icons.Shield width={10} className="text-red-500" />}
-                                {user.role}
-                            </p>
-                        </div>
-                        <button 
-                            onClick={() => setIsDark(!isDark)} 
-                            className="p-2 rounded-full hover:bg-white dark:hover:bg-slate-700 text-slate-400 hover:text-purple-500 transition-all shadow-sm"
-                            title="Alternar Tema"
-                        >
-                            {isDark ? <Icons.Sun width={16} /> : <Icons.Moon width={16} />}
-                        </button>
-                     </div>
-                </div>
-            </aside>
+                        {/* 3. DIESEL */}
+                        {/* 3.1 Dashboard Diesel */}
+                        {view === 'diesel' && subView === 'dash' && (
+                            <div className="animate-enter">
+                                {/* <DieselDashboard ... /> original */}
+                                <div className="glass-card p-10 text-center text-slate-400">
+                                    Dashboard de Diesel (Placehoder)
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* 3.2 Chamados Diesel (ATUALIZADO) */}
+                        {view === 'diesel_chamados' && (
+                            <DieselChamados 
+                                supabaseClient={supabaseClient} 
+                                onNotify={addLog} 
+                                session={session}
+                                categories={dieselCategories} // Passando categorias persistidas
+                            />
+                        )}
 
-            {/* === MAIN CONTENT === */}
-            <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900 relative">
-                <div className="p-4 md:p-8 max-w-[1600px] mx-auto min-h-screen">
-                    
-                    {/* 1. VISÃO INSUMOS */}
-                    {view === 'insumos' && (
-                        <div className="animate-enter">
+                        {/* 4. INSUMOS (ATUALIZADO) */}
+                        {view === 'insumos' && subView === 'dash' && (
                             <InsumosDashboard 
                                 data={insumosData} 
                                 loading={loading} 
                                 filters={insumosFilters} 
                                 setFilters={setInsumosFilters} 
-                                onExport={handleExport} 
                             />
-                        </div>
-                    )}
+                        )}
 
-                    {/* 2. VISÃO DIESEL */}
-                    {view === 'diesel' && (
-                        <div className="space-y-6 animate-enter pb-10">
-                            {/* Header Diesel */}
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-                                <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                    <Icons.Truck className="text-purple-500" /> Gestão de Diesel
-                                </h2>
-                                <div className="flex bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
-                                    <button 
-                                        onClick={() => setSubView('dashboard')} 
-                                        className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${subView === 'dashboard' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300' : 'text-slate-500 hover:text-slate-700'}`}
-                                    >
-                                        Dashboard
-                                    </button>
-                                    <button 
-                                        onClick={() => setSubView('chamado')} 
-                                        className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${subView === 'chamado' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300' : 'text-slate-500 hover:text-slate-700'}`}
-                                    >
-                                        Registrar Chamado
-                                    </button>
+                        {/* 5. CONTROLADORIA */}
+                        {view === 'controladoria' && (
+                            <div className="animate-enter">
+                                <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Controladoria</h2>
+                                <div className="glass-card p-10 text-center text-slate-400">
+                                    Módulo de DRE e Análises Financeiras...
                                 </div>
                             </div>
+                        )}
 
-                            {/* Conteúdo Diesel */}
-                            {subView === 'dashboard' && (
-                                <div className="p-12 text-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl">
-                                    <Icons.BarChart2 className="mx-auto text-slate-300 mb-4" width={48} />
-                                    <p className="text-slate-500 font-medium">Dashboard de Diesel em desenvolvimento...</p>
+                        {/* 6. ADMINISTRAÇÃO (NOVO - PROTEGIDO) */}
+                        {view === 'admin' && (
+                            userRole === 'admin' ? (
+                                <AdminPanel 
+                                    categories={dieselCategories} 
+                                    setCategories={setDieselCategories} 
+                                />
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-[50vh] animate-enter text-center">
+                                    <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-full mb-4 text-red-500">
+                                        <Icons.Shield width={48} />
+                                    </div>
+                                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Acesso Restrito</h2>
+                                    <p className="text-slate-500 mt-2 max-w-md">Você não possui permissões de administrador para acessar o gerenciamento de categorias do sistema.</p>
                                 </div>
-                            )}
-                            
-                            {/* Formulário com Categorias Dinâmicas */}
-                            {subView === 'chamado' && (
-                                <DieselChamados categories={dieselCategories} />
-                            )}
-                        </div>
-                    )}
+                            )
+                        )}
 
-                    {/* 3. VISÃO CONTROLADORIA (Placeholder para manter estrutura) */}
-                    {view === 'controladoria' && (
-                        <div className="p-10 text-center animate-enter">
-                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">Controladoria</h2>
-                            <p className="text-slate-500">Módulo de controladoria e DRE.</p>
-                        </div>
-                    )}
-
-                    {/* 4. VISÃO ADMIN (Protegida) */}
-                    {view === 'admin' && (
-                        user.role === 'admin' ? (
-                            <AdminPanel 
-                                categories={dieselCategories} 
-                                setCategories={setDieselCategories} 
-                            />
-                        ) : (
-                            <div className="flex flex-col items-center justify-center h-[50vh] text-center animate-enter">
-                                <Icons.Shield className="text-red-500 mb-4" width={64} />
-                                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Acesso Restrito</h2>
-                                <p className="text-slate-500 mt-2">Você não tem permissão para acessar o painel administrativo.</p>
-                            </div>
-                        )
-                    )}
-
-                </div>
-            </main>
+                    </ErrorBoundary>
+                </main>
+            </div>
         </div>
     );
 };
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
