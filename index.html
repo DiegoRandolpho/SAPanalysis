@@ -52,64 +52,90 @@
         .content-transition { transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .picker-popover { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
         /* --- CSS DE IMPRESSÃO (MODO RETRATO / PORTRAIT) --- */
-/* --- CSS DE IMPRESSÃO (CORREÇÃO DE CORTE DE PÁGINA) --- */
 @media print {
             @page { 
-                size: portrait; 
+                size: portrait;  /* Ou use 'landscape' se a tabela for muito larga */
                 margin: 5mm; 
             }
             
-            /* 1. RESET GERAL */
-            html, body, #root, main, .h-screen, .min-h-screen, .overflow-y-auto, .flex-1 {
+            /* 1. RESET DE LAYOUT E MARGENS (A CORREÇÃO PRINCIPAL) */
+            html, body, #root {
+                width: 100% !important;
                 height: auto !important;
-                min-height: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
                 overflow: visible !important;
-                display: block !important;
                 background-color: white !important;
-                color: black !important;
             }
 
-            /* 2. OCULTAR ELEMENTOS DE UI */
-            nav, header, aside, .sidebar, .filters-area, .status-log, button, .no-print, .fixed { 
+            /* Força o container principal a ocupar 100% e remove margens da sidebar */
+            main, .flex-1, .w-full, .report-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin-left: 0 !important; /* Remove espaço da esquerda */
+                padding: 0 !important;
+                position: static !important;
+                display: block !important; /* Remove comportamento flex que pode gerar colunas vazias */
+            }
+
+            /* Ocultar sidebar e elementos desnecessários */
+            nav, header, aside, .sidebar, .filters-area, .fixed, .no-print, button { 
                 display: none !important; 
             }
 
-            /* 3. FORÇAR CORES E FUNDOS */
-            .report-container {
-                width: 100% !important;
-                background: white !important;
-                color: black !important;
+            /* 2. ESCALA INTELIGENTE (Para caber tabelas) */
+            body {
+                /* Ajusta o zoom para 90% ou 85% para evitar cortes laterais nas tabelas */
+                zoom: 90%; 
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
 
-            /* Forçar texto preto onde necessário */
+            /* 3. CORES (Mantém a correção dos valores R$) */
             .print-text-black {
                 color: #000000 !important;
                 -webkit-text-fill-color: #000000 !important;
             }
+            .text-red-500, .text-red-600 { color: #dc2626 !important; }
+            .text-emerald-500, .text-emerald-600 { color: #059669 !important; }
+            .text-purple-600, .text-purple-700 { color: #7c3aed !important; }
+            .text-blue-600, .text-blue-700 { color: #2563eb !important; }
 
-            /* Forçar cores de destaque (Vermelho/Verde/Roxo) mesmo na impressão */
-            .text-red-500, .text-red-600 { color: #dc2626 !important; -webkit-print-color-adjust: exact; }
-            .text-emerald-500, .text-emerald-600 { color: #059669 !important; -webkit-print-color-adjust: exact; }
-            .text-purple-600, .text-purple-700 { color: #7c3aed !important; -webkit-print-color-adjust: exact; }
-            .text-blue-600, .text-blue-700 { color: #2563eb !important; -webkit-print-color-adjust: exact; }
-            
-            /* Remove sombras e fundos escuros dos cards */
-            .glass-card, .bg-white, .dark\:bg-slate-800, .bg-slate-50, .dark\:bg-slate-900 {
+            /* Remove sombras e fundos escuros */
+            .bg-white, .dark\:bg-slate-800, .card, .glass-card {
                 background: white !important;
-                box-shadow: none !important;
                 border: 1px solid #ddd !important;
+                box-shadow: none !important;
             }
 
-            /* 4. TABELAS E GRÁFICOS */
-            table { width: 100% !important; border-collapse: collapse !important; font-size: 9px !important; }
-            thead { display: table-header-group !important; }
-            tr { page-break-inside: avoid !important; }
-            th, td { border: 1px solid #000 !important; padding: 2px !important; color: black !important; }
+            /* 4. TABELAS E GRIDS */
+            /* Garante que o grid de cards fique bonito (3 por linha ou ajustável) */
+            .grid {
+                display: grid !important;
+            }
             
-            /* Correção para gráficos e layouts */
-            .recharts-wrapper { width: 100% !important; }
-            .print-card { border: 1px solid #000 !important; break-inside: avoid; }
-            .print-page-break { page-break-before: always; display: block !important; }
+            /* Ajustes específicos para gráficos e tabelas não quebrarem */
+            .print-card {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                margin-bottom: 10px !important;
+            }
+
+            table {
+                width: 100% !important;
+                table-layout: fixed; /* Ajuda a não estourar a largura */
+                font-size: 10px !important; /* Fonte menor na tabela */
+            }
+            
+            th, td {
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                border: 1px solid #000 !important;
+                color: black !important;
+            }
+
+            /* Utilitários de Quebra de Página */
+            .print-page-break { page-break-before: always; }
             .print-force-visible { display: block !important; }
             .hide-on-screen { display: none; }
         }
@@ -5414,5 +5440,6 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
