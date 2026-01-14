@@ -2031,6 +2031,7 @@
        
         const Sidebar = ({ isSidebarOpen, toggleSidebar, toggleModule, expandedModules, userRole, setView, view, subView, handleLogout, session }) => {
     // ÍCONES BLINDADOS
+    const IconSettings = Icons.Settings || Icons.Tool;
     const IconHome = Icons.Home || Icons.Layout || Icons.FileText;
     const IconTruck = Icons.Truck || Icons.Activity || Icons.FileText;
     const IconUsers = Icons.Users || Icons.User || Icons.FileText;
@@ -2144,7 +2145,21 @@
                             )}
                         </div>
                     )}
-
+                    {(userRole === 'admin' || userRole === 'administrador') && (
+                        <div>
+                            <button onClick={() => toggleModule('admin')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.admin ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                                <div className="flex items-center gap-3"><IconSettings width={18} />{isSidebarOpen && <span>Admin</span>}</div>
+                                {isSidebarOpen && (expandedModules.admin ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
+                            </button>
+                            {isSidebarOpen && (
+                                <div className={`overflow-hidden transition-all duration-300 ${expandedModules.admin ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <div className="space-y-0.5 mb-2">
+                                        <SubMenuItem label="Cadastro Chamados" active={view === 'admin_chamados'} onClick={() => setView('admin_chamados')} />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </nav>
             </div>
             
@@ -4767,7 +4782,256 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         </>
     );
 };
+// ============================================================================
+// COMPONENTE: ADMIN - CADASTRO DE TIPOS DE CHAMADOS
+// ============================================================================
+const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
+    const [list, setList] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [showModal, setShowModal] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    
+    // Estado do Formulário
+    const [formData, setFormData] = useState({ id: null, tipo_chamado: '', setor: 'diesel' });
 
+    // Ícones
+    const IconSettings = Icons.Settings || Icons.Tool;
+    const IconPlus = Icons.Plus;
+    const IconEdit = Icons.Edit;
+    const IconTrash = Icons.Trash2;
+    const IconSave = Icons.Save;
+    const IconX = Icons.X;
+    const IconSearch = Icons.Search;
+    const IconTag = Icons.Tag || Icons.FileText;
+
+    // Carregar dados
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const { data, error } = await supabaseClient
+                .from('admin_tipos_chamados')
+                .select('*')
+                .order('setor', { ascending: true })
+                .order('tipo_chamado', { ascending: true });
+
+            if (error) throw error;
+            setList(data || []);
+        } catch (e) {
+            onNotify("Erro ao carregar tipos: " + e.message, "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchData(); }, []);
+
+    // Ações
+    const handleNew = () => {
+        setFormData({ id: null, tipo_chamado: '', setor: 'diesel' });
+        setShowModal(true);
+    };
+
+    const handleEdit = (item) => {
+        setFormData({ ...item });
+        setShowModal(true);
+    };
+
+    const handleDelete = async (id) => {
+        if (!confirm("Tem certeza que deseja excluir este tipo de chamado?")) return;
+        try {
+            const { error } = await supabaseClient.from('admin_tipos_chamados').delete().eq('id', id);
+            if (error) throw error;
+            onNotify("Excluído com sucesso.", "success");
+            fetchData();
+        } catch (e) {
+            onNotify("Erro: " + e.message, "error");
+        }
+    };
+
+    const handleSave = async (e) => {
+        e.preventDefault();
+        if (!formData.tipo_chamado) return onNotify("O nome do tipo é obrigatório.", "error");
+        
+        setLoading(true);
+        try {
+            const payload = { 
+                tipo_chamado: formData.tipo_chamado, 
+                setor: formData.setor 
+            };
+
+            let error;
+            if (formData.id) {
+                const { error: err } = await supabaseClient.from('admin_tipos_chamados').update(payload).eq('id', formData.id);
+                error = err;
+            } else {
+                const { error: err } = await supabaseClient.from('admin_tipos_chamados').insert(payload);
+                error = err;
+            }
+
+            if (error) throw error;
+            onNotify("Salvo com sucesso!", "success");
+            setShowModal(false);
+            fetchData();
+        } catch (e) {
+            onNotify("Erro ao salvar: " + e.message, "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Filtro
+    const filteredList = list.filter(item => 
+        item.tipo_chamado.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.setor.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Classes CSS reutilizáveis (Mesmo padrão do site)
+    const inputClass = "w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all";
+    const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide";
+    const badgeColor = (setor) => {
+        switch(setor.toLowerCase()) {
+            case 'diesel': return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400';
+            case 'terceirizacao': return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400';
+            case 'insumos': return 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400';
+            case 'controladoria': return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400';
+            default: return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400';
+        }
+    };
+
+    return (
+        <div className="space-y-6 animate-enter pb-20 relative h-full flex flex-col">
+            
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 backdrop-blur-sm shadow-sm">
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400">
+                        <IconSettings className="w-6 h-6" /> 
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white">Tipos de Chamado</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 hidden md:block">Configuração Geral do Sistema</p>
+                    </div>
+                </div>
+
+                <div className="flex flex-1 w-full md:w-auto items-center gap-4 justify-end">
+                    <div className="relative w-full md:w-96">
+                        <IconSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                        <input 
+                            type="text" 
+                            placeholder="Buscar tipo ou setor..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/50 transition-all shadow-sm"
+                        />
+                    </div>
+                    <button onClick={handleNew} className="bg-slate-800 hover:bg-slate-700 dark:bg-white dark:hover:bg-slate-200 dark:text-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2 hover:scale-105 active:scale-95 whitespace-nowrap">
+                        <IconPlus className="w-5 h-5" /> <span className="hidden md:inline">Novo Tipo</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Tabela */}
+            <div className="flex-1 glass-card overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900">
+                <div className="overflow-x-auto h-full max-h-[75vh]">
+                    <table className="w-full text-sm text-left border-collapse">
+                        <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 uppercase font-bold text-xs sticky top-0 z-10 shadow-sm backdrop-blur-md">
+                            <tr>
+                                <th className="px-6 py-4 w-1/3">Tipo de Chamado</th>
+                                <th className="px-6 py-4 w-1/3">Setor</th>
+                                <th className="px-6 py-4 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                            {filteredList.map((item) => (
+                                <tr key={item.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors duration-200">
+                                    <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">
+                                        <div className="flex items-center gap-2">
+                                            <IconTag className="w-4 h-4 text-slate-400" />
+                                            {item.tipo_chamado}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded border text-xs font-bold uppercase ${badgeColor(item.setor)}`}>
+                                            {item.setor}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right flex justify-end gap-3 opacity-80 group-hover:opacity-100">
+                                        <button onClick={() => handleEdit(item)} className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all shadow-sm"><IconEdit className="w-4 h-4" /></button>
+                                        <button onClick={() => handleDelete(item.id)} className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all shadow-sm"><IconTrash className="w-4 h-4" /></button>
+                                    </td>
+                                </tr>
+                            ))}
+                            {filteredList.length === 0 && (
+                                <tr>
+                                    <td colSpan="3" className="px-6 py-20 text-center text-slate-400 dark:text-slate-500">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <IconSearch className="w-12 h-12 opacity-20" />
+                                            <p className="text-lg font-medium">Nenhum registro encontrado.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Modal */}
+            {showModal && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-enter">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-lg shadow-2xl rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
+                        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+                            <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
+                                {formData.id ? <IconEdit className="text-blue-500"/> : <IconPlus className="text-blue-500"/>}
+                                {formData.id ? 'Editar Tipo' : 'Novo Tipo de Chamado'}
+                            </h3>
+                            <button onClick={() => setShowModal(false)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500 transition-colors">
+                                <IconX className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 overflow-y-auto max-h-[80vh]">
+                            <form id="formAdminChamado" onSubmit={handleSave} className="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label className={labelClass}>Tipo de Chamado *</label>
+                                    <input 
+                                        type="text" 
+                                        value={formData.tipo_chamado} 
+                                        onChange={(e) => setFormData({...formData, tipo_chamado: e.target.value})} 
+                                        className={inputClass} 
+                                        placeholder="Ex: Manutenção Elétrica, Compra de Peça..." 
+                                        required 
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Setor *</label>
+                                    <select 
+                                        value={formData.setor} 
+                                        onChange={(e) => setFormData({...formData, setor: e.target.value})} 
+                                        className={inputClass}
+                                    >
+                                        <option value="diesel">Diesel & Frota</option>
+                                        <option value="terceirizacao">Terceirização</option>
+                                        <option value="insumos">Insumos</option>
+                                        <option value="controladoria">Controladoria</option>
+                                    </select>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex justify-end gap-3">
+                            <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">Cancelar</button>
+                            <button type="submit" form="formAdminChamado" disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2">
+                                {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <IconSave className="w-4 h-4" />}
+                                Salvar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
         const App = () => {
             const [supabaseClient, setSupabaseClient] = useState(null);
             const [session, setSession] = useState(null);
@@ -4797,7 +5061,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
 
             // --- STATES GERAIS ---
             const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-            const [expandedModules, setExpandedModules] = useState({ terceirizacao: false, controladoria: false, diesel: false, insumos: false });
+            const [expandedModules, setExpandedModules] = useState({ terceirizacao: false, controladoria: false, diesel: false, insumos: false, admin: false });
             const [view, setView] = useState('dashboard');
             const [subView, setSubView] = useState('dash');
             
@@ -5322,6 +5586,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                                 {view === 'controladoria' ? <><Icons.BarChart2 className="w-4 h-4 text-slate-400" /> Controladoria / <span className="text-purple-600 dark:text-purple-400 capitalize">{subView === 'centro_custo' ? 'Detalhe C. Custo' : (subView === 'dre' ? 'DRE Gerencial' : subView)}</span></> : 
                                  view === 'diesel' ? <><Icons.Fuel className="w-4 h-4 text-slate-400" /> Diesel / <span className="text-orange-600 dark:text-orange-400 capitalize">{subView}</span></> : 
                                  view === 'insumos' ? <><Icons.Box className="w-4 h-4 text-slate-400" /> Insumos / <span className="text-purple-600 dark:text-purple-400 capitalize">{subView}</span></> :
+                                 view === 'admin_chamados' ? (<><Icons.Settings className="w-4 h-4 text-slate-400" /> Admin / <span className="text-slate-600 dark:text-slate-300 capitalize">Tipos de Chamado</span></>) :
                                  <><Icons.Briefcase className="w-4 h-4 text-slate-400" /> Terceirização / <span className="text-blue-600 dark:text-blue-400 capitalize">{view}</span></>}
                             </h1>
                             <div className="flex items-center gap-4">
@@ -5512,7 +5777,9 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                                         </div>
                                     </div>
                                 )}
-
+                                {view === 'admin_chamados' && (
+                                    <AdminCadastroChamados supabaseClient={supabaseClient} onNotify={addLog} />
+                                )}
                             </ErrorBoundary>
                         </main>
                     </div>
@@ -5522,6 +5789,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
