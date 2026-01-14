@@ -4513,6 +4513,9 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
     const [list, setList] = useState([]);
     const [showModal, setShowModal] = useState(false);
     
+    // Novo: Lista de opções vinda do Admin
+    const [tiposOpcoes, setTiposOpcoes] = useState([]);
+
     // Filtros
     const [searchTerm, setSearchTerm] = useState('');
     const [filterDate, setFilterDate] = useState('');
@@ -4521,6 +4524,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
     const [formData, setFormData] = useState({
         id: null,
         solicitante: '',
+        tipo_atendimento: '', // Novo Campo
         data_solicitacao: '',
         hora_solicitacao: '',
         inicio_atendimento: '',
@@ -4529,20 +4533,39 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         status: 'Aberto'
     });
 
-    // --- ÍCONES ---
-    const IconPlus = Icons.Plus || Icons.UserPlus;
-    const IconEdit = Icons.Edit || Icons.Pen;
-    const IconTrash = Icons.Trash2 || Icons.Trash;
-    const IconSearch = Icons.Search;
+    // --- ÍCONES BLINDADOS (Evita erro undefined) ---
+    const IconPlus = Icons.Plus || Icons.FileText;
+    const IconEdit = Icons.Edit || Icons.FileText;
+    const IconTrash = Icons.Trash2 || Icons.X;
+    const IconSearch = Icons.Search || Icons.FileText;
     const IconClock = Icons.Clock || Icons.Activity;
-    const IconUser = Icons.User;
+    const IconUser = Icons.User || Icons.FileText;
     const IconCheck = Icons.CheckCircle || Icons.Check;
-    const IconX = Icons.X || Icons.XCircle;
-    // --------------
+    const IconX = Icons.X || Icons.LogOut;
+    // Ícone para o novo campo
+    const IconTag = Icons.Tag || Icons.List || Icons.FileText; 
 
+    // 1. Carregar Chamados e Tipos
     useEffect(() => {
         fetchChamados();
+        fetchTiposAtendimento();
     }, [filterDate]);
+
+    const fetchTiposAtendimento = async () => {
+        try {
+            // Busca apenas os tipos configurados para o setor 'diesel'
+            const { data, error } = await supabaseClient
+                .from('admin_tipos_chamados')
+                .select('tipo_chamado')
+                .eq('setor', 'diesel')
+                .order('tipo_chamado', { ascending: true });
+            
+            if (error) throw error;
+            setTiposOpcoes(data || []);
+        } catch (e) {
+            console.error("Erro ao carregar tipos:", e);
+        }
+    };
 
     const fetchChamados = async () => {
         setLoading(true);
@@ -4576,6 +4599,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         setFormData({
             id: null,
             solicitante: currentUser,
+            tipo_atendimento: '', // Reset
             data_solicitacao: today,
             hora_solicitacao: currentTime,
             inicio_atendimento: '',
@@ -4605,6 +4629,11 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
         e.preventDefault();
         setLoading(true);
         try {
+            // Validação simples
+            if (!formData.solicitante) throw new Error("O solicitante é obrigatório.");
+            // Opcional: Validar se tipo foi selecionado
+            // if (!formData.tipo_atendimento) throw new Error("Selecione o tipo de atendimento.");
+
             let statusCalc = 'Aberto';
             if (formData.inicio_atendimento) statusCalc = 'Em Andamento';
             if (formData.fim_atendimento) statusCalc = 'Concluído';
@@ -4613,6 +4642,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
 
             const payload = {
                 solicitante: formData.solicitante,
+                tipo_atendimento: formData.tipo_atendimento, // Salvando novo campo
                 data_solicitacao: formData.data_solicitacao,
                 hora_solicitacao: formData.hora_solicitacao,
                 inicio_atendimento: formData.inicio_atendimento,
@@ -4642,7 +4672,8 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
 
     const filteredList = list.filter(item => 
         item.solicitante.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.descricao || '').toLowerCase().includes(searchTerm.toLowerCase())
+        (item.descricao || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.tipo_atendimento || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const formatUserDisplay = (email) => {
@@ -4654,9 +4685,8 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
     const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide";
 
     return (
-        <> {/* <--- USANDO FRAGMENTO PARA ISOLAR O CONTEÚDO */}
-            
-            {/* CONTEÚDO PRINCIPAL (COM ANIMAÇÃO) */}
+        <> 
+            {/* CONTEÚDO PRINCIPAL */}
             <div className="space-y-6 animate-enter pb-20">
                 
                 {/* Header e Filtros */}
@@ -4679,7 +4709,7 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                         <div className="relative w-full md:w-64">
                             <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Buscar</span>
                             <IconSearch className="absolute left-3 top-8 text-slate-400 w-4 h-4" />
-                            <input type="text" placeholder="Solicitante ou descrição..." className="w-full pl-9 pr-4 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-500 text-slate-700 dark:text-slate-200" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            <input type="text" placeholder="Solicitante, tipo ou descrição..." className="w-full pl-9 pr-4 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-500 text-slate-700 dark:text-slate-200" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                         </div>
                         <button onClick={handleNew} className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-orange-500/30 transition-all flex items-center gap-2 h-[36px]">
                             <IconPlus className="w-4 h-4" /> Novo Chamado
@@ -4693,12 +4723,11 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                         <table className="w-full text-sm text-left">
                             <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase sticky top-0 z-10 shadow-sm">
                                 <tr>
-                                    <th className="px-6 py-4">Data</th>
-                                    <th className="px-6 py-4">Hora Solic.</th>
+                                    <th className="px-6 py-4">Data/Hora</th>
                                     <th className="px-6 py-4">Solicitante</th>
-                                    <th className="px-6 py-4">Criado Por</th>
-                                    <th className="px-6 py-4 text-center">Início Atend.</th>
-                                    <th className="px-6 py-4 text-center">Fim Atend.</th>
+                                    <th className="px-6 py-4">Tipo de Atendimento</th>
+                                    <th className="px-6 py-4 text-center">Início</th>
+                                    <th className="px-6 py-4 text-center">Fim</th>
                                     <th className="px-6 py-4 text-center">Status</th>
                                     <th className="px-6 py-4 text-right">Ações</th>
                                 </tr>
@@ -4706,16 +4735,23 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                                 {filteredList.map((item) => (
                                     <tr key={item.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                        <td className="px-6 py-3 font-mono text-slate-600 dark:text-slate-400">{new Date(item.data_solicitacao).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
-                                        <td className="px-6 py-3 font-mono text-slate-600 dark:text-slate-400">{item.hora_solicitacao}</td>
+                                        <td className="px-6 py-3 font-mono text-slate-600 dark:text-slate-400 text-xs">
+                                            {new Date(item.data_solicitacao).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}<br/>
+                                            <span className="opacity-70">{item.hora_solicitacao}</span>
+                                        </td>
                                         <td className="px-6 py-3 font-bold text-slate-800 dark:text-slate-200">
                                             {item.solicitante}
                                             <div className="text-xs font-normal text-slate-400 truncate max-w-[150px]">{item.descricao}</div>
                                         </td>
-                                        <td className="px-6 py-3 text-xs text-slate-500 dark:text-slate-400">
-                                            <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700">
-                                                {formatUserDisplay(item.usuario_criacao)}
-                                            </span>
+                                        {/* Coluna NOVA: Tipo de Atendimento */}
+                                        <td className="px-6 py-3">
+                                            {item.tipo_atendimento ? (
+                                                <span className="bg-orange-50 dark:bg-orange-900/10 text-orange-700 dark:text-orange-400 px-2 py-1 rounded text-xs border border-orange-100 dark:border-orange-800/30 font-medium">
+                                                    {item.tipo_atendimento}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-400 text-xs italic">-</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-3 text-center font-mono text-blue-600 dark:text-blue-400 font-bold">{item.inicio_atendimento || '-'}</td>
                                         <td className="px-6 py-3 text-center font-mono text-green-600 dark:text-green-400 font-bold">{item.fim_atendimento || '-'}</td>
@@ -4728,23 +4764,18 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
                                         </td>
                                     </tr>
                                 ))}
-                                {filteredList.length === 0 && <tr><td colSpan="8" className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">Nenhum chamado encontrado.</td></tr>}
+                                {filteredList.length === 0 && <tr><td colSpan="7" className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">Nenhum chamado encontrado.</td></tr>}
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            {/* MODAL (AGORA FORA DA DIV ANIMADA PARA PODER CENTRALIZAR) */}
+            {/* MODAL */}
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 min-h-screen">
-                    {/* Fundo Escuro */}
-                    <div 
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
-                        onClick={() => setShowModal(false)}
-                    ></div>
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setShowModal(false)}></div>
 
-                    {/* Cartão Modal */}
                     <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden animate-enter">
                         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
                             <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
@@ -4756,18 +4787,45 @@ const DieselAlerts = ({ supabaseClient, onNotify }) => {
 
                         <div className="p-6 overflow-y-auto max-h-[80vh] custom-scrollbar">
                             <form id="formChamado" onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="md:col-span-2">
-                                    <label className={labelClass}>Solicitante</label>
+                                
+                                {/* Linha 1: Solicitante e Tipo */}
+                                <div className="md:col-span-1">
+                                    <label className={labelClass}>Solicitante *</label>
                                     <div className="relative">
                                         <IconUser className="absolute left-3 top-2.5 text-slate-400 w-4 h-4" />
                                         <input type="text" className={`${inputClass} pl-9`} value={formData.solicitante} onChange={e => setFormData({...formData, solicitante: e.target.value})} required placeholder="Nome do usuário" />
                                     </div>
                                 </div>
+
+                                <div className="md:col-span-1">
+                                    <label className={labelClass}>Tipo de Atendimento</label>
+                                    <div className="relative">
+                                        <IconTag className="absolute left-3 top-2.5 text-slate-400 w-4 h-4" />
+                                        <select 
+                                            className={`${inputClass} pl-9 appearance-none`}
+                                            value={formData.tipo_atendimento || ''}
+                                            onChange={e => setFormData({...formData, tipo_atendimento: e.target.value})}
+                                        >
+                                            <option value="">Selecione...</option>
+                                            {tiposOpcoes.map(opt => (
+                                                <option key={opt.tipo_chamado} value={opt.tipo_chamado}>{opt.tipo_chamado}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Linha 2: Datas */}
                                 <div><label className={labelClass}>Data Solicitação</label><div className="relative"><input type="date" className={inputClass} value={formData.data_solicitacao} onChange={e => setFormData({...formData, data_solicitacao: e.target.value})} required /></div></div>
                                 <div><label className={labelClass}>Hora Solicitação</label><div className="relative"><IconClock className="absolute left-3 top-2.5 text-slate-400 w-4 h-4" /><input type="time" className={`${inputClass} pl-9`} value={formData.hora_solicitacao} onChange={e => setFormData({...formData, hora_solicitacao: e.target.value})} required /></div></div>
+                                
+                                {/* Divisor */}
                                 <div className="md:col-span-2 border-t border-slate-100 dark:border-slate-800 my-2 pt-2"><span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-3 block">Registro de Atendimento</span></div>
+                                
+                                {/* Linha 3: Horários Atendimento */}
                                 <div><label className={labelClass}>Início Atendimento</label><input type="time" className={inputClass} value={formData.inicio_atendimento} onChange={e => setFormData({...formData, inicio_atendimento: e.target.value})} /></div>
                                 <div><label className={labelClass}>Fim Atendimento</label><input type="time" className={inputClass} value={formData.fim_atendimento} onChange={e => setFormData({...formData, fim_atendimento: e.target.value})} /></div>
+                                
+                                {/* Descrição */}
                                 <div className="md:col-span-2"><label className={labelClass}>Descrição / Observação</label><textarea className={inputClass} rows="3" value={formData.descricao} onChange={e => setFormData({...formData, descricao: e.target.value})} placeholder="Detalhes do problema ou serviço..." /></div>
                             </form>
                         </div>
@@ -5794,6 +5852,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
