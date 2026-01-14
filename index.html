@@ -4794,16 +4794,21 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
     // Estado do Formulário
     const [formData, setFormData] = useState({ id: null, tipo_chamado: '', setor: 'diesel' });
 
-    // Ícones
-    const IconSettings = Icons.Settings || Icons.Tool;
-    const IconPlus = Icons.Plus;
-    const IconEdit = Icons.Edit;
-    const IconTrash = Icons.Trash2;
-    const IconSave = Icons.Save;
-    const IconX = Icons.X;
-    const IconSearch = Icons.Search;
-    const IconTag = Icons.Tag || Icons.FileText;
-
+    // --- CORREÇÃO DOS ÍCONES ---
+    // Usamos '|| Icons.FileText' ou 'Icons.Check' para garantir que nunca seja undefined
+    const IconSettings = Icons.Settings || Icons.FileText;
+    const IconPlus = Icons.Plus || Icons.FileText;
+    const IconEdit = Icons.Edit || Icons.FileText;
+    const IconTrash = Icons.Trash2 || Icons.X;
+    
+    // Icons.Save não existe na sua lista original, troquei por Icons.Check (que existe)
+    const IconSave = Icons.Check || Icons.FileText; 
+    
+    const IconX = Icons.X || Icons.LogOut;
+    const IconSearch = Icons.Search || Icons.FileText;
+    
+    // Icons.Tag não existe, troquei por Icons.ListFilter
+    const IconTag = Icons.ListFilter || Icons.FileText;
     // Carregar dados
     const fetchData = async () => {
         setLoading(true);
@@ -5789,6 +5794,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
