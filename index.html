@@ -1555,522 +1555,595 @@
     );
 };
         const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
-    const [activeTab, setActiveTab] = useState('analitica');
+            const [activeTab, setActiveTab] = useState('analitica');
 
-    const SafeIcon = ({ name, className, width, height }) => {
-        const IconComponent = Icons[name] || Icons.Activity;
-        return <IconComponent className={className} width={width || 16} height={height || 16} />;
-    };
+            const SafeIcon = ({ name, className, width, height }) => {
+                const IconComponent = Icons[name] || Icons.Activity;
+                return <IconComponent className={className} width={width || 16} height={height || 16} />;
+            };
 
-    // --- PROCESSAMENTO DE DADOS ---
-    const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, analiticaTotals, lista, adjustedVariation } = useMemo(() => {
-        const rawList = data?.lista || [];
-        const groups = {}; 
-        const regionaisMap = {};
-        const materiaisMap = {};
+            // --- PROCESSAMENTO DE DADOS ---
+            const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, analiticaTotals, lista, adjustedVariation, fornecedoresData } = useMemo(() => {
+                const rawList = data?.lista || [];
+                const groups = {}; 
+                const regionaisMap = {};
+                const materiaisMap = {};
+                
+                // Agrupamento para Fornecedores
+                const fornecedoresMap = {};
 
-        let total_est_in = 0, total_entradas = 0, total_saidas = 0, total_est_fin_sap = 0, total_est_fin_real = 0;
-        let total_dif_qty = 0, total_custo_dif = 0, total_caminhoes = 0, total_ibcs = 0;
+                let total_est_in = 0, total_entradas = 0, total_saidas = 0, total_est_fin_sap = 0, total_est_fin_real = 0;
+                let total_dif_qty = 0, total_custo_dif = 0, total_caminhoes = 0, total_ibcs = 0;
 
-        rawList.forEach(item => {
-            const est_in = Number(item.est_inicial_sap) || 0;
-            const entradas = Number(item.entradas_sap) || 0;
-            const saidas = Number(item.saidas_sap) || 0;
-            const est_fin_sap = Number(item.est_final_sap) || 0;
-            const est_fin_real = Number(item.est_final_real) || 0;
-            const dif_qty = Number(item.dif_real_sap) || 0;
-            const custo = Number(item.custo_dif) || 0;
-            const caminhoes = Number(item.num_caminhoes) || 0;
-            const ibcs = Number(item.num_ibcs) || 0;
+                rawList.forEach(item => {
+                    const est_in = Number(item.est_inicial_sap) || 0;
+                    const entradas = Number(item.entradas_sap) || 0;
+                    const saidas = Number(item.saidas_sap) || 0;
+                    const est_fin_sap = Number(item.est_final_sap) || 0;
+                    const est_fin_real = Number(item.est_final_real) || 0;
+                    const dif_qty = Number(item.dif_real_sap) || 0;
+                    const custo = Number(item.custo_dif) || 0;
+                    const caminhoes = Number(item.num_caminhoes) || 0;
+                    const ibcs = Number(item.num_ibcs) || 0;
+                    const fornecedor = item.fornecedor || 'N/D';
 
-            const matKey = item.grupo_material || item.cod_material || 'Outros';
+                    const matKey = item.grupo_material || item.cod_material || 'Outros';
 
-            if (!groups[matKey]) {
-                groups[matKey] = { name: matKey, est_in: 0, entradas: 0, saidas: 0, est_fin_sap: 0, est_fin_real: 0, dif_qty: 0, custo_dif: 0 };
-            }
-            groups[matKey].est_in += est_in;
-            groups[matKey].entradas += entradas;
-            groups[matKey].saidas += saidas;
-            groups[matKey].est_fin_sap += est_fin_sap;
-            groups[matKey].est_fin_real += est_fin_real;
-            groups[matKey].dif_qty += dif_qty;
-            groups[matKey].custo_dif += custo;
-
-            total_dif_qty += dif_qty;
-            total_custo_dif += custo;
-            total_caminhoes += caminhoes;
-            total_ibcs += ibcs;
-
-            const rKey = item.regional || 'N/D';
-            regionaisMap[rKey] = (regionaisMap[rKey] || 0) + custo;
-            materiaisMap[matKey] = (materiaisMap[matKey] || 0) + custo;
-        });
-
-        const processedAnalitica = Object.values(groups)
-            .filter(g => !(Math.abs(g.est_in) < 0.01 && Math.abs(g.est_fin_real) < 0.01))
-            .map(g => {
-                const unitPrice = g.dif_qty !== 0 ? (g.custo_dif / g.dif_qty) : 0;
-                let variacaoPct = 0;
-                if (Math.abs(g.dif_qty) > 0.001) {
-                    const denominadorVar = g.entradas + g.est_in;
-                    variacaoPct = denominadorVar !== 0 ? (g.dif_qty / denominadorVar) : 0;
-                }
-                const denominadorCustoAj = g.dif_qty + g.est_fin_sap; 
-                const custoMedioAjustado = denominadorCustoAj !== 0 ? (g.custo_dif / denominadorCustoAj) : 0;
-
-                total_est_in += (g.est_in * unitPrice);
-                total_entradas += (g.entradas * unitPrice);
-                total_saidas += (g.saidas * unitPrice);
-                total_est_fin_sap += (g.est_fin_sap * unitPrice);
-                total_est_fin_real += (g.est_fin_real * unitPrice);
-
-                return { ...g, unitPrice, custoMedioAjustado, variacaoPct };
-            })
-            .sort((a, b) => a.custo_dif - b.custo_dif);
-
-        const analiticaTotals = processedAnalitica.reduce((acc, curr) => ({
-            est_in: acc.est_in + curr.est_in,
-            entradas: acc.entradas + curr.entradas,
-            saidas: acc.saidas + curr.saidas,
-            est_fin_sap: acc.est_fin_sap + curr.est_fin_sap,
-            est_fin_real: acc.est_fin_real + curr.est_fin_real
-        }), { est_in: 0, entradas: 0, saidas: 0, est_fin_sap: 0, est_fin_real: 0 });
-
-        // --- CÁLCULO DA VARIAÇÃO AJUSTADA (TOTAL) ---
-        // Lógica idêntica ao rodapé da tabela: (Real - Sap) / (Inicial + Entradas)
-        const adjDenom = analiticaTotals.est_in + analiticaTotals.entradas;
-        const adjDiff = analiticaTotals.est_fin_real - analiticaTotals.est_fin_sap;
-        const adjustedVariation = adjDenom !== 0 ? (adjDiff / adjDenom) : 0;
-
-        const flow = {
-            ini_qty: Object.values(groups).reduce((acc, curr) => acc + curr.est_in, 0),
-            ini_val: total_est_in,
-            in_qty: Object.values(groups).reduce((acc, curr) => acc + curr.entradas, 0),
-            in_val: total_entradas,
-            out_qty: Object.values(groups).reduce((acc, curr) => acc + curr.saidas, 0),
-            out_val: total_saidas,
-            fin_qty: Object.values(groups).reduce((acc, curr) => acc + curr.est_fin_real, 0),
-            fin_val: total_est_fin_real
-        };
-
-        const regionaisArr = Object.entries(regionaisMap).map(([name, value]) => ({ name, value, abs: Math.abs(value) })).sort((a, b) => b.abs - a.abs).slice(0, 10);
-        const materiaisArr = Object.entries(materiaisMap).map(([name, value]) => ({ name, value, abs: Math.abs(value) })).sort((a, b) => b.abs - a.abs).slice(0, 10);
-
-        return { 
-            chartsData: { regionais: regionaisArr, materiais: materiaisArr },
-            inventoryFlow: flow,
-            consolidatedDiff: { qty: total_dif_qty, custo: total_custo_dif, caminhoes: total_caminhoes, ibcs: total_ibcs },
-            analiticaData: processedAnalitica,
-            analiticaTotals,
-            adjustedVariation, // Novo valor exportado
-            lista: rawList
-        };
-    }, [data]);
-
-    if (loading) return <div className="p-10 text-center text-slate-400 animate-pulse">Carregando dados...</div>;
-    
-    const fmtMoney = (v) => Utils.formatters.currency(v);
-    const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
-
-    // --- Componentes ---
-
-    const FlowCard = ({ title, qty, val, iconName, color }) => (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
-            <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span>
-                <div className={`p-1.5 rounded-md bg-opacity-10 ${color.replace('text-', 'bg-')} print-color-force`}>
-                    <SafeIcon name={iconName} width={14} className={`${color} print-color-force`} />
-                </div>
-            </div>
-            <div>
-                <div className="text-lg font-bold text-slate-800 dark:text-white force-black-print">{fmtMoney(val)}</div>
-                <div className="text-xs font-medium text-slate-500 mt-1 force-black-print">{fmtNum(qty)} <span className="opacity-70 font-normal">un</span></div>
-            </div>
-        </div>
-    );
-
-    const VariationCard = ({ qty, title, subtitle }) => (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
-             <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span>
-                <div className="p-1.5 rounded-md bg-purple-50 print-color-force">
-                    <SafeIcon name="Activity" width={14} className="text-purple-600 print-color-force" />
-                </div>
-            </div>
-            <div className="flex flex-col">
-                <span className={`text-2xl font-black ${qty < 0 ? 'text-red-500' : 'text-emerald-500'} print-color-force`}>{fmtPerc(qty)}</span>
-                <span className="text-[10px] text-slate-400 print:text-black">{subtitle}</span>
-            </div>
-        </div>
-    );
-
-    const StandardTable = ({ children, title, iconName }) => (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-table-container overflow-hidden break-inside-avoid w-full">
-            <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print-header">
-                <h3 className="font-black text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 uppercase tracking-wide print:text-black">
-                    <SafeIcon name={iconName} width={16} className="text-purple-600 print:text-black" /> {title}
-                </h3>
-            </div>
-            <div className="overflow-x-auto print:overflow-visible w-full">
-                {children}
-            </div>
-        </div>
-    );
-
-    const DrillDownTable = ({ rawData, hierarchy, title, iconName }) => {
-        const [path, setPath] = useState([]);
-        const filteredData = useMemo(() => rawData.filter(item => path.every((val, index) => item[hierarchy[index].key] === val)), [rawData, path, hierarchy]);
-        const currentLevelIndex = path.length;
-        const isLastLevel = currentLevelIndex >= hierarchy.length;
-        const groupedData = useMemo(() => {
-            if (isLastLevel) return [];
-            const currentKey = hierarchy[currentLevelIndex].key;
-            const groups = {};
-            filteredData.forEach(item => {
-                const keyVal = item[currentKey] || 'N/D';
-                if (!groups[keyVal]) groups[keyVal] = { name: keyVal, caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, sap_qty: 0, real_qty: 0 };
-                groups[keyVal].caminhoes += (Number(item.num_caminhoes) || 0);
-                groups[keyVal].ibcs += (Number(item.num_ibcs) || 0);
-                groups[keyVal].custo += (Number(item.custo_dif) || 0);
-                groups[keyVal].dif_qty += (Number(item.dif_real_sap) || 0);
-                groups[keyVal].sap_qty += (Number(item.est_final_sap) || 0);
-                groups[keyVal].real_qty += (Number(item.est_final_real) || 0);
-            });
-            return Object.values(groups).map(g => ({ ...g, variacao: (g.sap_qty + g.real_qty) === 0 ? 0 : g.dif_qty / (g.sap_qty + g.real_qty) })).sort((a, b) => a.custo - b.custo);
-        }, [filteredData, currentLevelIndex, hierarchy, isLastLevel]);
-        const totals = useMemo(() => groupedData.reduce((acc, curr) => ({
-            caminhoes: acc.caminhoes + curr.caminhoes, ibcs: acc.ibcs + curr.ibcs, custo: acc.custo + curr.custo, dif_qty: acc.dif_qty + curr.dif_qty, sap_qty: acc.sap_qty + curr.sap_qty, real_qty: acc.real_qty + curr.real_qty
-        }), { caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, sap_qty: 0, real_qty: 0 }), [groupedData]);
-        const totalsVar = (totals.sap_qty + totals.real_qty) === 0 ? 0 : totals.dif_qty / (totals.sap_qty + totals.real_qty);
-        const handleDrill = (name) => setPath([...path, name]);
-        const handleBack = () => setPath(path.slice(0, -1));
-        const handleReset = () => setPath([]);
-        if (isLastLevel) return <div className="p-6 text-center text-slate-400 no-print">Fim do nível. <button onClick={handleBack} className="text-purple-600 underline">Voltar</button></div>;
-        const currentLabel = hierarchy[currentLevelIndex].label;
-
-        return (
-            <StandardTable title={path.length === 0 ? title : `${title}: ${path.join(' > ')}`} iconName={iconName}>
-                {path.length > 0 && (
-                    <div className="bg-purple-50 px-4 py-1 text-xs text-purple-700 font-bold border-b border-purple-100 flex justify-between items-center no-print">
-                        <span>Filtrando por: {currentLabel}</span>
-                        <button onClick={handleBack} className="hover:underline flex items-center gap-1"><SafeIcon name="ArrowLeft" width={10}/> Voltar</button>
-                    </div>
-                )}
-                <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
-                    <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
-                        <tr>
-                            <th className="px-4 py-2 print:border print:border-black print:text-black print:px-1">{currentLabel}</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Caminhões</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">IBC's</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Var (%)</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Custo Total</th>
-                            <th className="px-4 py-2 text-center no-print">Ação</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
-                        {groupedData.map((row, i) => (
-                            <tr key={i} onClick={() => handleDrill(row.name)} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-slate-50">
-                                <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print:text-black print:border print:border-black print:px-1">{row.name}</td>
-                                <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{Utils.math.roundVolume(row.caminhoes)}</td>
-                                <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{Utils.math.roundVolume(row.ibcs)}</td>
-                                <td className={`px-4 py-2 text-right font-mono font-bold ${Math.abs(row.variacao) > 0.05 ? 'text-red-600' : 'text-slate-600'} print-color-force print:border print:border-black print:px-1`}>{fmtPerc(row.variacao)}</td>
-                                <td className={`px-4 py-2 text-right font-mono font-bold ${row.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force print:border print:border-black print:px-1`}>{fmtMoney(row.custo)}</td>
-                                <td className="px-4 py-2 text-center no-print text-slate-400"><SafeIcon name="ChevronRight" width={14} /></td>
-                            </tr>
-                        ))}
-                    </tbody>
-                    <tfoot className="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
-                        <tr>
-                            <td className="px-4 py-2 uppercase text-xs">Total</td>
-                            <td className="px-4 py-2 text-right font-mono">{Utils.math.roundVolume(totals.caminhoes)}</td>
-                            <td className="px-4 py-2 text-right font-mono">{Utils.math.roundVolume(totals.ibcs)}</td>
-                            <td className="px-4 py-2 text-right font-mono">{fmtPerc(totalsVar)}</td>
-                            <td className={`px-4 py-2 text-right font-mono ${totals.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force`}>{fmtMoney(totals.custo)}</td>
-                            <td className="no-print"></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </StandardTable>
-        );
-    };
-
-    return (
-        <div className="space-y-6 pb-10 report-container">
-            <style>{`
-                @media print {
-                    @page { margin: 0.5cm; size: A4; }
-                    
-                    .force-black-print {
-                        color: #000000 !important;
-                        -webkit-text-fill-color: #000000 !important;
-                        print-color-adjust: exact !important;
-                        -webkit-print-color-adjust: exact !important;
+                    // Agrupamento por Material (Gráficos existentes)
+                    if (!groups[matKey]) {
+                        groups[matKey] = { name: matKey, est_in: 0, entradas: 0, saidas: 0, est_fin_sap: 0, est_fin_real: 0, dif_qty: 0, custo_dif: 0 };
                     }
+                    groups[matKey].est_in += est_in;
+                    groups[matKey].entradas += entradas;
+                    groups[matKey].saidas += saidas;
+                    groups[matKey].est_fin_sap += est_fin_sap;
+                    groups[matKey].est_fin_real += est_fin_real;
+                    groups[matKey].dif_qty += dif_qty;
+                    groups[matKey].custo_dif += custo;
 
-                    body, #root, main, .report-container {
-                        background-color: white !important;
-                        background-image: none !important;
-                        color: black !important;
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
+                    // Agrupamento por Fornecedor (Novas Tabelas)
+                    if (!fornecedoresMap[fornecedor]) {
+                        fornecedoresMap[fornecedor] = { name: fornecedor, num_caminhoes: 0, dif_real_sap: 0, custo_dif: 0, entradas_sap: 0 };
                     }
+                    fornecedoresMap[fornecedor].num_caminhoes += caminhoes;
+                    fornecedoresMap[fornecedor].dif_real_sap += dif_qty;
+                    fornecedoresMap[fornecedor].custo_dif += custo;
+                    fornecedoresMap[fornecedor].entradas_sap += entradas;
 
-                    .glass-card, .bg-white, .dark\\:bg-slate-800, .bg-gradient-to-br, .bg-slate-50, .dark\\:bg-slate-900 {
-                        background: white !important;
-                        background-image: none !important;
-                        box-shadow: none !important;
-                        border-radius: 4px !important;
-                    }
+                    // Totais Gerais
+                    total_dif_qty += dif_qty;
+                    total_custo_dif += custo;
+                    total_caminhoes += caminhoes;
+                    total_ibcs += ibcs;
 
-                    .print-card, .print-table-container {
-                        border: 1px solid #000 !important;
-                    }
+                    const rKey = item.regional || 'N/D';
+                    regionaisMap[rKey] = (regionaisMap[rKey] || 0) + custo;
+                    materiaisMap[matKey] = (materiaisMap[matKey] || 0) + custo;
+                });
 
-                    h1, h2, h3, h4, th, .text-slate-500, .text-slate-700, .text-slate-600 {
-                        color: black !important;
-                        text-shadow: none !important;
-                    }
+                const processedAnalitica = Object.values(groups)
+                    .filter(g => !(Math.abs(g.est_in) < 0.01 && Math.abs(g.est_fin_real) < 0.01))
+                    .map(g => {
+                        const unitPrice = g.dif_qty !== 0 ? (g.custo_dif / g.dif_qty) : 0;
+                        let variacaoPct = 0;
+                        if (Math.abs(g.dif_qty) > 0.001) {
+                            const denominadorVar = g.entradas + g.est_in;
+                            variacaoPct = denominadorVar !== 0 ? (g.dif_qty / denominadorVar) : 0;
+                        }
+                        const denominadorCustoAj = g.dif_qty + g.est_fin_sap; 
+                        const custoMedioAjustado = denominadorCustoAj !== 0 ? (g.custo_dif / denominadorCustoAj) : 0;
 
-                    .text-red-500, .text-red-600 { color: #dc2626 !important; }
-                    .text-emerald-500, .text-emerald-600 { color: #059669 !important; }
-                    .text-purple-600, .text-purple-700 { color: #7c3aed !important; }
-                    .print-color-force { -webkit-print-color-adjust: exact; }
+                        total_est_in += (g.est_in * unitPrice);
+                        total_entradas += (g.entradas * unitPrice);
+                        total_saidas += (g.saidas * unitPrice);
+                        total_est_fin_sap += (g.est_fin_sap * unitPrice);
+                        total_est_fin_real += (g.est_fin_real * unitPrice);
 
-                    /* AJUSTE PARA 6 CARDS (2 LINHAS DE 3) NA IMPRESSÃO */
-                    .print-grid-cols-3 { 
-                        display: grid !important;
-                        grid-template-columns: repeat(3, 1fr) !important;
-                        gap: 10px !important;
-                    }
+                        return { ...g, unitPrice, custoMedioAjustado, variacaoPct };
+                    })
+                    .sort((a, b) => a.custo_dif - b.custo_dif);
 
-                    .print-grid-charts {
-                        display: grid !important;
-                        grid-template-columns: 1fr 1fr !important;
-                        gap: 10px !important;
-                        height: 220px !important;
-                        break-inside: avoid;
-                    }
+                const analiticaTotals = processedAnalitica.reduce((acc, curr) => ({
+                    est_in: acc.est_in + curr.est_in,
+                    entradas: acc.entradas + curr.entradas,
+                    saidas: acc.saidas + curr.saidas,
+                    est_fin_sap: acc.est_fin_sap + curr.est_fin_sap,
+                    est_fin_real: acc.est_fin_real + curr.est_fin_real
+                }), { est_in: 0, entradas: 0, saidas: 0, est_fin_sap: 0, est_fin_real: 0 });
 
-                    .print-header { background-color: white !important; border-bottom: 2px solid black !important; }
-                    th { background-color: white !important; color: black !important; border: 1px solid black !important; }
-                    td { border: 1px solid black !important; color: black !important; }
-                    
-                    tr:nth-child(even) { background-color: #fcfcfc !important; }
+                // Processar array de fornecedores
+                const fornecedoresArray = Object.values(fornecedoresMap)
+                    .sort((a, b) => a.custo_dif - b.custo_dif)
+                    .map(f => ({
+                        ...f,
+                        perc_dif_entrada: f.entradas_sap !== 0 ? (f.custo_dif / f.entradas_sap) : 0
+                    }));
 
-                    .print-page-1-container { display: block; margin-bottom: 20px; }
-                    .print-page-break { page-break-before: always; margin-top: 20px; display: block !important; }
-                    .print-force-visible { display: block !important; }
-                    .hide-on-screen { display: none; }
-                    .no-print { display: none !important; }
+                // Cálculo Variação Ajustada (Total)
+                const adjDenom = analiticaTotals.est_in + analiticaTotals.entradas;
+                const adjDiff = analiticaTotals.est_fin_real - analiticaTotals.est_fin_sap;
+                const adjustedVariation = adjDenom !== 0 ? (adjDiff / adjDenom) : 0;
 
-                    .recharts-wrapper { width: 100% !important; height: 100% !important; }
-                }
-            `}</style>
+                const flow = {
+                    ini_qty: Object.values(groups).reduce((acc, curr) => acc + curr.est_in, 0),
+                    ini_val: total_est_in,
+                    in_qty: Object.values(groups).reduce((acc, curr) => acc + curr.entradas, 0),
+                    in_val: total_entradas,
+                    out_qty: Object.values(groups).reduce((acc, curr) => acc + curr.saidas, 0),
+                    out_val: total_saidas,
+                    fin_qty: Object.values(groups).reduce((acc, curr) => acc + curr.est_fin_real, 0),
+                    fin_val: total_est_fin_real
+                };
+
+                const regionaisArr = Object.entries(regionaisMap).map(([name, value]) => ({ name, value, abs: Math.abs(value) })).sort((a, b) => b.abs - a.abs).slice(0, 10);
+                const materiaisArr = Object.entries(materiaisMap).map(([name, value]) => ({ name, value, abs: Math.abs(value) })).sort((a, b) => b.abs - a.abs).slice(0, 10);
+
+                return { 
+                    chartsData: { regionais: regionaisArr, materiais: materiaisArr },
+                    inventoryFlow: flow,
+                    consolidatedDiff: { qty: total_dif_qty, custo: total_custo_dif, caminhoes: total_caminhoes, ibcs: total_ibcs },
+                    analiticaData: processedAnalitica,
+                    analiticaTotals,
+                    adjustedVariation, 
+                    fornecedoresData: fornecedoresArray, // Novo dado exportado
+                    lista: rawList
+                };
+            }, [data]);
+
+            if (loading) return <div className="p-10 text-center text-slate-400 animate-pulse">Carregando dados...</div>;
             
-            <div className="hidden print:flex justify-between items-center border-b-2 border-black pb-4 mb-6">
-                <div className="flex items-center gap-4">
-                     <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-10 object-contain" />
-                     <div className="h-8 w-px bg-black"></div>
-                     <h1 className="text-xl font-black uppercase text-black tracking-wider">Inventário de Insumos</h1>
-                </div>
-                <div className="text-right">
-                    <p className="text-sm font-bold uppercase text-black">Mês de Referência</p>
-                    <p className="text-lg font-black text-black print-color-force">{Utils.date.formatNice(filters.periodo)}</p>
-                </div>
-            </div>
+            const fmtMoney = (v) => Utils.formatters.currency(v);
+            const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 
-            <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos
-                    </h2>
-                </div>
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm">
-                        <span className="text-xs font-bold text-slate-500 uppercase"><SafeIcon name="Calendar" width={14} className="inline mr-1"/> Período:</span>
-                        <input type="month" className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} />
-                    </div>
-                    <button onClick={() => window.print()} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all"><SafeIcon name="Download" width={16} /> PDF</button>
-                </div>
-            </div>
+            // --- Componentes ---
 
-            <div className="print-page-1-container">
-                {/* GRID AGORA COM 6 COLUNAS NO LARGE (6 CARDS) E 3 NA IMPRESSÃO */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print-grid-cols-3 mb-6">
-                    <FlowCard title="Estoque Inicial" qty={inventoryFlow.ini_qty} val={inventoryFlow.ini_val} iconName="Database" color="text-slate-500" />
-                    <FlowCard title="Entradas" qty={inventoryFlow.in_qty} val={inventoryFlow.in_val} iconName="ArrowDownCircle" color="text-emerald-600" />
-                    <FlowCard title="Saídas" qty={inventoryFlow.out_qty} val={inventoryFlow.out_val} iconName="ArrowUpCircle" color="text-red-500" />
-                    <FlowCard title="Estoque Final" qty={inventoryFlow.fin_qty} val={inventoryFlow.fin_val} iconName="CheckCircle" color="text-blue-600" />
-                    
-                    {/* CARD EXISTENTE: VARIAÇÃO DE SALDO (EVOLUÇÃO) */}
-                    <VariationCard 
-                        title="Evolução Estoque" 
-                        qty={(inventoryFlow.ini_qty > 0 ? (inventoryFlow.fin_qty - inventoryFlow.ini_qty)/inventoryFlow.ini_qty : 0)} 
-                        subtitle="Var. Inicial vs Final"
-                    />
-                    
-                    {/* NOVO CARD: VARIAÇÃO AJUSTADA (ACURACIDADE) */}
-                    <VariationCard 
-                        title="Variação Ajustada" 
-                        qty={adjustedVariation} 
-                        subtitle="Real vs Teórico / Mov"
-                    />
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:grid print:grid-cols-1">
-                    <div className="lg:col-span-1 print:mb-6">
-                        <div className="bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/50 p-6 shadow-sm relative overflow-hidden h-full flex flex-col justify-center print-card">
-                            <h3 className="text-sm font-bold uppercase text-purple-900 dark:text-purple-300 tracking-wider mb-4 print:text-black">Diferença de Estoque</h3>
-                            <div className="mb-6">
-                                <span className={`text-4xl font-black ${consolidatedDiff.custo < 0 ? 'text-red-600' : 'text-emerald-600'} tracking-tight print-color-force`}>
-                                    {consolidatedDiff.custo > 0 ? '+' : ''}{fmtMoney(consolidatedDiff.custo)}
-                                </span>
-                                <span className="text-lg font-medium text-slate-600 dark:text-slate-400 block mt-1 print:text-black">
-                                    {fmtNum(consolidatedDiff.qty)} <span className="text-sm">unidades</span>
-                                </span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 border-t border-purple-100 dark:border-slate-700/50 pt-4 print:border-black">
-                                <div>
-                                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">Caminhões</p>
-                                    <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 print:text-black">
-                                        <SafeIcon name="Truck" width={16} />
-                                        <span className="font-bold text-lg">{Utils.math.roundVolume(consolidatedDiff.caminhoes)}</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">IBC's</p>
-                                    <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 print:text-black">
-                                        <SafeIcon name="Box" width={16} />
-                                        <span className="font-bold text-lg">{Utils.math.roundVolume(consolidatedDiff.ibcs)}</span>
-                                    </div>
-                                </div>
-                            </div>
+            const FlowCard = ({ title, qty, val, iconName, color }) => (
+                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
+                    <div className="flex justify-between items-start mb-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span>
+                        <div className={`p-1.5 rounded-md bg-opacity-10 ${color.replace('text-', 'bg-')} print-color-force`}>
+                            <SafeIcon name={iconName} width={14} className={`${color} print-color-force`} />
                         </div>
                     </div>
-
-                    <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print-grid-charts">
-                        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
-                            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print:text-black print:mb-1">
-                                <SafeIcon name="BarChart2" width={14} className="text-purple-500 print:text-black" /> Top Ajustes (Região)
-                            </h3>
-                            <div className="flex-1 w-full min-h-0">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={chartsData.regionais} layout="vertical" margin={{top: 0, right: 30, left: 40, bottom: 0}}>
-                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                                        <XAxis type="number" tick={{fontSize: 9, fill: 'black'}} tickFormatter={(v) => `R$${v/1000}k`} />
-                                        <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} interval={0} />
-                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
-                                            {chartsData.regionais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
-                            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print:text-black print:mb-1">
-                                <SafeIcon name="AlertCircle" width={14} className="text-orange-500 print:text-black" /> Top Ajustes (Material)
-                            </h3>
-                            <div className="flex-1 w-full min-h-0">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={chartsData.materiais} layout="vertical" margin={{top: 0, right: 30, left: 40, bottom: 0}}>
-                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                                        <XAxis type="number" tick={{fontSize: 9, fill: 'black'}} tickFormatter={(v) => `R$${v/1000}k`} />
-                                        <YAxis dataKey="name" type="category" width={110} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} interval={0} />
-                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
-                                            {chartsData.materiais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
+                    <div>
+                        <div className="text-lg font-bold text-slate-800 dark:text-white force-black-print">{fmtMoney(val)}</div>
+                        <div className="text-xs font-medium text-slate-500 mt-1 force-black-print">{fmtNum(qty)} <span className="opacity-70 font-normal">un</span></div>
                     </div>
                 </div>
-            </div>
+            );
 
-            <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit no-print flex-wrap mt-4">
-                <button onClick={() => setActiveTab('analitica')} className={`px-4 py-2 text-xs font-bold rounded-md transition-all uppercase flex items-center gap-2 ${activeTab === 'analitica' ? 'bg-white shadow-sm text-purple-700' : 'text-slate-500 hover:text-purple-600'}`}>
-                    <SafeIcon name="Table" width={14} /> Analítica
-                </button>
-                {['regiao_material', 'material_regiao', 'categoria_material', 'regional_usina', 'usina_material'].map(tab => (
-                    <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-xs font-bold rounded-md transition-all uppercase ${activeTab === tab ? 'bg-white shadow-sm text-purple-700' : 'text-slate-500 hover:text-slate-700'}`}>
-                        {tab.replace('_', ' + ')}
-                    </button>
-                ))}
-            </div>
+            const VariationCard = ({ qty, title, subtitle }) => (
+                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
+                     <div className="flex justify-between items-start mb-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span>
+                        <div className="p-1.5 rounded-md bg-purple-50 print-color-force">
+                            <SafeIcon name="Activity" width={14} className="text-purple-600 print-color-force" />
+                        </div>
+                    </div>
+                    <div className="flex flex-col">
+                        <span className={`text-2xl font-black ${qty < 0 ? 'text-red-500' : 'text-emerald-500'} print-color-force`}>{fmtPerc(qty)}</span>
+                        <span className="text-[10px] text-slate-400 print:text-black">{subtitle}</span>
+                    </div>
+                </div>
+            );
 
-            <div className="min-h-[400px]">
-                <div className={`${activeTab === 'analitica' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
+            const StandardTable = ({ children, title, iconName }) => (
+                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-table-container overflow-hidden break-inside-avoid w-full mb-6">
+                    <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print-header">
+                        <h3 className="font-black text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 uppercase tracking-wide print:text-black">
+                            <SafeIcon name={iconName} width={16} className="text-purple-600 print:text-black" /> {title}
+                        </h3>
+                    </div>
+                    <div className="overflow-x-auto print:overflow-visible w-full">
+                        {children}
+                    </div>
+                </div>
+            );
+
+            // Tabela 1: Fornecedores (Caminhões, Dif Qty, Custo)
+            const FornecedoresTable1 = () => (
+                <StandardTable title="Fornecedores - Indicadores de Perda" iconName="Truck">
+                    <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
+                        <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
+                            <tr>
+                                <th className="px-4 py-2 print:border print:border-black print:px-1">Fornecedor</th>
+                                <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Total Caminhões</th>
+                                <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Soma Dif. Real x SAP</th>
+                                <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Soma Custo x Dif.</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
+                            {fornecedoresData.map((row, i) => (
+                                <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
+                                    <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print:text-black print:border print:border-black print:px-1">{row.name}</td>
+                                    <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{fmtNum(row.num_caminhoes)}</td>
+                                    <td className={`px-4 py-2 text-right font-mono font-bold ${row.dif_real_sap < 0 ? 'text-red-500' : 'text-emerald-500'} print-color-force print:border print:border-black print:px-1`}>{fmtNum(row.dif_real_sap)}</td>
+                                    <td className={`px-4 py-2 text-right font-mono font-bold ${row.custo_dif < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force print:border print:border-black print:px-1`}>{fmtMoney(row.custo_dif)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </StandardTable>
+            );
+
+            // Tabela 2: Fornecedores (+ Indicador Relativo)
+            const FornecedoresTable2 = () => (
+                <StandardTable title="Fornecedores - Análise Relativa (Impacto sobre Entradas)" iconName="Activity">
+                    <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
+                        <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
+                            <tr>
+                                <th className="px-4 py-2 print:border print:border-black print:px-1">Fornecedor</th>
+                                <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Total Caminhões</th>
+                                <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Soma Dif. Real x SAP</th>
+                                <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Soma Custo x Dif.</th>
+                                <th className="px-4 py-2 text-right bg-purple-50 dark:bg-purple-900/10 print:bg-white print:border print:border-black print:px-1">Dif. / Entrada %</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
+                            {fornecedoresData.map((row, i) => (
+                                <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
+                                    <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print:text-black print:border print:border-black print:px-1">{row.name}</td>
+                                    <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{fmtNum(row.num_caminhoes)}</td>
+                                    <td className={`px-4 py-2 text-right font-mono font-bold ${row.dif_real_sap < 0 ? 'text-red-500' : 'text-emerald-500'} print-color-force print:border print:border-black print:px-1`}>{fmtNum(row.dif_real_sap)}</td>
+                                    <td className={`px-4 py-2 text-right font-mono font-bold ${row.custo_dif < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force print:border print:border-black print:px-1`}>{fmtMoney(row.custo_dif)}</td>
+                                    <td className="px-4 py-2 text-right font-mono font-bold text-slate-800 dark:text-white bg-purple-50/50 dark:bg-purple-900/5 print:bg-white print:border print:border-black print:px-1">
+                                        {fmtPerc(row.perc_dif_entrada)}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </StandardTable>
+            );
+
+            const DrillDownTable = ({ rawData, hierarchy, title, iconName }) => {
+                const [path, setPath] = useState([]);
+                const filteredData = useMemo(() => rawData.filter(item => path.every((val, index) => item[hierarchy[index].key] === val)), [rawData, path, hierarchy]);
+                const currentLevelIndex = path.length;
+                const isLastLevel = currentLevelIndex >= hierarchy.length;
+                const groupedData = useMemo(() => {
+                    if (isLastLevel) return [];
+                    const currentKey = hierarchy[currentLevelIndex].key;
+                    const groups = {};
+                    filteredData.forEach(item => {
+                        const keyVal = item[currentKey] || 'N/D';
+                        if (!groups[keyVal]) groups[keyVal] = { name: keyVal, caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, sap_qty: 0, real_qty: 0 };
+                        groups[keyVal].caminhoes += (Number(item.num_caminhoes) || 0);
+                        groups[keyVal].ibcs += (Number(item.num_ibcs) || 0);
+                        groups[keyVal].custo += (Number(item.custo_dif) || 0);
+                        groups[keyVal].dif_qty += (Number(item.dif_real_sap) || 0);
+                        groups[keyVal].sap_qty += (Number(item.est_final_sap) || 0);
+                        groups[keyVal].real_qty += (Number(item.est_final_real) || 0);
+                    });
+                    return Object.values(groups).map(g => ({ ...g, variacao: (g.sap_qty + g.real_qty) === 0 ? 0 : g.dif_qty / (g.sap_qty + g.real_qty) })).sort((a, b) => a.custo - b.custo);
+                }, [filteredData, currentLevelIndex, hierarchy, isLastLevel]);
+                const totals = useMemo(() => groupedData.reduce((acc, curr) => ({
+                    caminhoes: acc.caminhoes + curr.caminhoes, ibcs: acc.ibcs + curr.ibcs, custo: acc.custo + curr.custo, dif_qty: acc.dif_qty + curr.dif_qty, sap_qty: acc.sap_qty + curr.sap_qty, real_qty: acc.real_qty + curr.real_qty
+                }), { caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, sap_qty: 0, real_qty: 0 }), [groupedData]);
+                const totalsVar = (totals.sap_qty + totals.real_qty) === 0 ? 0 : totals.dif_qty / (totals.sap_qty + totals.real_qty);
+                const handleDrill = (name) => setPath([...path, name]);
+                const handleBack = () => setPath(path.slice(0, -1));
+                const handleReset = () => setPath([]);
+                if (isLastLevel) return <div className="p-6 text-center text-slate-400 no-print">Fim do nível. <button onClick={handleBack} className="text-purple-600 underline">Voltar</button></div>;
+                const currentLabel = hierarchy[currentLevelIndex].label;
+
+                return (
+                    <StandardTable title={path.length === 0 ? title : `${title}: ${path.join(' > ')}`} iconName={iconName}>
+                        {path.length > 0 && (
+                            <div className="bg-purple-50 px-4 py-1 text-xs text-purple-700 font-bold border-b border-purple-100 flex justify-between items-center no-print">
+                                <span>Filtrando por: {currentLabel}</span>
+                                <button onClick={handleBack} className="hover:underline flex items-center gap-1"><SafeIcon name="ArrowLeft" width={10}/> Voltar</button>
+                            </div>
+                        )}
                         <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
                             <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
                                 <tr>
-                                    <th className="px-3 py-2 min-w-[150px] print:border print:border-black print:px-1">Material</th>
-                                    <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Est. Ini</th>
-                                    <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Entradas</th>
-                                    <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Saídas</th>
-                                    <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black print:px-1">Final (T)</th>
-                                    <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black print:px-1">Final (R)</th>
-                                    <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Var (%)</th>
-                                    <th className="px-2 py-2 text-right print:border print:border-black print:px-1">R$ Méd</th>
-                                    <th className="px-2 py-2 text-right print:border print:border-black print:px-1">R$ Aj.</th>
+                                    <th className="px-4 py-2 print:border print:border-black print:text-black print:px-1">{currentLabel}</th>
+                                    <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Caminhões</th>
+                                    <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">IBC's</th>
+                                    <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Var (%)</th>
+                                    <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Custo Total</th>
+                                    <th className="px-4 py-2 text-center no-print">Ação</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
-                                {analiticaData.map((row, i) => (
-                                    <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
-                                        <td className="px-3 py-2 font-medium truncate max-w-[250px] text-slate-700 dark:text-white print:text-black print:border print:border-black print:px-1" title={row.name}>
-                                            {row.name.length > 25 ? row.name.substring(0, 25) + '...' : row.name}
-                                        </td>
-                                        <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{fmtNum(row.est_in)}</td>
-                                        <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black print:px-1">+{fmtNum(row.entradas)}</td>
-                                        <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black print:px-1">{fmtNum(row.saidas)}</td>
-                                        <td className="px-2 py-2 text-right font-mono font-bold text-slate-500 print:text-black print:border print:border-black print:px-1">{fmtNum(row.est_fin_sap)}</td>
-                                        <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print-color-force print:border print:border-black print:px-1">{fmtNum(row.est_fin_real)}</td>
-                                        <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print-color-force print:border print:border-black print:px-1`}>{fmtPerc(row.variacaoPct)}</td>
-                                        <td className="px-2 py-2 text-right font-mono text-slate-500 print:text-black print:border print:border-black print:px-1">{fmtMoney(row.unitPrice)}</td>
-                                        <td className="px-2 py-2 text-right font-mono text-purple-600 font-bold print-color-force print:border print:border-black print:px-1">{fmtMoney(row.custoMedioAjustado)}</td>
+                                {groupedData.map((row, i) => (
+                                    <tr key={i} onClick={() => handleDrill(row.name)} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-slate-50">
+                                        <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print:text-black print:border print:border-black print:px-1">{row.name}</td>
+                                        <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{Utils.math.roundVolume(row.caminhoes)}</td>
+                                        <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{Utils.math.roundVolume(row.ibcs)}</td>
+                                        <td className={`px-4 py-2 text-right font-mono font-bold ${Math.abs(row.variacao) > 0.05 ? 'text-red-600' : 'text-slate-600'} print-color-force print:border print:border-black print:px-1`}>{fmtPerc(row.variacao)}</td>
+                                        <td className={`px-4 py-2 text-right font-mono font-bold ${row.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force print:border print:border-black print:px-1`}>{fmtMoney(row.custo)}</td>
+                                        <td className="px-4 py-2 text-center no-print text-slate-400"><SafeIcon name="ChevronRight" width={14} /></td>
                                     </tr>
                                 ))}
                             </tbody>
                             <tfoot className="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
                                 <tr>
-                                    <td className="px-3 py-2 uppercase text-xs print:border print:border-black print:px-1">Total</td>
-                                    <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_in)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black print:px-1">{fmtNum(analiticaTotals.entradas)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black print:px-1">{fmtNum(analiticaTotals.saidas)}</td>
-                                    <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_fin_sap)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-blue-600 print-color-force print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_fin_real)}</td>
-                                    <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">
-                                        {fmtPerc(adjustedVariation)}
-                                    </td>
-                                    <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">-</td>
-                                    <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">-</td>
+                                    <td className="px-4 py-2 uppercase text-xs">Total</td>
+                                    <td className="px-4 py-2 text-right font-mono">{Utils.math.roundVolume(totals.caminhoes)}</td>
+                                    <td className="px-4 py-2 text-right font-mono">{Utils.math.roundVolume(totals.ibcs)}</td>
+                                    <td className="px-4 py-2 text-right font-mono">{fmtPerc(totalsVar)}</td>
+                                    <td className={`px-4 py-2 text-right font-mono ${totals.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force`}>{fmtMoney(totals.custo)}</td>
+                                    <td className="no-print"></td>
                                 </tr>
                             </tfoot>
                         </table>
                     </StandardTable>
-                </div>
+                );
+            };
 
-                <div className={`${activeTab === 'regiao_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <DrillDownTable rawData={lista} title="Classificação por Região" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
+            return (
+                <div className="space-y-6 pb-10 report-container">
+                    <style>{`
+                        @media print {
+                            @page { margin: 0.5cm; size: A4; }
+                            
+                            .force-black-print {
+                                color: #000000 !important;
+                                -webkit-text-fill-color: #000000 !important;
+                                print-color-adjust: exact !important;
+                                -webkit-print-color-adjust: exact !important;
+                            }
+
+                            body, #root, main, .report-container {
+                                background-color: white !important;
+                                background-image: none !important;
+                                color: black !important;
+                                -webkit-print-color-adjust: exact !important;
+                                print-color-adjust: exact !important;
+                            }
+
+                            .glass-card, .bg-white, .dark\\:bg-slate-800, .bg-gradient-to-br, .bg-slate-50, .dark\\:bg-slate-900 {
+                                background: white !important;
+                                background-image: none !important;
+                                box-shadow: none !important;
+                                border-radius: 4px !important;
+                            }
+
+                            .print-card, .print-table-container {
+                                border: 1px solid #000 !important;
+                            }
+
+                            h1, h2, h3, h4, th, .text-slate-500, .text-slate-700, .text-slate-600 {
+                                color: black !important;
+                                text-shadow: none !important;
+                            }
+
+                            .text-red-500, .text-red-600 { color: #dc2626 !important; }
+                            .text-emerald-500, .text-emerald-600 { color: #059669 !important; }
+                            .text-purple-600, .text-purple-700 { color: #7c3aed !important; }
+                            .print-color-force { -webkit-print-color-adjust: exact; }
+
+                            /* AJUSTE PARA 6 CARDS (2 LINHAS DE 3) NA IMPRESSÃO */
+                            .print-grid-cols-3 { 
+                                display: grid !important;
+                                grid-template-columns: repeat(3, 1fr) !important;
+                                gap: 10px !important;
+                            }
+
+                            .print-grid-charts {
+                                display: grid !important;
+                                grid-template-columns: 1fr 1fr !important;
+                                gap: 10px !important;
+                                height: 220px !important;
+                                break-inside: avoid;
+                            }
+
+                            .print-header { background-color: white !important; border-bottom: 2px solid black !important; }
+                            th { background-color: white !important; color: black !important; border: 1px solid black !important; }
+                            td { border: 1px solid black !important; color: black !important; }
+                            
+                            tr:nth-child(even) { background-color: #fcfcfc !important; }
+
+                            .print-page-1-container { display: block; margin-bottom: 20px; }
+                            .print-page-break { page-break-before: always; margin-top: 20px; display: block !important; }
+                            .print-force-visible { display: block !important; }
+                            .hide-on-screen { display: none; }
+                            .no-print { display: none !important; }
+
+                            .recharts-wrapper { width: 100% !important; height: 100% !important; }
+                        }
+                    `}</style>
+                    
+                    <div className="hidden print:flex justify-between items-center border-b-2 border-black pb-4 mb-6">
+                        <div className="flex items-center gap-4">
+                             <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-10 object-contain" />
+                             <div className="h-8 w-px bg-black"></div>
+                             <h1 className="text-xl font-black uppercase text-black tracking-wider">Inventário de Insumos</h1>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-sm font-bold uppercase text-black">Mês de Referência</p>
+                            <p className="text-lg font-black text-black print-color-force">{Utils.date.formatNice(filters.periodo)}</p>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                <SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos
+                            </h2>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm">
+                                <span className="text-xs font-bold text-slate-500 uppercase"><SafeIcon name="Calendar" width={14} className="inline mr-1"/> Período:</span>
+                                <input type="month" className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} />
+                            </div>
+                            <button onClick={() => window.print()} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all"><SafeIcon name="Download" width={16} /> PDF</button>
+                        </div>
+                    </div>
+
+                    <div className="print-page-1-container">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print-grid-cols-3 mb-6">
+                            <FlowCard title="Estoque Inicial" qty={inventoryFlow.ini_qty} val={inventoryFlow.ini_val} iconName="Database" color="text-slate-500" />
+                            <FlowCard title="Entradas" qty={inventoryFlow.in_qty} val={inventoryFlow.in_val} iconName="ArrowDownCircle" color="text-emerald-600" />
+                            <FlowCard title="Saídas" qty={inventoryFlow.out_qty} val={inventoryFlow.out_val} iconName="ArrowUpCircle" color="text-red-500" />
+                            <FlowCard title="Estoque Final" qty={inventoryFlow.fin_qty} val={inventoryFlow.fin_val} iconName="CheckCircle" color="text-blue-600" />
+                            <VariationCard title="Evolução Estoque" qty={(inventoryFlow.ini_qty > 0 ? (inventoryFlow.fin_qty - inventoryFlow.ini_qty)/inventoryFlow.ini_qty : 0)} subtitle="Var. Inicial vs Final"/>
+                            <VariationCard title="Variação Ajustada" qty={adjustedVariation} subtitle="Real vs Teórico / Mov"/>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:grid print:grid-cols-1">
+                            <div className="lg:col-span-1 print:mb-6">
+                                <div className="bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/50 p-6 shadow-sm relative overflow-hidden h-full flex flex-col justify-center print-card">
+                                    <h3 className="text-sm font-bold uppercase text-purple-900 dark:text-purple-300 tracking-wider mb-4 print:text-black">Diferença de Estoque</h3>
+                                    <div className="mb-6">
+                                        <span className={`text-4xl font-black ${consolidatedDiff.custo < 0 ? 'text-red-600' : 'text-emerald-600'} tracking-tight print-color-force`}>
+                                            {consolidatedDiff.custo > 0 ? '+' : ''}{fmtMoney(consolidatedDiff.custo)}
+                                        </span>
+                                        <span className="text-lg font-medium text-slate-600 dark:text-slate-400 block mt-1 print:text-black">
+                                            {fmtNum(consolidatedDiff.qty)} <span className="text-sm">unidades</span>
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 border-t border-purple-100 dark:border-slate-700/50 pt-4 print:border-black">
+                                        <div>
+                                            <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">Caminhões</p>
+                                            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 print:text-black">
+                                                <SafeIcon name="Truck" width={16} />
+                                                <span className="font-bold text-lg">{Utils.math.roundVolume(consolidatedDiff.caminhoes)}</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">IBC's</p>
+                                            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 print:text-black">
+                                                <SafeIcon name="Box" width={16} />
+                                                <span className="font-bold text-lg">{Utils.math.roundVolume(consolidatedDiff.ibcs)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print-grid-charts">
+                                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
+                                    <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print:text-black print:mb-1">
+                                        <SafeIcon name="BarChart2" width={14} className="text-purple-500 print:text-black" /> Top Ajustes (Região)
+                                    </h3>
+                                    <div className="flex-1 w-full min-h-0">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={chartsData.regionais} layout="vertical" margin={{top: 0, right: 30, left: 40, bottom: 0}}>
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                                                <XAxis type="number" tick={{fontSize: 9, fill: 'black'}} tickFormatter={(v) => `R$${v/1000}k`} />
+                                                <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} interval={0} />
+                                                <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
+                                                    {chartsData.regionais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
+                                    <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print:text-black print:mb-1">
+                                        <SafeIcon name="AlertCircle" width={14} className="text-orange-500 print:text-black" /> Top Ajustes (Material)
+                                    </h3>
+                                    <div className="flex-1 w-full min-h-0">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={chartsData.materiais} layout="vertical" margin={{top: 0, right: 30, left: 40, bottom: 0}}>
+                                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                                                <XAxis type="number" tick={{fontSize: 9, fill: 'black'}} tickFormatter={(v) => `R$${v/1000}k`} />
+                                                <YAxis dataKey="name" type="category" width={110} tick={{fontSize: 10, fontWeight: 'bold', fill: 'black'}} interval={0} />
+                                                <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
+                                                    {chartsData.materiais.map((entry, index) => ( <Cell key={`cell-${index}`} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit no-print flex-wrap mt-4">
+                        <button onClick={() => setActiveTab('analitica')} className={`px-4 py-2 text-xs font-bold rounded-md transition-all uppercase flex items-center gap-2 ${activeTab === 'analitica' ? 'bg-white shadow-sm text-purple-700' : 'text-slate-500 hover:text-purple-600'}`}>
+                            <SafeIcon name="Table" width={14} /> Analítica
+                        </button>
+                        {['regiao_material', 'material_regiao', 'categoria_material', 'regional_usina', 'usina_material'].map(tab => (
+                            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-xs font-bold rounded-md transition-all uppercase ${activeTab === tab ? 'bg-white shadow-sm text-purple-700' : 'text-slate-500 hover:text-slate-700'}`}>
+                                {tab.replace('_', ' + ')}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="min-h-[400px]">
+                        <div className={`${activeTab === 'analitica' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
+                            <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
+                                <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
+                                    <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
+                                        <tr>
+                                            <th className="px-3 py-2 min-w-[150px] print:border print:border-black print:px-1">Material</th>
+                                            <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Est. Ini</th>
+                                            <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Entradas</th>
+                                            <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Saídas</th>
+                                            <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black print:px-1">Final (T)</th>
+                                            <th className="px-2 py-2 text-right bg-slate-50 dark:bg-slate-800/50 print:bg-white print:border print:border-black print:px-1">Final (R)</th>
+                                            <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Var (%)</th>
+                                            <th className="px-2 py-2 text-right print:border print:border-black print:px-1">R$ Méd</th>
+                                            <th className="px-2 py-2 text-right print:border print:border-black print:px-1">R$ Aj.</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
+                                        {analiticaData.map((row, i) => (
+                                            <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
+                                                <td className="px-3 py-2 font-medium truncate max-w-[250px] text-slate-700 dark:text-white print:text-black print:border print:border-black print:px-1" title={row.name}>
+                                                    {row.name.length > 25 ? row.name.substring(0, 25) + '...' : row.name}
+                                                </td>
+                                                <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{fmtNum(row.est_in)}</td>
+                                                <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black print:px-1">+{fmtNum(row.entradas)}</td>
+                                                <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black print:px-1">{fmtNum(row.saidas)}</td>
+                                                <td className="px-2 py-2 text-right font-mono font-bold text-slate-500 print:text-black print:border print:border-black print:px-1">{fmtNum(row.est_fin_sap)}</td>
+                                                <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print-color-force print:border print:border-black print:px-1">{fmtNum(row.est_fin_real)}</td>
+                                                <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print-color-force print:border print:border-black print:px-1`}>{fmtPerc(row.variacaoPct)}</td>
+                                                <td className="px-2 py-2 text-right font-mono text-slate-500 print:text-black print:border print:border-black print:px-1">{fmtMoney(row.unitPrice)}</td>
+                                                <td className="px-2 py-2 text-right font-mono text-purple-600 font-bold print-color-force print:border print:border-black print:px-1">{fmtMoney(row.custoMedioAjustado)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot className="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
+                                        <tr>
+                                            <td className="px-3 py-2 uppercase text-xs print:border print:border-black print:px-1">Total</td>
+                                            <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_in)}</td>
+                                            <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black print:px-1">{fmtNum(analiticaTotals.entradas)}</td>
+                                            <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black print:px-1">{fmtNum(analiticaTotals.saidas)}</td>
+                                            <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_fin_sap)}</td>
+                                            <td className="px-2 py-2 text-right font-mono text-blue-600 print-color-force print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_fin_real)}</td>
+                                            <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">
+                                                {fmtPerc(adjustedVariation)}
+                                            </td>
+                                            <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">-</td>
+                                            <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">-</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </StandardTable>
+                            
+                            {/* NOVAS TABELAS DE FORNECEDORES */}
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 print:block">
+                                <FornecedoresTable1 />
+                                <FornecedoresTable2 />
+                            </div>
+
+                        </div>
+
+                        <div className={`${activeTab === 'regiao_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
+                            <DrillDownTable rawData={lista} title="Classificação por Região" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
+                        </div>
+                        <div className={`${activeTab === 'material_regiao' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
+                            <DrillDownTable rawData={lista} title="Classificação por Material" iconName="Box" hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
+                        </div>
+                        <div className={`${activeTab === 'categoria_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
+                            <DrillDownTable rawData={lista} title="Classificação por Categoria" iconName="ListFilter" hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
+                        </div>
+                        <div className={`${activeTab === 'regional_usina' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
+                            <DrillDownTable rawData={lista} title="Regional + Usina" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
+                        </div>
+                        <div className={`${activeTab === 'usina_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
+                            <DrillDownTable rawData={lista} title="Usina + Material" iconName="Briefcase" hierarchy={[{ key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
+                        </div>
+                    </div>
                 </div>
-                <div className={`${activeTab === 'material_regiao' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <DrillDownTable rawData={lista} title="Classificação por Material" iconName="Box" hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
-                </div>
-                <div className={`${activeTab === 'categoria_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <DrillDownTable rawData={lista} title="Classificação por Categoria" iconName="ListFilter" hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
-                </div>
-                <div className={`${activeTab === 'regional_usina' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <DrillDownTable rawData={lista} title="Regional + Usina" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
-                </div>
-                <div className={`${activeTab === 'usina_material' ? '' : 'hide-on-screen'} print-force-visible print-page-break`}>
-                    <DrillDownTable rawData={lista} title="Usina + Material" iconName="Briefcase" hierarchy={[{ key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
-                </div>
-            </div>
-        </div>
-    );
-};
+            );
+        };
         const InsumosImport = ({ onImport, loading }) => {
     const [date, setDate] = useState('');
 
@@ -5500,6 +5573,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             // --- FILE PROCESSING ---
 
             // NOVO: PROCESSAR ARQUIVO DE INSUMOS
+            // Processar Insumos
             const processInsumosFile = (file, periodDate) => {
                 const XLSX = window.XLSX;
                 if (!XLSX) { addLog("Biblioteca XLSX não carregada.", "error"); return; }
@@ -5525,11 +5599,12 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                                 periodo: periodDate,
                                 regional: get("REGIONAL"),
                                 filial: get("FILIAL"),
+                                fornecedor: get("FORNECEDOR") || "N/D", // Adicionado Campo Fornecedor
                                 cod_material: String(get("CÓD")),
                                 grupo_material: get("GRUPO MATERIAL"),
                                 categoria: get("CATEGORIA"),
                                 est_inicial_sap: Utils.formatters.parseBrl(get("EST. IN. SAP")),
-                                entradas_sap: Utils.formatters.parseBrl(get("+ SAP")),
+                                entradas_sap: Utils.formatters.parseBrl(get("+ SAP")), // Valor em R$ das entradas
                                 saidas_sap: Utils.formatters.parseBrl(get("- SAP")),
                                 est_final_sap: Utils.formatters.parseBrl(get("EST. FIN. SAP")),
                                 est_final_real: Utils.formatters.parseBrl(get("EST. FIN. REAL")),
@@ -5561,7 +5636,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                 };
                 reader.readAsArrayBuffer(file);
             };
-
+            
             // Processar Diesel
             const processDieselFile = (file, periodDate) => {
                 const XLSX = window.XLSX;
@@ -5951,6 +6026,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
