@@ -3214,14 +3214,22 @@ const TerceirizacaoPagamentos = ({ supabaseClient, filters, onNotify }) => {
         // ============================================================================
 // COMPONENTE: TURNOVER (RH)
 // ============================================================================
-const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true);
+const TerceirizacaoTurnover = ({ supabaseClient, filters }) => {
+    const [loading, setLoading] = React.useState(false);
+    const [data, setData] = React.useState({
+        headcount_inicial: 0,
+        admissoes: 0,
+        demissoes: 0,
+        trocas: 0, // Novo Campo
+        turnover_perc: 0,
+        lista_admitidos: [],
+        lista_demitidos: [],
+        lista_trocas: [] // Nova Lista
+    });
 
-    const fetchData = async () => {
+    const fetchData = React.useCallback(async () => {
         setLoading(true);
         try {
-            // Agora usa as datas do filtro global (dateIni e dateFim)
             const { data: res, error } = await supabaseClient.rpc('get_terceirizacao_turnover', {
                 p_data_ini: filters.dateIni,
                 p_data_fim: filters.dateFim,
@@ -3231,141 +3239,221 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters, onNotify }) => {
             if (error) throw error;
             setData(res);
         } catch (e) {
-            console.error("Erro Turnover:", e);
-            onNotify("Erro ao calcular Turnover: " + e.message, "error");
+            console.error("Erro ao buscar turnover:", e);
+            // Opcional: Adicionar notificação de erro aqui
         } finally {
             setLoading(false);
         }
-    };
+    }, [supabaseClient, filters]);
 
-    useEffect(() => {
-        if (filters.dateIni && filters.dateFim) {
-            fetchData();
-        }
-    }, [filters.dateIni, filters.dateFim, filters.filial]);
+    React.useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
-    if (loading || !data) {
+    // Componente interno para os Cards (Micro-componente para limpar o código)
+    const KpiCard = ({ title, value, iconName, color, subtext, suffix = "" }) => {
+        const Icon = Icons[iconName] || Icons.Activity;
+        
+        // Map de cores para classes Tailwind
+        const colorClasses = {
+            blue: "text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400",
+            emerald: "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400",
+            red: "text-rose-600 bg-rose-100 dark:bg-rose-900/30 dark:text-rose-400",
+            orange: "text-orange-600 bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400",
+            purple: "text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400",
+        };
+
+        const activeClass = colorClasses[color] || colorClasses.blue;
+
         return (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-                <div className="loader h-10 w-10 border-4 border-cyan-500 rounded-full border-t-transparent mb-4 animate-spin"></div>
-                <p>Calculando indicadores de Turnover...</p>
+            <div className="glass-card p-5 flex flex-col justify-between relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+                <div className="flex justify-between items-start mb-2">
+                    <div>
+                        <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">{title}</p>
+                        <h3 className="text-2xl font-black text-slate-700 dark:text-slate-100 mt-1">
+                            {loading ? <Icons.Loader2 className="animate-spin h-6 w-6 opacity-50"/> : (
+                                <span>{value}{suffix}</span>
+                            )}
+                        </h3>
+                    </div>
+                    <div className={`p-2 rounded-xl ${activeClass} shadow-sm`}>
+                        <Icon size={20} strokeWidth={2.5} />
+                    </div>
+                </div>
+                {subtext && <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">{subtext}</p>}
             </div>
         );
-    }
+    };
 
     return (
-        <div className="space-y-6 animate-enter pb-10">
-            {/* Header Simples (Filtro fica no App.js agora) */}
-            <div className="flex justify-between items-end mb-2 no-print">
+        <div className="space-y-6 animate-enter">
+            {/* Header / Título da Seção */}
+            <div className="flex justify-between items-end">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <Icons.Briefcase className="text-cyan-500" /> Turnover (RH)
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                        <Icons.Users className="text-indigo-500" /> Turnover de Terceirização
                     </h2>
-                    <p className="text-sm text-slate-500 mt-1">
-                        Análise de {Utils.date.formatNice(filters.dateIni)} até {Utils.date.formatNice(filters.dateFim)}
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                        Movimentação de fornecedores (CNPJ/CPF) no período.
                     </p>
+                </div>
+                <div className="text-xs text-right text-slate-400">
+                    <p>Filtro Atual:</p> 
+                    <span className="font-mono text-indigo-500 font-bold">
+                        {Utils.date.formatNice(filters.dateIni)} - {Utils.date.formatNice(filters.dateFim)}
+                    </span>
                 </div>
             </div>
 
-            {/* KPIs */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card 
+            {/* Grid de KPIs - Agora com 5 colunas para incluir Trocas */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <KpiCard 
                     title="Frota Inicial" 
                     value={data.headcount_inicial} 
-                    iconName="truck" 
+                    iconName="Users" 
                     color="blue" 
-                    subtext="Ativos no início do período"
+                    subtext="Ativos no dia anterior ao início"
                 />
-                <Card 
-                    title="Admissões (Novos)" 
+                <KpiCard 
+                    title="Admissões" 
                     value={data.admissoes} 
-                    iconName="userPlus" 
+                    iconName="UserPlus" 
                     color="emerald" 
-                    subtext="Novos contratos"
+                    subtext="Novos contratos reais"
                 />
-                <Card 
+                <KpiCard 
                     title="Desligamentos" 
                     value={data.demissoes} 
-                    iconName="userMinus" 
-                    color="rose" 
-                    subtext="Contratos encerrados"
+                    iconName="UserMinus" 
+                    color="red" 
+                    subtext="Saídas definitivas"
                 />
-                <Card 
-                    title="Taxa de Turnover" 
-                    value={Number(data.turnover_perc).toFixed(2) + "%"} 
-                    iconName="activity" 
-                    color={data.turnover_perc > 5 ? "red" : "purple"} 
-                    subtext="(Adm + Dem) / Inicial"
+                <KpiCard 
+                    title="Trocas de Frota" 
+                    value={data.trocas} 
+                    iconName="RefreshCw" 
+                    color="orange" 
+                    subtext="Mesmo dono, nova placa"
+                />
+                <KpiCard 
+                    title="Taxa Turnover" 
+                    value={data.turnover_perc ? data.turnover_perc.toFixed(1) : '0.0'} 
+                    suffix="%"
+                    iconName="Activity" 
+                    color={data.turnover_perc > 5 ? "red" : "purple"}
+                    subtext="Rotatividade do período"
                 />
             </div>
 
-            {/* Tabelas de Detalhamento */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Tabelas Detalhadas - Layout de 3 Colunas */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                {/* Tabela de Admissões */}
-                <div className="glass-card overflow-hidden flex flex-col h-[400px]">
+                {/* 1. Tabela de Admissões */}
+                <div className="glass-card overflow-hidden flex flex-col h-[500px]">
                     <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 border-b border-emerald-100 dark:border-emerald-800/30 flex justify-between items-center">
                         <h3 className="font-bold text-emerald-700 dark:text-emerald-400 text-sm flex items-center gap-2">
-                            <Icons.TrendingUp width={16} /> Entradas / Admissões
+                            <Icons.UserPlus width={16} /> Entradas / Admissões
                         </h3>
-                        <span className="text-xs font-bold bg-white dark:bg-slate-800 px-2 py-1 rounded text-emerald-600 border border-emerald-200 dark:border-emerald-900">
-                            {data.admissoes}
-                        </span>
                     </div>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        <table className="w-full text-xs text-left">
-                            <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500 font-semibold">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
+                        <table className="w-full text-xs text-left border-collapse">
+                            <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500 z-10">
                                 <tr>
-                                    <th className="p-3 bg-slate-50 dark:bg-slate-800">Data Início</th>
-                                    <th className="p-3 bg-slate-50 dark:bg-slate-800">Fornecedor</th>
-                                    <th className="p-3 bg-slate-50 dark:bg-slate-800">Equipamento</th>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800/80 backdrop-blur">Data</th>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800/80 backdrop-blur">Fornecedor</th>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800/80 backdrop-blur">Placa</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
-                                {(data.lista_admitidos || []).map((item, i) => (
-                                    <tr key={i} className="hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-colors">
-                                        <td className="p-3 font-mono text-emerald-600 dark:text-emerald-400">{Utils.date.formatNice(item.data_inicial)}</td>
-                                        <td className="p-3 font-bold">{item.fornecedor}</td>
-                                        <td className="p-3">{item.equipamento}</td>
+                                {loading ? (
+                                    <tr><td colSpan="3" className="p-10 text-center"><Icons.Loader2 className="animate-spin mx-auto text-emerald-500"/></td></tr>
+                                ) : (data.lista_admitidos || []).map((item, i) => (
+                                    <tr key={i} className="hover:bg-emerald-50/30 dark:hover:bg-emerald-900/10 transition-colors">
+                                        <td className="p-3 font-mono text-slate-500">{Utils.date.formatNice(item.data_inicial)}</td>
+                                        <td className="p-3 font-semibold truncate max-w-[120px]" title={item.fornecedor}>{item.fornecedor}</td>
+                                        <td className="p-3 font-mono bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-center mx-2">{item.equipamento}</td>
                                     </tr>
                                 ))}
-                                {(!data.lista_admitidos || data.lista_admitidos.length === 0) && (
-                                    <tr><td colSpan="3" className="p-10 text-center italic text-slate-400">Nenhuma admissão registrada.</td></tr>
+                                {!loading && (!data.lista_admitidos || data.lista_admitidos.length === 0) && (
+                                    <tr><td colSpan="3" className="p-8 text-center italic text-slate-400 text-xs">Nenhuma admissão no período.</td></tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                {/* Tabela de Demissões */}
-                <div className="glass-card overflow-hidden flex flex-col h-[400px]">
+                {/* 2. Tabela de Demissões */}
+                <div className="glass-card overflow-hidden flex flex-col h-[500px]">
                     <div className="p-4 bg-rose-50 dark:bg-rose-900/10 border-b border-rose-100 dark:border-rose-800/30 flex justify-between items-center">
                         <h3 className="font-bold text-rose-700 dark:text-rose-400 text-sm flex items-center gap-2">
-                            <Icons.TrendingDown width={16} /> Saídas / Desligamentos
+                            <Icons.UserMinus width={16} /> Saídas / Desligamentos
                         </h3>
-                        <span className="text-xs font-bold bg-white dark:bg-slate-800 px-2 py-1 rounded text-rose-600 border border-rose-200 dark:border-rose-900">
-                            {data.demissoes}
-                        </span>
                     </div>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        <table className="w-full text-xs text-left">
-                            <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500 font-semibold">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
+                        <table className="w-full text-xs text-left border-collapse">
+                            <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500 z-10">
                                 <tr>
-                                    <th className="p-3 bg-slate-50 dark:bg-slate-800">Data Fim</th>
-                                    <th className="p-3 bg-slate-50 dark:bg-slate-800">Fornecedor</th>
-                                    <th className="p-3 bg-slate-50 dark:bg-slate-800">Equipamento</th>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800/80 backdrop-blur">Data</th>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800/80 backdrop-blur">Fornecedor</th>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800/80 backdrop-blur">Placa</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
-                                {(data.lista_demitidos || []).map((item, i) => (
-                                    <tr key={i} className="hover:bg-rose-50/50 dark:hover:bg-rose-900/10 transition-colors">
-                                        <td className="p-3 font-mono text-rose-600 dark:text-rose-400">{Utils.date.formatNice(item.data_final)}</td>
-                                        <td className="p-3 font-bold">{item.fornecedor}</td>
-                                        <td className="p-3">{item.equipamento}</td>
+                                {loading ? (
+                                    <tr><td colSpan="3" className="p-10 text-center"><Icons.Loader2 className="animate-spin mx-auto text-rose-500"/></td></tr>
+                                ) : (data.lista_demitidos || []).map((item, i) => (
+                                    <tr key={i} className="hover:bg-rose-50/30 dark:hover:bg-rose-900/10 transition-colors">
+                                        <td className="p-3 font-mono text-slate-500">{Utils.date.formatNice(item.data_final)}</td>
+                                        <td className="p-3 font-semibold truncate max-w-[120px]" title={item.fornecedor}>{item.fornecedor}</td>
+                                        <td className="p-3 font-mono bg-rose-50/50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 rounded-lg text-center mx-2">{item.equipamento}</td>
                                     </tr>
                                 ))}
-                                {(!data.lista_demitidos || data.lista_demitidos.length === 0) && (
-                                    <tr><td colSpan="3" className="p-10 text-center italic text-slate-400">Nenhum desligamento registrado.</td></tr>
+                                {!loading && (!data.lista_demitidos || data.lista_demitidos.length === 0) && (
+                                    <tr><td colSpan="3" className="p-8 text-center italic text-slate-400 text-xs">Nenhuma demissão no período.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* 3. Tabela de Trocas de Placa (NOVA) */}
+                <div className="glass-card overflow-hidden flex flex-col h-[500px]">
+                    <div className="p-4 bg-orange-50 dark:bg-orange-900/10 border-b border-orange-100 dark:border-orange-800/30 flex justify-between items-center">
+                        <h3 className="font-bold text-orange-700 dark:text-orange-400 text-sm flex items-center gap-2">
+                            <Icons.RefreshCw width={16} /> Trocas de Placa
+                        </h3>
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-orange-600/60 bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-orange-200 dark:border-orange-900">
+                            Reajuste Frota
+                        </span>
+                    </div>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
+                        <table className="w-full text-xs text-left border-collapse">
+                            <thead className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm text-slate-500 z-10">
+                                <tr>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800/80 backdrop-blur">Data</th>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800/80 backdrop-blur">Saiu</th>
+                                    <th className="p-3 bg-slate-50 dark:bg-slate-800/80 backdrop-blur">Entrou</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
+                                {loading ? (
+                                    <tr><td colSpan="3" className="p-10 text-center"><Icons.Loader2 className="animate-spin mx-auto text-orange-500"/></td></tr>
+                                ) : (data.lista_trocas || []).map((item, i) => (
+                                    <tr key={i} className="hover:bg-orange-50/30 dark:hover:bg-orange-900/10 transition-colors group">
+                                        <td className="p-3">
+                                            <div className="font-mono text-slate-500">{Utils.date.formatNice(item.data_troca)}</div>
+                                            <div className="text-[10px] text-slate-400 truncate max-w-[100px]" title={item.fornecedor}>{item.fornecedor}</div>
+                                        </td>
+                                        <td className="p-3">
+                                            <div className="font-mono text-xs line-through text-rose-400 decoration-rose-400/50">{item.placa_antiga}</div>
+                                        </td>
+                                        <td className="p-3">
+                                            <div className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">{item.placa_nova}</div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {!loading && (!data.lista_trocas || data.lista_trocas.length === 0) && (
+                                    <tr><td colSpan="3" className="p-8 text-center italic text-slate-400 text-xs">Nenhuma troca de placa.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -6026,6 +6114,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
