@@ -3220,12 +3220,26 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters }) => {
         headcount_inicial: 0,
         admissoes: 0,
         demissoes: 0,
-        trocas: 0, // Novo Campo
+        trocas: 0,
         turnover_perc: 0,
         lista_admitidos: [],
         lista_demitidos: [],
-        lista_trocas: [] // Nova Lista
+        lista_trocas: []
     });
+
+    // --- CORREÇÃO: Definição segura dos Ícones ---
+    // Se o ícone específico não existir na lib, usa um genérico (Activity ou User)
+    const SafeIcon = (name, fallback = 'Activity') => {
+        const IconComponent = Icons[name] || Icons[fallback] || Icons.Activity;
+        return IconComponent;
+    };
+
+    const IconUserPlus = SafeIcon('UserPlus', 'Plus');
+    const IconUserMinus = SafeIcon('UserMinus', 'Minus');
+    const IconRefresh = SafeIcon('RefreshCw', 'RefreshCcw');
+    const IconUsers = SafeIcon('Users', 'User');
+    const IconLoader = SafeIcon('Loader2', 'Loader');
+    // ---------------------------------------------
 
     const fetchData = React.useCallback(async () => {
         setLoading(true);
@@ -3240,7 +3254,6 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters }) => {
             setData(res);
         } catch (e) {
             console.error("Erro ao buscar turnover:", e);
-            // Opcional: Adicionar notificação de erro aqui
         } finally {
             setLoading(false);
         }
@@ -3250,11 +3263,10 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters }) => {
         fetchData();
     }, [fetchData]);
 
-    // Componente interno para os Cards (Micro-componente para limpar o código)
     const KpiCard = ({ title, value, iconName, color, subtext, suffix = "" }) => {
-        const Icon = Icons[iconName] || Icons.Activity;
+        // Usa a função segura aqui também
+        const Icon = SafeIcon(iconName);
         
-        // Map de cores para classes Tailwind
         const colorClasses = {
             blue: "text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400",
             emerald: "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400",
@@ -3271,7 +3283,7 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters }) => {
                     <div>
                         <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">{title}</p>
                         <h3 className="text-2xl font-black text-slate-700 dark:text-slate-100 mt-1">
-                            {loading ? <Icons.Loader2 className="animate-spin h-6 w-6 opacity-50"/> : (
+                            {loading ? <IconLoader className="animate-spin h-6 w-6 opacity-50"/> : (
                                 <span>{value}{suffix}</span>
                             )}
                         </h3>
@@ -3287,11 +3299,11 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters }) => {
 
     return (
         <div className="space-y-6 animate-enter">
-            {/* Header / Título da Seção */}
+            {/* Header */}
             <div className="flex justify-between items-end">
                 <div>
                     <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                        <Icons.Users className="text-indigo-500" /> Turnover de Terceirização
+                        <IconUsers className="text-indigo-500" /> Turnover de Terceirização
                     </h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                         Movimentação de fornecedores (CNPJ/CPF) no período.
@@ -3305,14 +3317,14 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters }) => {
                 </div>
             </div>
 
-            {/* Grid de KPIs - Agora com 5 colunas para incluir Trocas */}
+            {/* Grid de KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <KpiCard 
                     title="Frota Inicial" 
                     value={data.headcount_inicial} 
                     iconName="Users" 
                     color="blue" 
-                    subtext="Ativos no dia anterior ao início"
+                    subtext="Ativos no dia anterior"
                 />
                 <KpiCard 
                     title="Admissões" 
@@ -3345,14 +3357,14 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters }) => {
                 />
             </div>
 
-            {/* Tabelas Detalhadas - Layout de 3 Colunas */}
+            {/* Tabelas Detalhadas */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
                 {/* 1. Tabela de Admissões */}
                 <div className="glass-card overflow-hidden flex flex-col h-[500px]">
                     <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 border-b border-emerald-100 dark:border-emerald-800/30 flex justify-between items-center">
                         <h3 className="font-bold text-emerald-700 dark:text-emerald-400 text-sm flex items-center gap-2">
-                            <Icons.UserPlus width={16} /> Entradas / Admissões
+                            <IconUserPlus width={16} /> Entradas / Admissões
                         </h3>
                     </div>
                     <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
@@ -3366,7 +3378,7 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters }) => {
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
                                 {loading ? (
-                                    <tr><td colSpan="3" className="p-10 text-center"><Icons.Loader2 className="animate-spin mx-auto text-emerald-500"/></td></tr>
+                                    <tr><td colSpan="3" className="p-10 text-center"><IconLoader className="animate-spin mx-auto text-emerald-500"/></td></tr>
                                 ) : (data.lista_admitidos || []).map((item, i) => (
                                     <tr key={i} className="hover:bg-emerald-50/30 dark:hover:bg-emerald-900/10 transition-colors">
                                         <td className="p-3 font-mono text-slate-500">{Utils.date.formatNice(item.data_inicial)}</td>
@@ -3386,7 +3398,7 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters }) => {
                 <div className="glass-card overflow-hidden flex flex-col h-[500px]">
                     <div className="p-4 bg-rose-50 dark:bg-rose-900/10 border-b border-rose-100 dark:border-rose-800/30 flex justify-between items-center">
                         <h3 className="font-bold text-rose-700 dark:text-rose-400 text-sm flex items-center gap-2">
-                            <Icons.UserMinus width={16} /> Saídas / Desligamentos
+                            <IconUserMinus width={16} /> Saídas / Desligamentos
                         </h3>
                     </div>
                     <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
@@ -3400,7 +3412,7 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters }) => {
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
                                 {loading ? (
-                                    <tr><td colSpan="3" className="p-10 text-center"><Icons.Loader2 className="animate-spin mx-auto text-rose-500"/></td></tr>
+                                    <tr><td colSpan="3" className="p-10 text-center"><IconLoader className="animate-spin mx-auto text-rose-500"/></td></tr>
                                 ) : (data.lista_demitidos || []).map((item, i) => (
                                     <tr key={i} className="hover:bg-rose-50/30 dark:hover:bg-rose-900/10 transition-colors">
                                         <td className="p-3 font-mono text-slate-500">{Utils.date.formatNice(item.data_final)}</td>
@@ -3416,11 +3428,11 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters }) => {
                     </div>
                 </div>
 
-                {/* 3. Tabela de Trocas de Placa (NOVA) */}
+                {/* 3. Tabela de Trocas de Placa */}
                 <div className="glass-card overflow-hidden flex flex-col h-[500px]">
                     <div className="p-4 bg-orange-50 dark:bg-orange-900/10 border-b border-orange-100 dark:border-orange-800/30 flex justify-between items-center">
                         <h3 className="font-bold text-orange-700 dark:text-orange-400 text-sm flex items-center gap-2">
-                            <Icons.RefreshCw width={16} /> Trocas de Placa
+                            <IconRefresh width={16} /> Trocas de Placa
                         </h3>
                         <span className="text-[10px] uppercase font-bold tracking-wider text-orange-600/60 bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-orange-200 dark:border-orange-900">
                             Reajuste Frota
@@ -3437,7 +3449,7 @@ const TerceirizacaoTurnover = ({ supabaseClient, filters }) => {
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-300">
                                 {loading ? (
-                                    <tr><td colSpan="3" className="p-10 text-center"><Icons.Loader2 className="animate-spin mx-auto text-orange-500"/></td></tr>
+                                    <tr><td colSpan="3" className="p-10 text-center"><IconLoader className="animate-spin mx-auto text-orange-500"/></td></tr>
                                 ) : (data.lista_trocas || []).map((item, i) => (
                                     <tr key={i} className="hover:bg-orange-50/30 dark:hover:bg-orange-900/10 transition-colors group">
                                         <td className="p-3">
@@ -6114,6 +6126,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
