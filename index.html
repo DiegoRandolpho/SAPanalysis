@@ -134,7 +134,7 @@
 
 // Substitua pelas suas chaves REAIS (estou usando placeholders aqui baseado no seu histórico)
 const supabaseUrl = 'https://jsmnykikflkjceiqfmne.supabase.co'; 
-const supabaseAnonKey = 'SUA_KEY_ANON_AQUI'; // <--- GARANTA QUE ISSO ESTÁ PREENCHIDO
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzbW55a2lrZmxramNlaXFmbW5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMTI5NzYsImV4cCI6MjA3OTU4ODk3Nn0.1EtrQTvZERRe8igl0PYnGH8H9SXuOg7mq4PVZVwRJVA'; // <--- GARANTA QUE ISSO ESTÁ PREENCHIDO
 
 const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
         
@@ -6121,6 +6121,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
