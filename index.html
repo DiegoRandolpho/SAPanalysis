@@ -5385,317 +5385,356 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         </div>
     );
 };
-        const DocumentacaoDashboard = ({ supabaseClient }) => {
-    const [tab, setTab] = React.useState('frota'); // frota, ipva, tacografo, aet
-    const [loading, setLoading] = React.useState(false);
-    const [data, setData] = React.useState([]);
-    const [search, setSearch] = React.useState('');
-    const [modalOpen, setModalOpen] = React.useState(false);
-    const [editingItem, setEditingItem] = React.useState(null);
+        const DocumentacaoDashboard = ({ supabaseClient, onNotify }) => {
+    // --- ESTADOS ---
+    const [tab, setTab] = useState('frota'); // frota, ipva, tacografo, aet
+    const [loading, setLoading] = useState(false);
+    const [data, setData] = useState([]);
+    const [search, setSearch] = useState('');
+    
+    // Estados dos Modais
+    const [modalVeiculoOpen, setModalVeiculoOpen] = useState(false);
+    const [modalEventoOpen, setModalEventoOpen] = useState(false);
+    const [selectedItem, setSelectedItem] = useState(null); // Veículo selecionado para ação
+    const [eventoTipo, setEventoTipo] = useState(''); // 'ipva', 'tacografo', 'aet'
 
-    // Ícones seguros
+    // Formulário Veículo
+    const [formVeiculo, setFormVeiculo] = useState({
+        id: null, placa: '', estado: '', cnpj: '', renavam: '', chassi: '', 
+        modelo: '', ano: '', tipo_veiculo: 'Leve', status: 'Ativo'
+    });
+
+    // Formulário Eventos (IPVA, Tacógrafo, AET)
+    const [formEvento, setFormEvento] = useState({
+        data_ref: '', // Vistoria, Emissao, etc
+        data_venc: '', // Vencimento
+        obs: '', // Observação ou Número documento
+        ano_exercicio: new Date().getFullYear()
+    });
+
+    // Ícones Seguros
     const SafeIcon = (name, fallback='Activity') => typeof Icons !== 'undefined' ? (Icons[name] || Icons[fallback]) : () => <span>?</span>;
     const IconTruck = SafeIcon('Truck');
     const IconFileCheck = SafeIcon('FileCheck');
-    const IconAlertTriangle = SafeIcon('AlertTriangle');
+    const IconAlert = SafeIcon('AlertTriangle');
     const IconCalendar = SafeIcon('Calendar');
     const IconSearch = SafeIcon('Search');
-    const IconDownload = SafeIcon('Download');
     const IconPlus = SafeIcon('Plus');
     const IconEdit = SafeIcon('Edit');
     const IconSave = SafeIcon('Save');
+    const IconX = SafeIcon('X');
 
-    // Buscar Dados
-    const fetchData = React.useCallback(async () => {
+    // --- BUSCA DE DADOS ---
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            // Buscamos da VIEW que criamos, pois já traz tudo consolidado
             const { data: res, error } = await supabaseClient.from('view_frota_painel').select('*');
             if (error) throw error;
             setData(res || []);
         } catch (error) {
             console.error("Erro ao buscar documentação:", error);
-            alert("Erro ao carregar dados da frota.");
+            if(onNotify) onNotify("Erro ao carregar frota.", "error");
         } finally {
             setLoading(false);
         }
     }, [supabaseClient]);
 
-    React.useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    useEffect(() => { fetchData(); }, [fetchData]);
 
-    // Função de Exportação para Excel (CSV)
-    const exportToExcel = () => {
-        if (!filteredData.length) return alert("Nada para exportar");
-        
-        // Define as colunas baseadas na aba atual
-        let headers = [];
-        let rows = [];
-
-        if (tab === 'frota') {
-            headers = ["Estado", "CNPJ", "Placa", "Renavam", "Chassi", "Modelo", "Ano", "Tipo", "Status"];
-            rows = filteredData.map(i => [i.estado, i.cnpj, i.placa, i.renavam, i.chassi, i.modelo, i.ano, i.tipo_veiculo, i.status]);
-        } else if (tab === 'ipva') {
-            headers = ["Placa", "Modelo", "Ano Veículo", "Último IPVA (Ano)", "Data Vistoria", "Status"];
-            rows = filteredData.map(i => [i.placa, i.modelo, i.ano, i.ult_ipva_ano || '-', i.ult_ipva_data || '-', i.ult_ipva_ano === new Date().getFullYear() ? 'OK' : 'Pendente']);
-        } else if (tab === 'tacografo') {
-            headers = ["Placa", "Modelo", "Tipo", "Vencimento Tacógrafo", "Dias Restantes", "Status"];
-            rows = filteredData.map(i => {
-                const dias = getDaysRemaining(i.tacografo_vencimento);
-                return [i.placa, i.modelo, i.tipo_veiculo, Utils.date.formatNice(i.tacografo_vencimento), dias, dias < 0 ? 'Vencido' : dias < 30 ? 'Crítico' : 'OK'];
-            });
-        } else if (tab === 'aet') {
-            headers = ["Placa", "Modelo", "Nº AET", "Vencimento AET", "Dias Restantes", "Status"];
-            rows = filteredData.map(i => {
-                const dias = getDaysRemaining(i.aet_vencimento);
-                return [i.placa, i.modelo, i.aet_numero, Utils.date.formatNice(i.aet_vencimento), dias, dias < 0 ? 'Vencido' : dias < 30 ? 'Crítico' : 'OK'];
-            });
-        }
-
-        // Gera o CSV
-        const csvContent = "data:text/csv;charset=utf-8," 
-            + headers.join(";") + "\n" 
-            + rows.map(e => e.join(";")).join("\n");
-
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `Tersys_Doc_${tab.toUpperCase()}_${new Date().toLocaleDateString()}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    // --- AÇÕES DE VEÍCULO (FROTA) ---
+    const handleNewVeiculo = () => {
+        setFormVeiculo({ id: null, placa: '', estado: '', cnpj: '', renavam: '', chassi: '', modelo: '', ano: '', tipo_veiculo: 'Leve', status: 'Ativo' });
+        setModalVeiculoOpen(true);
     };
 
-    // Utilitário de Dias Restantes
+    const handleEditVeiculo = (item) => {
+        setFormVeiculo({ ...item }); // Preenche com dados existentes
+        setModalVeiculoOpen(true);
+    };
+
+    const saveVeiculo = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const payload = { ...formVeiculo, placa: formVeiculo.placa.toUpperCase().trim() };
+            // Remove campos da view que não existem na tabela real se estiver editando
+            delete payload.ult_ipva_data; delete payload.ult_ipva_ano; 
+            delete payload.tacografo_vencimento; delete payload.aet_vencimento; delete payload.aet_numero;
+
+            const { error } = payload.id 
+                ? await supabaseClient.from('frota').update(payload).eq('id', payload.id)
+                : await supabaseClient.from('frota').insert(payload);
+
+            if (error) throw error;
+            if(onNotify) onNotify("Veículo salvo com sucesso!", "success");
+            setModalVeiculoOpen(false);
+            fetchData();
+        } catch (err) {
+            if(onNotify) onNotify("Erro ao salvar: " + err.message, "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // --- AÇÕES DE EVENTOS (IPVA, TACOGRAFO, AET) ---
+    const openEventoModal = (item, tipo) => {
+        setSelectedItem(item);
+        setEventoTipo(tipo);
+        // Reseta form
+        setFormEvento({
+            data_ref: new Date().toISOString().split('T')[0],
+            data_venc: '',
+            obs: '',
+            ano_exercicio: new Date().getFullYear()
+        });
+        setModalEventoOpen(true);
+    };
+
+    const saveEvento = async (e) => {
+        e.preventDefault();
+        if (!selectedItem) return;
+        setLoading(true);
+        
+        try {
+            let error = null;
+
+            if (eventoTipo === 'ipva') {
+                const { error: err } = await supabaseClient.from('frota_ipva').insert({
+                    frota_id: selectedItem.id,
+                    ano_exercicio: formEvento.ano_exercicio,
+                    data_vistoria: formEvento.data_ref,
+                    concluido: true,
+                    observacao: formEvento.obs
+                });
+                error = err;
+            } 
+            else if (eventoTipo === 'tacografo') {
+                const { error: err } = await supabaseClient.from('frota_tacografo').insert({
+                    frota_id: selectedItem.id,
+                    data_emissao: formEvento.data_ref,
+                    data_vencimento: formEvento.data_venc,
+                    certificado: formEvento.obs // Usando campo obs para numero certificado
+                });
+                error = err;
+            }
+            else if (eventoTipo === 'aet') {
+                const { error: err } = await supabaseClient.from('frota_aet').insert({
+                    frota_id: selectedItem.id,
+                    numero_aet: formEvento.obs, // Usando campo obs para numero AET
+                    data_vencimento: formEvento.data_venc
+                });
+                error = err;
+            }
+
+            if (error) throw error;
+            if(onNotify) onNotify("Registro atualizado com sucesso!", "success");
+            setModalEventoOpen(false);
+            fetchData();
+        } catch (err) {
+            if(onNotify) onNotify("Erro ao registrar: " + err.message, "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // --- UTILS ---
     const getDaysRemaining = (dateString) => {
-        if (!dateString) return -999; // Sem data
-        const today = new Date();
-        const target = new Date(dateString);
+        if (!dateString) return -999;
+        const today = new Date(); today.setHours(0,0,0,0);
+        const target = new Date(dateString); target.setHours(0,0,0,0);
         const diffTime = target - today;
         return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
     };
 
-    // Lógica de Filtragem por Aba
-    const filteredData = React.useMemo(() => {
-        let filtered = data;
-
-        // Filtro de Texto Global
+    // --- FILTRAGEM ---
+    const filteredData = useMemo(() => {
+        let list = data;
         if (search) {
             const s = search.toLowerCase();
-            filtered = filtered.filter(item => 
-                (item.placa || '').toLowerCase().includes(s) ||
-                (item.modelo || '').toLowerCase().includes(s) ||
-                (item.renavam || '').toLowerCase().includes(s)
-            );
+            list = list.filter(i => (i.placa||'').toLowerCase().includes(s) || (i.modelo||'').toLowerCase().includes(s));
         }
-
-        // Filtros Específicos por Aba
-        if (tab === 'ipva') {
-            // Apenas ativos
-            filtered = filtered.filter(i => i.status === 'Ativo');
-        } else if (tab === 'tacografo') {
-            // Apenas Pesado/Especial + Ativo
-            filtered = filtered.filter(i => i.status === 'Ativo' && ['Pesado', 'Especial'].includes(i.tipo_veiculo));
-            // Ordenar por vencimento (mais urgentes primeiro)
-            filtered = filtered.sort((a, b) => {
-                if (!a.tacografo_vencimento) return 1;
-                if (!b.tacografo_vencimento) return -1;
-                return new Date(a.tacografo_vencimento) - new Date(b.tacografo_vencimento);
-            });
-        } else if (tab === 'aet') {
-            // Apenas Especial + Ativo
-            filtered = filtered.filter(i => i.status === 'Ativo' && i.tipo_veiculo === 'Especial');
-            // Ordenar por vencimento
-            filtered = filtered.sort((a, b) => {
-                if (!a.aet_vencimento) return 1;
-                if (!b.aet_vencimento) return -1;
-                return new Date(a.aet_vencimento) - new Date(b.aet_vencimento);
-            });
-        }
-
-        return filtered;
+        if (tab === 'ipva') return list.filter(i => i.status === 'Ativo');
+        if (tab === 'tacografo') return list.filter(i => i.status === 'Ativo' && ['Pesado', 'Especial'].includes(i.tipo_veiculo));
+        if (tab === 'aet') return list.filter(i => i.status === 'Ativo' && i.tipo_veiculo === 'Especial');
+        return list; // frota mostra tudo
     }, [data, tab, search]);
 
-    // Renderização das Tabelas
-    const renderTable = () => {
+    // --- RENDERIZAÇÃO DAS TABELAS ---
+    const renderContent = () => {
         if (tab === 'frota') {
             return (
                 <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-semibold uppercase">
+                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-bold uppercase">
                         <tr>
                             <th className="p-3">Placa</th>
-                            <th className="p-3">Estado</th>
+                            <th className="p-3">UF</th>
                             <th className="p-3">Tipo</th>
                             <th className="p-3">Modelo / Ano</th>
                             <th className="p-3 hidden md:table-cell">Renavam / Chassi</th>
-                            <th className="p-3">Status</th>
+                            <th className="p-3 text-center">Status</th>
                             <th className="p-3 text-right">Ação</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                         {filteredData.map(item => (
                             <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                <td className="p-3 font-bold font-mono text-indigo-600 dark:text-indigo-400">{item.placa}</td>
+                                <td className="p-3 font-bold text-indigo-600 dark:text-indigo-400 font-mono">{item.placa}</td>
                                 <td className="p-3">{item.estado}</td>
+                                <td className="p-3"><span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600">{item.tipo_veiculo}</span></td>
                                 <td className="p-3">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                        item.tipo_veiculo === 'Leve' ? 'bg-blue-50 text-blue-600 border-blue-200' :
-                                        item.tipo_veiculo === 'Pesado' ? 'bg-orange-50 text-orange-600 border-orange-200' :
-                                        'bg-purple-50 text-purple-600 border-purple-200'
-                                    }`}>
-                                        {item.tipo_veiculo}
-                                    </span>
-                                </td>
-                                <td className="p-3">
-                                    <div className="font-semibold text-slate-700 dark:text-slate-200">{item.modelo}</div>
+                                    <div className="font-bold text-slate-700 dark:text-slate-200">{item.modelo}</div>
                                     <div className="text-[10px] text-slate-400">{item.ano}</div>
                                 </td>
-                                <td className="p-3 hidden md:table-cell">
-                                    <div className="text-[10px]">R: {item.renavam || '-'}</div>
-                                    <div className="text-[10px]">C: {item.chassi || '-'}</div>
+                                <td className="p-3 hidden md:table-cell text-[10px] text-slate-500">
+                                    <div>R: {item.renavam || '-'}</div>
+                                    <div>C: {item.chassi || '-'}</div>
                                 </td>
-                                <td className="p-3">
-                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
-                                        item.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                                    }`}>
-                                        {item.status}
-                                    </span>
+                                <td className="p-3 text-center">
+                                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${item.status==='Ativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{item.status}</span>
                                 </td>
                                 <td className="p-3 text-right">
-                                    <button onClick={() => alert('Edição em breve')} className="p-1 hover:bg-slate-200 rounded text-slate-500">
-                                        <IconEdit size={14}/>
-                                    </button>
+                                    <button onClick={() => handleEditVeiculo(item)} className="p-1.5 hover:bg-blue-50 text-blue-600 rounded transition-colors"><IconEdit size={16}/></button>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
-            )
+            );
         }
-        
+
         if (tab === 'ipva') {
             const currentYear = new Date().getFullYear();
             return (
                 <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-semibold uppercase">
+                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-bold uppercase">
                         <tr>
-                            <th className="p-3">Placa</th>
                             <th className="p-3">Veículo</th>
                             <th className="p-3">Última Vistoria</th>
                             <th className="p-3">Ano Ref.</th>
-                            <th className="p-3">Status Atual</th>
-                            <th className="p-3 text-right">Atualizar</th>
+                            <th className="p-3 text-center">Status {currentYear}</th>
+                            <th className="p-3 text-right">Ação</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                         {filteredData.map(item => {
-                            const isDone = item.ult_ipva_ano === currentYear;
+                            const isOk = item.ult_ipva_ano === currentYear;
                             return (
                                 <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                    <td className="p-3 font-bold font-mono">{item.placa}</td>
-                                    <td className="p-3">{item.modelo}</td>
-                                    <td className="p-3 font-mono text-slate-500">{Utils.date.formatNice(item.ult_ipva_data) || 'Nunca'}</td>
-                                    <td className="p-3 font-bold">{item.ult_ipva_ano || '-'}</td>
                                     <td className="p-3">
-                                        {isDone ? (
-                                            <span className="flex items-center gap-1 text-emerald-600 font-bold"><IconFileCheck size={14}/> IPVA {currentYear} OK</span>
-                                        ) : (
-                                            <span className="flex items-center gap-1 text-amber-600 font-bold"><IconAlertTriangle size={14}/> Pendente {currentYear}</span>
-                                        )}
+                                        <div className="font-bold text-indigo-600 font-mono">{item.placa}</div>
+                                        <div className="text-[10px] text-slate-500">{item.modelo}</div>
+                                    </td>
+                                    <td className="p-3 font-mono">{Utils.date.formatNice(item.ult_ipva_data) || '-'}</td>
+                                    <td className="p-3 font-bold">{item.ult_ipva_ano || '-'}</td>
+                                    <td className="p-3 text-center">
+                                        {isOk ? <span className="text-emerald-600 font-bold flex justify-center items-center gap-1"><IconFileCheck size={14}/> OK</span> 
+                                              : <span className="text-amber-600 font-bold flex justify-center items-center gap-1"><IconAlert size={14}/> Pendente</span>}
                                     </td>
                                     <td className="p-3 text-right">
-                                        <button className="text-indigo-600 hover:underline font-bold">Registrar</button>
+                                        <button onClick={() => openEventoModal(item, 'ipva')} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1 rounded font-bold transition-colors">Registrar</button>
                                     </td>
                                 </tr>
-                            )
+                            );
                         })}
                     </tbody>
                 </table>
-            )
+            );
         }
 
+        // Tacógrafo e AET usam estrutura similar
         if (tab === 'tacografo' || tab === 'aet') {
             const isAet = tab === 'aet';
             const dateField = isAet ? 'aet_vencimento' : 'tacografo_vencimento';
             
             return (
                 <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-semibold uppercase">
+                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 font-bold uppercase">
                         <tr>
-                            <th className="p-3">Placa</th>
                             <th className="p-3">Veículo</th>
                             {isAet && <th className="p-3">Nº AET</th>}
-                            <th className="p-3">Vencimento</th>
-                            <th className="p-3">Prazo</th>
+                            <th className="p-3">Vencimento Atual</th>
+                            <th className="p-3">Status Prazo</th>
                             <th className="p-3 text-right">Ação</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                         {filteredData.map(item => {
-                            const dateVal = item[dateField];
-                            const days = getDaysRemaining(dateVal);
-                            const statusColor = days < 0 ? 'text-red-600 bg-red-50 border-red-200' : days < 30 ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-emerald-600 bg-emerald-50 border-emerald-200';
+                            const venc = item[dateField];
+                            const dias = getDaysRemaining(venc);
+                            const statusColor = dias < 0 ? 'bg-red-100 text-red-700' : dias < 30 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
                             
                             return (
                                 <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                    <td className="p-3 font-bold font-mono">{item.placa}</td>
-                                    <td className="p-3">{item.modelo}</td>
+                                    <td className="p-3">
+                                        <div className="font-bold text-indigo-600 font-mono">{item.placa}</div>
+                                        <div className="text-[10px] text-slate-500">{item.modelo}</div>
+                                    </td>
                                     {isAet && <td className="p-3 font-mono">{item.aet_numero || '-'}</td>}
-                                    <td className="p-3 font-mono font-bold text-slate-700 dark:text-slate-300">
-                                        {Utils.date.formatNice(dateVal) || 'Não registrado'}
+                                    <td className="p-3 font-bold text-slate-700 dark:text-slate-300 font-mono">
+                                        {Utils.date.formatNice(venc) || 'Sem Registro'}
                                     </td>
                                     <td className="p-3">
-                                        <span className={`px-2 py-1 rounded text-[10px] font-bold border ${statusColor}`}>
-                                            {dateVal ? (days < 0 ? `VENCIDO HÁ ${Math.abs(days)} DIAS` : `${days} Dias Restantes`) : 'PENDENTE'}
-                                        </span>
+                                        {venc ? (
+                                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${statusColor}`}>
+                                                {dias < 0 ? `VENCIDO (${Math.abs(dias)}d)` : `${dias} dias`}
+                                            </span>
+                                        ) : <span className="text-slate-400 italic">Pendente</span>}
                                     </td>
                                     <td className="p-3 text-right">
-                                        <button className="text-indigo-600 hover:underline font-bold">Renovar</button>
+                                        <button onClick={() => openEventoModal(item, isAet ? 'aet' : 'tacografo')} className="bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1 rounded font-bold transition-colors">Renovar</button>
                                     </td>
                                 </tr>
-                            )
+                            );
                         })}
                     </tbody>
                 </table>
-            )
+            );
         }
     };
 
     return (
         <div className="space-y-6 animate-enter pb-20">
-            {/* Header com Título e Botão de Novo Veículo */}
-            <div className="flex flex-col md:flex-row justify-between items-end gap-4">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-end gap-4 bg-white/50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                 <div>
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                         <IconTruck className="text-indigo-500" /> Documentação da Frota
                     </h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        Gerencie cadastros, vistorias e vencimentos de documentos.
-                    </p>
+                    <p className="text-sm text-slate-500">Gestão de IPVA, Tacógrafo, AET e Cadastros.</p>
                 </div>
-                <div className="flex gap-2">
-                    <button 
-                        onClick={() => alert("Formulário de Cadastro será implementado na próxima etapa.")}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-lg hover:shadow-indigo-500/30"
-                    >
-                        <IconPlus size={16} /> Novo Veículo
-                    </button>
+                <div className="flex gap-3">
+                    {/* Barra de Busca */}
+                    <div className="relative">
+                        <IconSearch className="absolute left-3 top-2.5 text-slate-400 w-4 h-4" />
+                        <input 
+                            type="text" 
+                            placeholder="Buscar placa..." 
+                            className="pl-9 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                        />
+                    </div>
+                    {/* Botão Novo (Só aparece na aba Frota) */}
+                    {tab === 'frota' && (
+                        <button onClick={handleNewVeiculo} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg">
+                            <IconPlus size={16} /> Novo Veículo
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* Navegação de Abas */}
+            {/* Abas */}
             <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800 overflow-x-auto pb-1">
                 {[
                     { id: 'frota', label: 'Cadastro Frota', icon: IconTruck },
                     { id: 'ipva', label: 'Controle IPVA', icon: IconFileCheck },
                     { id: 'tacografo', label: 'Tacógrafo', icon: IconCalendar },
-                    { id: 'aet', label: 'Licença AET', icon: IconAlertTriangle },
+                    { id: 'aet', label: 'Licença AET', icon: IconAlert },
                 ].map(t => (
                     <button
                         key={t.id}
                         onClick={() => setTab(t.id)}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-bold transition-colors border-b-2 whitespace-nowrap ${
                             tab === t.id 
                             ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' 
                             : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
@@ -5706,58 +5745,132 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                 ))}
             </div>
 
-            {/* Barra de Ferramentas (Pesquisa e Exportação) */}
-            <div className="flex flex-col md:flex-row justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <div className="relative w-full md:w-96">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                        <IconSearch size={16} />
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="Pesquisar Placa, Modelo ou Renavam..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                    />
-                </div>
-                <div className="flex items-center gap-4">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                        {filteredData.length} Registros
-                    </span>
-                    <button 
-                        onClick={exportToExcel}
-                        className="flex items-center gap-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-lg text-xs font-bold transition-colors"
-                    >
-                        <IconDownload size={14} /> Exportar Excel
-                    </button>
-                </div>
-            </div>
-
-            {/* Área Principal de Dados */}
+            {/* Tabela Principal */}
             <div className="glass-card overflow-hidden min-h-[400px]">
                 {loading ? (
                     <div className="flex items-center justify-center h-64 text-slate-400">
-                        <div className="text-center">
-                            <SafeIcon name="Loader2" className="animate-spin h-8 w-8 mx-auto mb-2 opacity-50"/>
-                            <p>Carregando dados da frota...</p>
-                        </div>
+                        <div className="loader h-8 w-8 border-4 border-indigo-500 rounded-full border-t-transparent animate-spin mr-2"></div>
+                        Carregando...
                     </div>
                 ) : filteredData.length === 0 ? (
-                    <div className="flex items-center justify-center h-64 text-slate-400 flex-col">
+                    <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                         <IconTruck size={48} className="mb-4 opacity-20"/>
-                        <p>Nenhum veículo encontrado.</p>
-                        <p className="text-xs opacity-70 mt-1">Verifique os filtros ou cadastre um novo veículo.</p>
+                        <p>Nenhum veículo encontrado para este filtro.</p>
+                        {tab === 'frota' && <p className="text-xs mt-1">Cadastre o primeiro veículo no botão acima.</p>}
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        {renderTable()}
-                    </div>
+                    <div className="overflow-x-auto">{renderContent()}</div>
                 )}
             </div>
-            
-            <div className="text-center text-xs text-slate-400">
-                <p>Os alertas de vencimento (Vermelho) aparecem quando o documento já venceu. Alertas de Atenção (Amarelo) aparecem com 30 dias de antecedência.</p>
-            </div>
+
+            {/* --- MODAL 1: CADASTRO VEÍCULO --- */}
+            {modalVeiculoOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden animate-enter">
+                        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+                            <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
+                                {formVeiculo.id ? 'Editar Veículo' : 'Novo Veículo'}
+                            </h3>
+                            <button onClick={() => setModalVeiculoOpen(false)} className="text-slate-400 hover:text-slate-600"><IconX /></button>
+                        </div>
+                        <div className="p-6 overflow-y-auto max-h-[80vh]">
+                            <form id="formVeiculo" onSubmit={saveVeiculo} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="md:col-span-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Placa *</label>
+                                    <input type="text" className="w-full border p-2 rounded uppercase font-mono" value={formVeiculo.placa} onChange={e=>setFormVeiculo({...formVeiculo, placa:e.target.value})} maxLength={8} required />
+                                </div>
+                                <div className="md:col-span-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Tipo *</label>
+                                    <select className="w-full border p-2 rounded" value={formVeiculo.tipo_veiculo} onChange={e=>setFormVeiculo({...formVeiculo, tipo_veiculo:e.target.value})}>
+                                        <option value="Leve">Leve</option>
+                                        <option value="Pesado">Pesado</option>
+                                        <option value="Especial">Especial</option>
+                                    </select>
+                                </div>
+                                <div className="md:col-span-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Status</label>
+                                    <select className="w-full border p-2 rounded" value={formVeiculo.status} onChange={e=>setFormVeiculo({...formVeiculo, status:e.target.value})}>
+                                        <option value="Ativo">Ativo</option>
+                                        <option value="Inativo">Inativo</option>
+                                        <option value="Vendido">Vendido</option>
+                                    </select>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Modelo *</label>
+                                    <input type="text" className="w-full border p-2 rounded" value={formVeiculo.modelo} onChange={e=>setFormVeiculo({...formVeiculo, modelo:e.target.value})} required />
+                                </div>
+                                <div className="md:col-span-1">
+                                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Ano</label>
+                                    <input type="text" className="w-full border p-2 rounded" placeholder="2023/2024" value={formVeiculo.ano} onChange={e=>setFormVeiculo({...formVeiculo, ano:e.target.value})} />
+                                </div>
+                                {/* Outros dados */}
+                                <div className="md:col-span-1"><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Estado (UF)</label><input type="text" className="w-full border p-2 rounded uppercase" maxLength={2} value={formVeiculo.estado} onChange={e=>setFormVeiculo({...formVeiculo, estado:e.target.value})} /></div>
+                                <div className="md:col-span-2"><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">CNPJ Proprietário</label><input type="text" className="w-full border p-2 rounded" value={formVeiculo.cnpj} onChange={e=>setFormVeiculo({...formVeiculo, cnpj:e.target.value})} /></div>
+                                <div className="md:col-span-1"><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Renavam</label><input type="text" className="w-full border p-2 rounded" value={formVeiculo.renavam} onChange={e=>setFormVeiculo({...formVeiculo, renavam:e.target.value})} /></div>
+                                <div className="md:col-span-2"><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Chassi</label><input type="text" className="w-full border p-2 rounded" value={formVeiculo.chassi} onChange={e=>setFormVeiculo({...formVeiculo, chassi:e.target.value})} /></div>
+                            </form>
+                        </div>
+                        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 flex justify-end gap-3">
+                            <button onClick={() => setModalVeiculoOpen(false)} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors">Cancelar</button>
+                            <button type="submit" form="formVeiculo" disabled={loading} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded text-sm font-bold shadow-lg flex items-center gap-2">{loading ? 'Salvando...' : 'Salvar Veículo'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL 2: REGISTRO EVENTO (IPVA, TACOGRAFO, AET) --- */}
+            {modalEventoOpen && selectedItem && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden animate-enter">
+                        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+                            <h3 className="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2 uppercase">
+                                <IconEdit className="text-blue-500"/> 
+                                {eventoTipo === 'ipva' ? 'Baixar IPVA' : eventoTipo === 'tacografo' ? 'Renovar Tacógrafo' : 'Renovar AET'}
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-1 font-mono">Veículo: {selectedItem.placa}</p>
+                        </div>
+                        
+                        <div className="p-6">
+                            <form id="formEvento" onSubmit={saveEvento} className="space-y-4">
+                                {eventoTipo === 'ipva' && (
+                                    <>
+                                        <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Ano Exercício</label><input type="number" className="w-full border p-2 rounded" value={formEvento.ano_exercicio} onChange={e=>setFormEvento({...formEvento, ano_exercicio:e.target.value})} required /></div>
+                                        <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Data Vistoria</label><input type="date" className="w-full border p-2 rounded" value={formEvento.data_ref} onChange={e=>setFormEvento({...formEvento, data_ref:e.target.value})} required /></div>
+                                        <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Observação</label><input type="text" className="w-full border p-2 rounded" value={formEvento.obs} onChange={e=>setFormEvento({...formEvento, obs:e.target.value})} /></div>
+                                    </>
+                                )}
+
+                                {(eventoTipo === 'tacografo' || eventoTipo === 'aet') && (
+                                    <>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">
+                                                {eventoTipo === 'tacografo' ? 'Data Emissão' : 'Número AET'}
+                                            </label>
+                                            {eventoTipo === 'tacografo' ? (
+                                                <input type="date" className="w-full border p-2 rounded" value={formEvento.data_ref} onChange={e=>setFormEvento({...formEvento, data_ref:e.target.value})} required />
+                                            ) : (
+                                                <input type="text" className="w-full border p-2 rounded" placeholder="Ex: 12345/2026" value={formEvento.obs} onChange={e=>setFormEvento({...formEvento, obs:e.target.value})} required />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Nova Data Vencimento</label>
+                                            <input type="date" className="w-full border p-2 rounded font-bold text-blue-600" value={formEvento.data_venc} onChange={e=>setFormEvento({...formEvento, data_venc:e.target.value})} required />
+                                        </div>
+                                        {eventoTipo === 'tacografo' && (
+                                            <div><label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Nº Certificado</label><input type="text" className="w-full border p-2 rounded" value={formEvento.obs} onChange={e=>setFormEvento({...formEvento, obs:e.target.value})} /></div>
+                                        )}
+                                    </>
+                                )}
+                            </form>
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 flex justify-end gap-3">
+                            <button type="button" onClick={() => setModalEventoOpen(false)} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded transition-colors">Cancelar</button>
+                            <button type="submit" form="formEvento" disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded text-sm font-bold shadow-lg flex items-center gap-2">{loading ? 'Salvando...' : 'Confirmar'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -6522,6 +6635,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
