@@ -23,7 +23,8 @@
             }
         }
     </script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
     <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
@@ -2220,7 +2221,178 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         </div>
     );
 };
-       
+      const NotaDebitoCredito = ({ supabaseClient, onNotify, session }) => {
+    const [history, setHistory] = React.useState([]);
+    const [processing, setProcessing] = React.useState(false);
+
+    React.useEffect(() => { fetchHistory(); }, []);
+
+    const fetchHistory = async () => {
+        const { data } = await supabaseClient.from('notas_debito_credito').select('*').order('created_at', { ascending: false }).limit(20);
+        if (data) setHistory(data);
+    };
+
+    const generatePDF = (record) => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const isDebit = record.tipo === 'Débito';
+        const color = isDebit ? [220, 50, 50] : [50, 150, 50]; // Vermelho ou Verde
+
+        // Cabeçalho
+        doc.setFillColor(...color);
+        doc.rect(0, 0, 210, 25, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text(`NOTA DE ${record.tipo.toUpperCase()}`, 105, 17, { align: "center" });
+
+        // Dados da Nota
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        
+        doc.text(`Número: ${record.id} - ${record.filial} - ${record.cod_material}`, 14, 40);
+        doc.text(`Data Emissão: ${new Date(record.created_at).toLocaleDateString('pt-BR')} ${new Date(record.created_at).toLocaleTimeString()}`, 14, 46);
+        doc.text(`Emitido por: ${record.usuario_emissao || 'Sistema'}`, 14, 52);
+
+        doc.setDrawColor(200);
+        doc.line(14, 58, 196, 58);
+
+        // Dados da Filial
+        doc.setFont("helvetica", "bold");
+        doc.text("DADOS DO FORNECEDOR / FILIAL", 14, 68);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Filial: ${record.filial}`, 14, 76);
+        doc.text(`CNPJ: ${record.cnpj || 'Não informado'}`, 14, 82);
+
+        // Tabela
+        doc.autoTable({
+            startY: 95,
+            head: [['Cód.', 'Material', 'Qtd', 'Valor (R$)', 'Motivo']],
+            body: [[
+                record.cod_material,
+                record.desc_material,
+                record.qtd,
+                parseFloat(record.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+                record.motivo
+            ]],
+            headStyles: { fillColor: color },
+            theme: 'grid'
+        });
+
+        // Assinatura
+        const finalY = doc.lastAutoTable.finalY + 40;
+        doc.line(60, finalY, 150, finalY);
+        doc.setFontSize(8);
+        doc.text("Assinatura do Responsável", 105, finalY + 5, { align: "center" });
+
+        doc.save(`Nota_${record.id}_${record.filial}.pdf`);
+    };
+
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setProcessing(true);
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            try {
+                const wb = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
+                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                
+                if (json.length === 0) throw new Error("Planilha vazia.");
+
+                let count = 0;
+                for (const row of json) {
+                    // Busca coluna independente de maiúscula/minúscula
+                    const get = (k) => row[Object.keys(row).find(key => key.toUpperCase().trim() === k)] || '';
+                    
+                    const valorRaw = get("VALOR DO AJUSTE (R$)") || get("VALOR") || 0;
+                    const valor = parseFloat(valorRaw);
+                    const tipo = valor < 0 ? 'Débito' : 'Crédito';
+
+                    const payload = {
+                        filial: get("FILIAL"),
+                        cnpj: get("CNPJ"),
+                        cod_material: get("CÓDIGO DO MATERIAL") || get("CÓDIGO"),
+                        desc_material: get("DESCRIÇÃO DO MATERIAL") || get("DESCRIÇÃO"),
+                        qtd: get("QUANTIDADE DO AJUSTE") || get("QUANTIDADE") || 0,
+                        valor: valor,
+                        motivo: get("MOTIVO"),
+                        tipo: tipo,
+                        usuario_emissao: session?.user?.email || 'Sistema'
+                    };
+
+                    const { data, error } = await supabaseClient.from('notas_debito_credito').insert(payload).select().single();
+                    if (error) throw error;
+
+                    generatePDF(data);
+                    count++;
+                }
+                onNotify(`${count} notas geradas!`, "success");
+                fetchHistory();
+            } catch (err) {
+                onNotify("Erro: " + err.message, "error");
+            } finally {
+                setProcessing(false);
+                e.target.value = null;
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+    return (
+        <div className="space-y-6 animate-enter pb-20">
+            <div className="bg-white/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 backdrop-blur-sm">
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                     Gerador de Notas D/C
+                </h2>
+                <p className="text-sm text-slate-500">Importe Excel para gerar notas fiscais internas automaticamente.</p>
+            </div>
+
+            <div className="p-10 flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl bg-white/5 dark:bg-slate-800/5">
+                <div className="p-4 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-full mb-4">
+                     <Icons.FileText className="w-8 h-8"/> 
+                </div>
+                <h3 className="font-bold text-lg text-slate-700 dark:text-white mb-2">Upload da Planilha</h3>
+                <p className="text-xs text-slate-400 mb-6 max-w-md">Colunas: Filial, CNPJ, Código, Descrição, Qtd, Valor, Motivo.</p>
+                
+                <input type="file" id="notaInput" className="hidden" accept=".xlsx, .csv" onChange={handleFileUpload} disabled={processing} />
+                <label htmlFor="notaInput" className={`bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold cursor-pointer shadow-lg flex items-center gap-2 ${processing ? 'opacity-50' : ''}`}>
+                    {processing ? 'Gerando PDFs...' : 'Selecionar Arquivo Excel'}
+                </label>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow overflow-hidden">
+                <div className="p-4 border-b border-slate-200 dark:border-slate-700"><h3 className="font-bold text-sm text-slate-700 dark:text-slate-200">Histórico Recente</h3></div>
+                <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 font-bold uppercase">
+                        <tr>
+                            <th className="px-4 py-3">ID</th>
+                            <th className="px-4 py-3">Tipo</th>
+                            <th className="px-4 py-3">Filial</th>
+                            <th className="px-4 py-3">Material</th>
+                            <th className="px-4 py-3 text-right">Valor</th>
+                            <th className="px-4 py-3 text-right">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                        {history.map(item => (
+                            <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300">
+                                <td className="px-4 py-3 font-mono">#{item.id}</td>
+                                <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-[10px] font-bold ${item.tipo === 'Débito' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{item.tipo}</span></td>
+                                <td className="px-4 py-3">{item.filial}</td>
+                                <td className="px-4 py-3">{item.cod_material}</td>
+                                <td className="px-4 py-3 text-right font-bold">{parseFloat(item.valor).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
+                                <td className="px-4 py-3 text-right"><button onClick={() => generatePDF(item)} className="text-blue-600 hover:underline font-bold">Baixar PDF</button></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}; 
         const Sidebar = ({ isSidebarOpen, toggleSidebar, toggleModule, expandedModules, userRole, setView, view, subView, handleLogout, session }) => {
     // ÍCONES BLINDADOS
     const IconSettings = Icons.Settings || Icons.Tool;
@@ -2365,6 +2537,8 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                             <button onClick={() => toggleModule('admin')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.admin ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
                                 <div className="flex items-center gap-3"><IconSettings width={18} />{isSidebarOpen && <span>Admin</span>}</div>
                                 {isSidebarOpen && (expandedModules.admin ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
+                            </button>
+                            <button onClick={() => { setView('notas_dc'); toggleModule('notas'); }} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${view === 'notas_dc' ? 'text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}> <div className="flex items-center gap-3"><Icons.FileText className="w-5 h-5" />{isSidebarOpen && <span>Gerar Nota D/C</span>}</div>
                             </button>
                             {isSidebarOpen && (
                                 <div className={`overflow-hidden transition-all duration-300 ${expandedModules.admin ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
@@ -6366,7 +6540,8 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                                         <TerceirizacaoDashboard data={dashboardData} loading={loading} isDark={isDark} filters={filters} supabaseClient={supabaseClient} />
                                     </div>
                                 )}
-
+                                {view === 'notas_dc' && (<NotaDebitoCredito supabaseClient={supabaseClient} onNotify={addLog} session={session} />)}
+                                
                                 {/* REPORTS GERAIS */}
                                 {view === 'reports' && (
                                     <div className="space-y-6">
@@ -6540,6 +6715,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
