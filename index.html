@@ -1859,27 +1859,25 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         const file = e.target.files[0];
         if (file) {
             const columnMapping = {
-                'REGIONAL': 'regional',
-                'FILIAL': 'filial',
-                'CÓD': 'cod_material',
-                'GRUPO MATERIAL': 'grupo_material',
-                'CATEGORIA': 'categoria',
-                'EST. IN. SAP': 'est_inicial_qty',
-                '+ SAP': 'entradas_sap_qty',
-                '- SAP': 'saidas_sap_qty',
-                'EST. FIN. SAP': 'est_final_qty_sap',
-                'EST. FIN. REAL': 'est_final_qty_real',
-                'DIF REAL X SAP': 'dif_real_sap',
-                'DIF CUSTO': 'custo_dif',
-                'Nº CAMINHÕES': 'num_caminhoes',
-                'Nº IBC\'S': 'num_ibcs',
-                'EST. IN.SAP ($)': 'est_inicial_val',
-                '+ (SÓ ENT 101)': 'entradas_qty_101',
-                '- (SÓ SAÍ 201)': 'saidas_qty_201',
-                '+ (SÓ ENT 101) $': 'entradas_val_101',
-                '- (SÓ SAÍ 201) $': 'saidas_val_201',
-                'EST.FIN.SAP ($)': 'est_final_val_sap'
-            };
+    'REGIONAL': 'regional',
+    'FILIAL': 'filial',
+    'CÓD': 'cod_material',
+    'GRUPO MATERIAL': 'grupo_material',
+    'CATEGORIA': 'categoria',
+    'EST. IN. SAP': 'est_inicial_sap',    // Bate com a tabela
+    '+ SAP': 'entradas_sap',              // Bate com o erro que deu
+    '- SAP': 'saidas_sap',                // Bate com a tabela
+    'EST. FIN. SAP': 'est_final_sap',     // Bate com a tabela
+    'EST. FIN. REAL': 'est_final_real',   // Bate com a tabela
+    'DIF REAL X SAP': 'dif_real_sap',
+    'DIF CUSTO': 'custo_dif',
+    'Nº CAMINHÕES': 'num_caminhoes',
+    'Nº IBC\'S': 'num_ibcs',
+    'EST. IN.SAP ($)': 'est_inicial_val',
+    '+ (SÓ ENT 101) $': 'entradas_val',   // Bate com a nova coluna entradas_val
+    '- (SÓ SAÍ 201) $': 'saidas_val',     // Bate com a nova coluna saidas_val
+    'EST.FIN.SAP ($)': 'est_final_val_sap'
+};
 
             onImport(file, date, columnMapping);
         }
@@ -6546,6 +6544,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
