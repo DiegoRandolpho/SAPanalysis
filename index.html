@@ -1575,10 +1575,9 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         </div>
     );
 };
-        const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
+       const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     const [activeTab, setActiveTab] = useState('analitica');
 
-    // --- PROCESSAMENTO DE DADOS ---
     const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, adjustedVariation, lista } = useMemo(() => {
         const rawList = data?.lista || [];
         const groups = {}; 
@@ -1591,7 +1590,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         rawList.forEach((item) => {
             const matKey = item.grupo_material || item.cod_material || 'Outros';
             const custo = Number(item.custo_dif) || 0;
-            const caminhões = Number(item.num_caminhoes) || 0;
+            const caminhoes = Number(item.num_caminhoes) || 0;
             const ibcs = Number(item.num_ibcs) || 0;
 
             if (!groups[matKey]) {
@@ -1609,14 +1608,14 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
 
             groups[matKey].custo_dif += custo;
             groups[matKey].est_in_val += Number(item.est_inicial_val) || 0;
-            groups[matKey].entradas_val += Number(item.entradas_val_101) || 0;
-            groups[matKey].saidas_val += Number(item.saidas_val_201) || 0;
+            groups[matKey].entradas_val += Number(item.entradas_val) || 0;
+            groups[matKey].saidas_val += Number(item.saidas_val) || 0;
             groups[matKey].est_fin_val += Number(item.est_final_val_sap) || 0;
-            groups[matKey].num_caminhoes += caminhões;
+            groups[matKey].num_caminhoes += caminhoes;
             groups[matKey].num_ibcs += ibcs;
 
             total_dif_custo += custo;
-            total_caminhoes += caminhões;
+            total_caminhoes += caminhoes;
             total_ibcs += ibcs;
 
             const rKey = item.regional || 'N/D';
@@ -1859,7 +1858,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         
         const file = e.target.files[0];
         if (file) {
-            // Mapeamento baseado no novo layout fornecido
             const columnMapping = {
                 'REGIONAL': 'regional',
                 'FILIAL': 'filial',
@@ -1870,12 +1868,12 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 'Nº CAMINHÕES': 'num_caminhoes',
                 'Nº IBC\'S': 'num_ibcs',
                 'EST. IN.SAP ($)': 'est_inicial_val',
-                '+ (SÓ ENT 101)': 'entradas_qty_101',
-                '- (SÓ SAÍ 201)': 'saidas_qty_201',
-                '+ (SÓ ENT 101) $': 'entradas_val_101',
-                '- (SÓ SAÍ 201) $': 'saidas_val_201',
+                '+ (SÓ ENT 101) $': 'entradas_val',
+                '- (SÓ SAÍ 201) $': 'saidas_val',
                 'EST.FIN.SAP ($)': 'est_final_val_sap'
             };
+
+            // Envia "2026-01" puro para o banco
             onImport(file, date, columnMapping);
         }
         e.target.value = null;
@@ -1884,26 +1882,17 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
     return (
         <div className="max-w-2xl mx-auto glass-card p-8 animate-enter">
             <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                <Icons.Upload className="text-purple-500" /> Importação de Insumos 
+                <Icons.Upload className="text-purple-500" /> Importação de Insumos
             </h3>
             <div className="space-y-6">
-                <div className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-lg border border-purple-100 dark:border-purple-800/30 text-[10px] text-purple-800 dark:text-purple-300">
-                    <strong>Novo Layout Detectado:</strong><br/>
-                    REGIONAL | FILIAL | CÓD | GRUPO MATERIAL | CATEGORIA | ... | DIF CUSTO | Nº CAMINHÕES | Nº IBC'S | * | EST. IN.SAP ($) | + (101) | - (201) | + (101) $ | - (201) $ | EST.FIN.SAP ($)
-                </div>
-                
                 <MonthPicker label="Mês de Referência" value={date} onChange={setDate} />
-                
-                <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group cursor-pointer relative">
-                    <input type="file" accept=".xlsx, .csv" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={loading} onChange={handleFileChange} /> 
-                    <div className={`flex flex-col items-center transition-opacity ${!date ? 'opacity-60' : 'opacity-100'}`}>
-                        <div className="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 p-4 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                            <Icons.FileText width={32} height={32} /> 
+                <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:bg-slate-50 cursor-pointer relative">
+                    <input type="file" accept=".xlsx, .csv" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={loading} onChange={handleFileChange} />
+                    <div className={`flex flex-col items-center ${!date ? 'opacity-60' : 'opacity-100'}`}>
+                        <div className="bg-purple-100 text-purple-600 p-4 rounded-full mb-3">
+                            <Icons.FileText width={32} height={32} />
                         </div>
-                        <span className="font-bold text-slate-700 dark:text-slate-300">
-                            {loading ? 'Processando...' : 'Selecionar Arquivo Excel'} 
-                        </span>
-                        {!date && <span className="text-xs text-red-500 mt-2 font-bold animate-pulse">* Selecione o mês acima primeiro</span>}
+                        <span className="font-bold text-slate-700">{loading ? 'Processando...' : 'Selecionar Arquivo Excel'}</span>
                     </div>
                 </div>
             </div>
@@ -6536,6 +6525,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
