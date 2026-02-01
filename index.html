@@ -1834,8 +1834,30 @@ const BarChartWidget = ({ title, data }) => (
                 'EST.FIN.SAP ($)': 'est_final_val_sap'
             };
 
-            // 2. Chamada da função de importação passando o mapeamento estrito
-            onImport(file, date, columnMapping);
+            // Localize onde o supabaseClient.from('insumos_estoque').upsert(...) é chamado
+// E substitua a preparação dos dados por esta:
+
+const rowsCleaned = rows.map(row => {
+    const entry = {};
+    
+    // Itera APENAS sobre as chaves que você definiu no columnMapping
+    Object.keys(columnMapping).forEach(excelKey => {
+        const dbKey = columnMapping[excelKey];
+        if (dbKey !== 'fornecedor') { // Garantia extra de exclusão
+            entry[dbKey] = row[excelKey];
+        }
+    });
+
+    // Adiciona o período obrigatoriamente
+    entry.periodo = selectedDate; 
+
+    return entry;
+});
+
+// Agora faça o envio usando APENAS os dados limpos
+const { error } = await supabase
+    .from('insumos_estoque')
+    .upsert(rowsCleaned);
         }
         e.target.value = null;
     };
@@ -6504,6 +6526,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
