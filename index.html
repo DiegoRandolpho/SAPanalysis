@@ -1576,275 +1576,344 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
     );
 };
         const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
-    const [activeTab, setActiveTab] = React.useState('visao_geral');
+    const [activeTab, setActiveTab] = useState('analitica');
 
-    // Sub-componente de KPI preservado
-    const KPICard = ({ title, value, icon, color }) => {
-        const Icon = Icons[icon] || Icons.Package;
-        const colorClasses = {
-            indigo: "bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400",
-            green: "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400",
-            red: "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400",
-            purple: "bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400",
-            orange: "bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400"
-        };
-
-        return (
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border dark:border-slate-700">
-                <div className="flex items-center justify-between mb-4">
-                    <div className={`p-2 rounded-lg ${colorClasses[color] || colorClasses.indigo}`}>
-                        <Icon size={24} />
-                    </div>
-                </div>
-                <div>
-                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">{title}</p>
-                    <h3 className="text-2xl font-bold text-slate-800 dark:text-white mt-1">{value}</h3>
-                </div>
-            </div>
-        );
-    };
-
-    // Lógica de Processamento de Dados (Restaurando a complexidade necessária)
-    const { 
-        inventoryFlow, 
-        consolidatedDiff, 
-        adjustedVariation, 
-        lista,
-        chartsData 
-    } = React.useMemo(() => {
+    // --- PROCESSAMENTO DE DADOS (Ajustado para Novo Layout Financeiro) ---
+    const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, analiticaTotals, adjustedVariation, lista } = useMemo(() => {
         const rawList = data?.lista || [];
-        
-        // Se vier da RPC get_insumos_dashboard, usamos os valores prontos
-        // Se não, usamos os fallbacks para não quebrar a tela
-        const flow = data?.inventoryFlow || { ini_val: 0, in_val: 0, out_val: 0, fin_val: 0 };
-        const diff = data?.consolidatedDiff || { custo: 0, caminhoes: 0, ibcs: 0 };
-        const variation = data?.adjustedVariation || 0;
+        const groups = {}; 
+        const regionaisMap = {};
+        const materiaisMap = {};
 
-        const cData = [
-            { name: 'Estoque Inicial', valor: flow.ini_val, color: '#6366f1' },
-            { name: 'Entradas', valor: flow.in_val, color: '#22c55e' },
-            { name: 'Saídas', valor: flow.out_val, color: '#ef4444' },
-            { name: 'Estoque Final', valor: flow.fin_val, color: '#8b5cf6' }
-        ];
+        let total_dif_custo = 0, total_caminhoes = 0, total_ibcs = 0;
+        let flow = { ini_val: 0, in_val: 0, out_val: 0, fin_val: 0 };
+
+        rawList.forEach(item => {
+            const matKey = item.grupo_material || item.cod_material || 'Outros';
+            const custo = Number(item.custo_dif) || 0;
+            const caminhões = Number(item.num_caminhoes) || 0;
+            const ibcs = Number(item.num_ibcs) || 0;
+
+            // Agrupamento por Material
+            if (!groups[matKey]) {
+                groups[matKey] = { 
+                    name: matKey, 
+                    custo_dif: 0, 
+                    est_in_val: 0, 
+                    entradas_val: 0, 
+                    saidas_val: 0, 
+                    est_fin_val: 0,
+                    num_caminhoes: 0,
+                    num_ibcs: 0
+                };
+            }
+
+            groups[matKey].custo_dif += custo;
+            groups[matKey].est_in_val += Number(item.est_inicial_val) || 0;
+            groups[matKey].entradas_val += Number(item.entradas_val_101) || 0;
+            groups[matKey].saidas_val += Number(item.saidas_val_201) || 0;
+            groups[matKey].est_fin_val += Number(item.est_final_val_sap) || 0;
+            groups[matKey].num_caminhoes += caminhões;
+            groups[matKey].num_ibcs += ibcs;
+
+            // Totais Gerais para Cards
+            total_dif_custo += custo;
+            total_caminhoes += caminhões;
+            total_ibcs += ibcs;
+
+            // Mapas para Gráficos
+            const rKey = item.regional || 'N/D';
+            regionaisMap[rKey] = (regionaisMap[rKey] || 0) + custo;
+            materiaisMap[matKey] = (materiaisMap[matKey] || 0) + custo;
+        });
+
+        const processedAnalitica = Object.values(groups).map(g => {
+            flow.ini_val += g.est_in_val;
+            flow.in_val += g.entradas_val;
+            flow.out_val += g.saidas_val;
+            flow.fin_val += g.est_fin_val;
+
+            // Variação Ajustada: Diferença R$ / (Estoque Inicial R$ + Entradas R$)
+            const denominadorVar = g.est_in_val + g.entradas_val;
+            const variacaoPct = denominadorVar !== 0 ? (g.custo_dif / denominadorVar) : 0;
+
+            return { ...g, variacaoPct };
+        }).sort((a, b) => a.custo_dif - b.custo_dif);
+
+        const totalDenom = flow.ini_val + flow.in_val;
+        const adjustedVariation = totalDenom !== 0 ? (total_dif_custo / totalDenom) : 0;
 
         return { 
-            inventoryFlow: flow, 
-            consolidatedDiff: diff, 
-            adjustedVariation: variation, 
-            lista: rawList,
-            chartsData: cData
+            chartsData: { 
+                regionais: Object.entries(regionaisMap).map(([name, value]) => ({ name, value, abs: Math.abs(value) })).sort((a, b) => b.abs - a.abs).slice(0, 10),
+                materiais: Object.entries(materiaisMap).map(([name, value]) => ({ name, value, abs: Math.abs(value) })).sort((a, b) => b.abs - a.abs).slice(0, 10)
+            },
+            inventoryFlow: flow,
+            consolidatedDiff: { custo: total_dif_custo, caminhoes: total_caminhoes, ibcs: total_ibcs },
+            analiticaData: processedAnalitica,
+            adjustedVariation, 
+            lista: rawList
         };
     }, [data]);
 
-    if (loading) return <LoadingState />;
+    if (loading) return <div className="p-10 text-center text-slate-400 animate-pulse">Carregando dados... [cite: 38]</div>;
 
+    const fmtMoney = (v) => Utils.formatters.currency(v); [cite: 39]
+    const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); [cite: 39]
+    const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; [cite: 40]
+
+    // --- Sub-Componentes Internos (Mantidos conforme original) ---
+    const SafeIcon = ({ name, className, width, height }) => {
+        const IconComponent = Icons[name] || Icons.Activity; [cite: 2, 3]
+        return <IconComponent className={className} width={width || 16} height={height || 16} />;
+    };
+
+    const FlowCard = ({ title, val, iconName, color }) => (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
+            <div className="flex justify-between items-start mb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span> [cite: 42]
+                <div className={`p-1.5 rounded-md bg-opacity-10 ${color.replace('text-', 'bg-')} print-color-force`}>
+                    <SafeIcon name={iconName} width={14} className={`${color} print-color-force`} /> [cite: 42]
+                </div>
+            </div>
+            <div>
+                <div className="text-lg font-bold text-slate-800 dark:text-white force-black-print">{fmtMoney(val)}</div> [cite: 43]
+            </div>
+        </div>
+    );
+
+    const VariationCard = ({ qty, title, subtitle }) => (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
+             <div className="flex justify-between items-start mb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span> [cite: 45]
+                <div className="p-1.5 rounded-md bg-purple-50 print-color-force">
+                    <SafeIcon name="Activity" width={14} className="text-purple-600 print-color-force" /> [cite: 46]
+                </div>
+            </div>
+            <div className="flex flex-col">
+                <span className={`text-2xl font-black ${qty < 0 ? [cite_start]'text-red-500' : 'text-emerald-500'} print-color-force`}>{fmtPerc(qty)}</span> [cite: 47]
+                <span className="text-[10px] text-slate-400 print:text-black">{subtitle}</span> [cite: 47]
+            </div>
+        </div>
+    );
+
+    const StandardTable = ({ children, title, iconName }) => (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-table-container overflow-hidden break-inside-avoid w-full mb-6">
+            <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print-header">
+                <h3 className="font-black text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 uppercase tracking-wide print:text-black">
+                    <SafeIcon name={iconName} width={16} className="text-purple-600 print:text-black" /> {title} [cite: 49, 50]
+                </h3>
+            </div>
+            <div className="overflow-x-auto print:overflow-visible w-full">
+                {children} [cite: 51]
+            </div>
+        </div>
+    );
+
+    // --- Renderização Principal ---
     return (
-        <div id="section-to-print" className="space-y-6 animate-enter">
-            {/* Header e Filtros */}
-            <div className="flex flex-wrap items-center justify-between gap-4 no-print">
-                <div className="flex items-center gap-2">
-                    <Icons.Package className="text-purple-500 w-6 h-6" />
-                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">Dashboard de Insumos</h2>
+        <div className="space-y-6 pb-10 report-container">
+            <style>{`
+                @media print {
+                    @page { margin: 0.5cm; size: A4; } [cite: 101, 102]
+                    .force-black-print { color: #000 !important; } [cite: 102]
+                    .print-card, .print-table-container { border: 1px solid #000 !important; } [cite: 108]
+                    .no-print { display: none !important; } [cite: 126]
+                    .print-grid-cols-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; } [cite: 114, 115]
+                }
+            `}</style>
+            
+            {/* Header Impressão */}
+            <div className="hidden print:flex justify-between items-center border-b-2 border-black pb-4 mb-6">
+                <div className="flex items-center gap-4">
+                     <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-10 object-contain" /> [cite: 129]
+                     <div className="h-8 w-px bg-black"></div>
+                     <h1 className="text-xl font-black uppercase text-black tracking-wider">Inventário de Insumos</h1> [cite: 130]
                 </div>
+                <div className="text-right">
+                    <p className="text-sm font-bold uppercase text-black">Mês de Referência</p> [cite: 131]
+                    <p className="text-lg font-black text-black print-color-force">{Utils.date.formatNice(filters.periodo)}</p> [cite: 131]
+                </div>
+            </div>
+
+            {/* Toolbar Tela */}
+            <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    <SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos [cite: 133]
+                </h2>
                 <div className="flex items-center gap-3">
-                    <input 
-                        type="month" 
-                        className="p-2 border rounded-lg dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                        value={filters.periodo}
-                        onChange={(e) => setFilters(prev => ({ ...prev, periodo: e.target.value }))}
-                    />
-                    <button 
-                        onClick={onExport}
-                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors shadow-lg"
-                    >
-                        <Icons.Download size={18} /> Exportar PDF
-                    </button>
+                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm">
+                        <input type="month" className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} /> [cite: 135]
+                    </div>
+                    <button onClick={() => window.print()} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all"><SafeIcon name="Download" width={16} /> PDF</button> [cite: 135]
                 </div>
             </div>
 
-            {/* Cards de KPIs com os novos campos financeiros */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <KPICard title="Estoque Inicial" value={Utils.formatters.currency(inventoryFlow.ini_val)} icon="Box" color="indigo" />
-                <KPICard title="Entradas (101)" value={Utils.formatters.currency(inventoryFlow.in_val)} icon="TrendingUp" color="green" />
-                <KPICard title="Saídas (201)" value={Utils.formatters.currency(inventoryFlow.out_val)} icon="TrendingDown" color="red" />
-                <KPICard title="Estoque Final" value={Utils.formatters.currency(inventoryFlow.fin_val)} icon="Calculator" color="purple" />
-            </div>
+            <div className="print-page-1-container">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print-grid-cols-3 mb-6">
+                    <FlowCard title="Estoque Inicial" val={inventoryFlow.ini_val} iconName="Database" color="text-slate-500" /> [cite: 137]
+                    <FlowCard title="Entradas (101)" val={inventoryFlow.in_val} iconName="ArrowDownCircle" color="text-emerald-600" /> [cite: 137]
+                    <FlowCard title="Saídas (201)" val={inventoryFlow.out_val} iconName="ArrowUpCircle" color="text-red-500" /> [cite: 137]
+                    <FlowCard title="Estoque Final" val={inventoryFlow.fin_val} iconName="CheckCircle" color="text-blue-600" /> [cite: 138]
+                    <VariationCard title="Evolução Valor" qty={(inventoryFlow.ini_val > 0 ? (inventoryFlow.fin_val - inventoryFlow.ini_val)/inventoryFlow.ini_val : 0)} subtitle="Var. Inicial vs Final"/> [cite: 138]
+                    <VariationCard title="Variação Ajustada" qty={adjustedVariation} subtitle="Diferença / Movimentação"/> [cite: 139]
+                </div>
 
-            {/* Navegação por Abas */}
-            <div className="flex gap-4 border-b dark:border-slate-700 no-print">
-                <button 
-                    onClick={() => setActiveTab('visao_geral')}
-                    className={`pb-2 px-4 font-medium transition-all ${activeTab === 'visao_geral' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-slate-500 hover:text-purple-400'}`}
-                >
-                    Visão Geral
-                </button>
-                <button 
-                    onClick={() => setActiveTab('analitico')}
-                    className={`pb-2 px-4 font-medium transition-all ${activeTab === 'analitico' ? 'border-b-2 border-purple-500 text-purple-600' : 'text-slate-500 hover:text-purple-400'}`}
-                >
-                    Analítico por Material
-                </button>
-            </div>
-
-            {activeTab === 'visao_geral' ? (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Gráfico de Barras - Mantido idêntico ao original */}
-                    <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border dark:border-slate-700">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Fluxo de Inventário (Valores em R$)</h3>
-                        </div>
-                        <div className="h-80 flex items-end justify-around gap-4 px-4">
-                            {chartsData.map((bar, i) => (
-                                <div key={i} className="flex-1 flex flex-col items-center gap-3">
-                                    <div className="relative w-full flex flex-col items-center group">
-                                        <div 
-                                            className="w-full max-w-[60px] rounded-t-lg transition-all duration-700 ease-out shadow-md group-hover:brightness-110" 
-                                            style={{ 
-                                                height: `${(bar.valor / (Math.max(...chartsData.map(d => d.valor)) || 1)) * 280}px`,
-                                                backgroundColor: bar.color,
-                                                minHeight: '4px'
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{bar.name}</p>
-                                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{Utils.formatters.currency(bar.valor)}</p>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:grid print:grid-cols-1">
+                    <div className="lg:col-span-1 print:mb-6">
+                        <div className="bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/50 p-6 shadow-sm relative overflow-hidden h-full flex flex-col justify-center print-card">
+                            <h3 className="text-sm font-bold uppercase text-purple-900 dark:text-purple-300 tracking-wider mb-4 print:text-black">Impacto Financeiro (Perda/Ganho)</h3> [cite: 141]
+                            <div className="mb-6">
+                                <span className={`text-4xl font-black ${consolidatedDiff.custo < 0 ? 'text-red-600' : 'text-emerald-600'} tracking-tight print-color-force`}>
+                                    {consolidatedDiff.custo > 0 ? '+' : ''}{fmtMoney(consolidatedDiff.custo)} [cite: 142, 143]
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 border-t border-purple-100 dark:border-slate-700/50 pt-4 print:border-black">
+                                <div>
+                                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">Veículos</p> [cite: 146]
+                                    <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 print:text-black">
+                                        <SafeIcon name="Truck" width={16} />
+                                        <span className="font-bold text-lg">{fmtNum(consolidatedDiff.caminhoes)}</span> [cite: 147]
                                     </div>
                                 </div>
-                            ))}
+                                <div>
+                                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">IBC's</p> [cite: 149]
+                                    <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 print:text-black">
+                                        <SafeIcon name="Box" width={16} />
+                                        <span className="font-bold text-lg">{fmtNum(consolidatedDiff.ibcs)}</span> [cite: 151]
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Coluna Lateral de Diferenças */}
-                    <div className="space-y-6">
-                        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border dark:border-slate-700">
-                            <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-4 text-center">Impacto da Diferença (Real x SAP)</h3>
-                            <div className={`text-3xl font-black text-center mb-4 ${consolidatedDiff.custo >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                {Utils.formatters.currency(consolidatedDiff.custo)}
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg text-center">
-                                    <Icons.Truck className="mx-auto mb-1 text-slate-400" size={16} />
-                                    <span className="block text-lg font-bold">{consolidatedDiff.caminhoes}</span>
-                                    <span className="text-[10px] text-slate-500 uppercase">Veículos</span>
-                                </div>
-                                <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg text-center">
-                                    <Icons.Container className="mx-auto mb-1 text-slate-400" size={16} />
-                                    <span className="block text-lg font-bold">{consolidatedDiff.ibcs}</span>
-                                    <span className="text-[10px] text-slate-500 uppercase">IBC's</span>
-                                </div>
+                    {/* Gráficos Top Ajustes */}
+                    <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print-grid-charts">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
+                            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print:text-black">
+                                <SafeIcon name="BarChart2" width={14} className="text-purple-500" /> Top Ajustes (Região) [cite: 154]
+                            </h3>
+                            <div className="flex-1 w-full min-h-0">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={chartsData.regionais} layout="vertical">
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10}} />
+                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
+                                            {chartsData.regionais.map((entry, index) => ( <Cell key={index} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))} [cite: 159]
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
                             </div>
                         </div>
+                        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
+                            <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print:text-black">
+                                <SafeIcon name="AlertCircle" width={14} className="text-orange-500" /> Top Ajustes (Material) [cite: 163]
+                            </h3>
+                            <div className="flex-1 w-full min-h-0">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={chartsData.materiais} layout="vertical">
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10}} />
+                                        <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
+                                            {chartsData.materiais.map((entry, index) => ( <Cell key={index} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))} [cite: 168]
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                        <div className="bg-gradient-to-br from-purple-600 to-indigo-700 p-6 rounded-xl shadow-lg text-white relative overflow-hidden">
-                            <div className="relative z-10">
-                                <h3 className="text-sm font-medium opacity-80 uppercase mb-2">Variação Ajustada (Perda %)</h3>
-                                <div className="text-4xl font-black mb-1">
-                                    {(adjustedVariation * 100).toFixed(3)}%
-                                </div>
-                                <p className="text-[10px] opacity-80 leading-tight mt-2">
-                                    Cálculo baseado no impacto financeiro sobre o montante total (Estoque Inicial + Entradas).
-                                </p>
-                            </div>
-                            <Icons.Activity className="absolute -right-4 -bottom-4 opacity-10 w-24 h-24" />
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                /* Aba Analítica: Restaurada com toda a estrutura de tabela */
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 overflow-hidden">
-                    <div className="p-4 border-b dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
-                        <h3 className="font-bold text-slate-700 dark:text-slate-200">Detalhamento por Material</h3>
-                        <span className="text-xs text-slate-500">{lista.length} itens encontrados</span>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-xs text-left">
-                            <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 uppercase">
-                                <tr>
-                                    <th className="p-4 font-bold">Material / Categoria</th>
-                                    <th className="p-4 font-bold">Grupo</th>
-                                    <th className="p-4 font-bold text-right">Est. Inicial ($)</th>
-                                    <th className="p-4 font-bold text-right">Entradas ($)</th>
-                                    <th className="p-4 font-bold text-right">Saídas ($)</th>
-                                    <th className="p-4 font-bold text-right">Est. Final ($)</th>
-                                    <th className="p-4 font-bold text-right text-purple-600">Diferença Custo</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y dark:divide-slate-700">
-                                {lista.map((item, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                                        <td className="p-4">
-                                            <div className="font-bold text-slate-800 dark:text-white">{item.cod_material}</div>
-                                            <div className="text-[10px] text-slate-400 font-medium">{item.categoria}</div>
-                                        </td>
-                                        <td className="p-4 text-slate-500 italic">{item.grupo_material}</td>
-                                        <td className="p-4 text-right">{Utils.formatters.currency(item.est_in_sap_val)}</td>
-                                        <td className="p-4 text-right">{Utils.formatters.currency(item.entrada_101_val)}</td>
-                                        <td className="p-4 text-right text-red-400">{Utils.formatters.currency(item.saida_201_val)}</td>
-                                        <td className="p-4 text-right">{Utils.formatters.currency(item.est_fin_sap_val)}</td>
-                                        <td className={`p-4 text-right font-black ${item.dif_custo_val >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                            {Utils.formatters.currency(item.dif_custo_val)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
+            {/* Tabela Analítica Baseada em Valor */}
+            <StandardTable title="Detalhamento Financeiro por Material" iconName="Table">
+                <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300">
+                    <thead className="uppercase bg-white dark:bg-slate-900 border-b font-bold text-slate-500">
+                        <tr>
+                            <th className="px-3 py-2">Material</th> [cite: 177]
+                            <th className="px-2 py-2 text-right">Est. Inicial ($)</th> [cite: 177]
+                            <th className="px-2 py-2 text-right">Entradas ($)</th> [cite: 178]
+                            <th className="px-2 py-2 text-right">Saídas ($)</th> [cite: 179]
+                            <th className="px-2 py-2 text-right">Final SAP ($)</th> [cite: 179]
+                            <th className="px-2 py-2 text-right">Perda/Ganho (R$)</th> [cite: 180]
+                            <th className="px-2 py-2 text-right">Var %</th> [cite: 180]
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                        {analiticaData.map((row, i) => (
+                            <tr key={i} className="hover:bg-purple-50">
+                                <td className="px-3 py-2 font-medium">{row.name}</td> [cite: 184]
+                                <td className="px-2 py-2 text-right font-mono">{fmtMoney(row.est_in_val)}</td> [cite: 186]
+                                <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtMoney(row.entradas_val)}</td> [cite: 186]
+                                <td className="px-2 py-2 text-right font-mono text-red-500">{fmtMoney(row.saidas_val)}</td> [cite: 187]
+                                <td className="px-2 py-2 text-right font-mono font-bold">{fmtMoney(row.est_fin_val)}</td> [cite: 187]
+                                <td className={`px-2 py-2 text-right font-bold ${row.custo_dif < 0 ? [cite_start]'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(row.custo_dif)}</td> [cite: 188]
+                                <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'}`}>{fmtPerc(row.variacaoPct)}</td> [cite: 189]
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </StandardTable>
         </div>
     );
 };
-        const InsumosImport = ({ onImport, loading }) => {
+       const InsumosImport = ({ onImport, loading }) => {
     const [date, setDate] = useState('');
 
     const handleFileChange = (e) => {
-        // Validação: Garante que a data foi escolhida antes de prosseguir
         if (!date) {
-            alert("⚠️ Atenção:\n\nPor favor, selecione o Mês de Referência antes de carregar o arquivo.");
-            e.target.value = null; // Reseta o input para permitir nova tentativa
+            alert("⚠️ Atenção:\n\nPor favor, selecione o Mês de Referência antes de carregar o arquivo."); [cite: 213]
+            e.target.value = null; [cite: 214]
             return;
         }
         
-        if (e.target.files[0]) {
-            onImport(e.target.files[0], date);
+        const file = e.target.files[0];
+        if (file) {
+            // Mapeamento baseado no novo layout fornecido
+            const columnMapping = {
+                'REGIONAL': 'regional',
+                'FILIAL': 'filial',
+                'CÓD': 'cod_material',
+                'GRUPO MATERIAL': 'grupo_material',
+                'CATEGORIA': 'categoria',
+                'DIF CUSTO': 'dif_custo',
+                'Nº CAMINHÕES': 'num_caminhoes',
+                'Nº IBC\'S': 'num_ibcs',
+                'EST. IN.SAP ($)': 'est_inicial_val',
+                '+ (SÓ ENT 101)': 'entradas_qty_101',
+                '- (SÓ SAÍ 201)': 'saidas_qty_201',
+                '+ (SÓ ENT 101) $': 'entradas_val_101',
+                '- (SÓ SAÍ 201) $': 'saidas_val_201',
+                'EST.FIN.SAP ($)': 'est_final_val_sap'
+            };
+            onImport(file, date, columnMapping); [cite: 215]
         }
-        e.target.value = null;
+        e.target.value = null; [cite: 216]
     };
 
     return (
         <div className="max-w-2xl mx-auto glass-card p-8 animate-enter">
             <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                <Icons.Upload className="text-purple-500" /> Importação de Insumos
+                <Icons.Upload className="text-purple-500" /> Importação de Insumos [cite: 217]
             </h3>
             <div className="space-y-6">
-                <div className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-lg border border-purple-100 dark:border-purple-800/30 text-xs text-purple-800 dark:text-purple-300">
-                    <strong>Colunas esperadas:</strong> REGIONAL | FILIAL | CÓD | GRUPO MATERIAL | CATEGORIA | EST. IN. SAP | + SAP | - SAP | EST. FIN. SAP | EST. FIN. REAL | DIF REAL X SAP | CUSTO | Nº CAMINHÕES | Nº IBC'S
+                <div className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-lg border border-purple-100 dark:border-purple-800/30 text-[10px] text-purple-800 dark:text-purple-300">
+                    <strong>Novo Layout Detectado:</strong><br/>
+                    REGIONAL | FILIAL | CÓD | GRUPO MATERIAL | CATEGORIA | ... | DIF CUSTO | Nº CAMINHÕES | Nº IBC'S | * | EST. IN.SAP ($) | + (101) | - (201) | + (101) $ | - (201) $ | EST.FIN.SAP ($)
                 </div>
                 
-                <MonthPicker label="Mês de Referência" value={date} onChange={setDate} />
+                <MonthPicker label="Mês de Referência" value={date} onChange={setDate} /> [cite: 219]
                 
-                {/* Área de Upload Corrigida */}
                 <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group cursor-pointer relative">
-                    <input 
-                        type="file" 
-                        accept=".xlsx, .csv" 
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
-                        disabled={loading} /* Removido o bloqueio da data aqui */
-                        onChange={handleFileChange} 
-                    />
-                    <div className={`flex flex-col items-center transition-opacity ${!date ? 'opacity-60' : 'opacity-100'}`}>
+                    <input type="file" accept=".xlsx, .csv" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={loading} onChange={handleFileChange} /> [cite: 220, 221]
+                    <div className={`flex flex-col items-center transition-opacity ${!date ? [cite_start]'opacity-60' : 'opacity-100'}`}> [cite: 222]
                         <div className="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 p-4 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                            <Icons.FileText width={32} height={32} />
+                            <Icons.FileText width={32} height={32} /> [cite: 222]
                         </div>
                         <span className="font-bold text-slate-700 dark:text-slate-300">
-                            {loading ? 'Processando...' : 'Selecionar Arquivo Excel'}
+                            {loading ? 'Processando...' : 'Selecionar Arquivo Excel'} [cite: 223, 224]
                         </span>
-                        {!date && (
-                            <span className="text-xs text-red-500 mt-2 font-bold animate-pulse">
-                                * Selecione o mês acima primeiro
-                            </span>
-                        )}
+                        {!date && <span className="text-xs text-red-500 mt-2 font-bold animate-pulse">* Selecione o mês acima primeiro</span>} [cite: 225]
                     </div>
                 </div>
             </div>
@@ -6477,6 +6546,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
