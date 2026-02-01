@@ -1575,7 +1575,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         </div>
     );
 };
-       const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
+      const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     const [activeTab, setActiveTab] = useState('analitica');
 
     const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, adjustedVariation, lista } = useMemo(() => {
@@ -1585,41 +1585,40 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         const materiaisMap = {};
 
         let total_dif_custo = 0, total_caminhoes = 0, total_ibcs = 0;
-        let flow = { ini_val: 0, in_val: 0, out_val: 0, fin_val: 0, ini_qty: 0, fin_qty: 0 };
+        let flow = { ini_val: 0, in_val: 0, out_val: 0, fin_val: 0 };
 
         rawList.forEach((item) => {
             const matKey = item.grupo_material || item.cod_material || 'Outros';
             const custo = Number(item.custo_dif) || 0;
-            const caminhões = Number(item.num_caminhoes) || 0;
-            const ibcs = Number(item.num_ibcs) || 0;
-
+            
             if (!groups[matKey]) {
                 groups[matKey] = { 
-                    name: matKey, custo_dif: 0, est_in_val: 0, entradas_val: 0, saidas_val: 0, est_fin_val: 0,
-                    est_inicial_sap: 0, entradas_sap: 0, saidas_sap: 0, est_final_sap: 0, est_final_real: 0,
-                    num_caminhoes: 0, num_ibcs: 0, variacaoPct: 0
+                    name: matKey, custo_dif: 0, est_in_val: 0, entradas_val: 0, 
+                    saidas_val: 0, est_fin_val: 0, num_caminhoes: 0, num_ibcs: 0,
+                    est_inicial_sap: 0, entradas_sap: 0, saidas_sap: 0, 
+                    est_final_sap: 0, est_final_real: 0
                 };
             }
 
-            // Acúmulo Financeiro
+            // Soma de Valores
             groups[matKey].custo_dif += custo;
             groups[matKey].est_in_val += Number(item.est_inicial_val) || 0;
             groups[matKey].entradas_val += Number(item.entradas_val) || 0;
             groups[matKey].saidas_val += Number(item.saidas_val) || 0;
             groups[matKey].est_fin_val += Number(item.est_final_val_sap) || 0;
             
-            // Acúmulo de Quantidades
+            // Soma de Quantidades
             groups[matKey].est_inicial_sap += Number(item.est_inicial_sap) || 0;
             groups[matKey].entradas_sap += Number(item.entradas_sap) || 0;
             groups[matKey].saidas_sap += Number(item.saidas_sap) || 0;
             groups[matKey].est_final_sap += Number(item.est_final_sap) || 0;
             groups[matKey].est_final_real += Number(item.est_final_real) || 0;
-            groups[matKey].num_caminhoes += caminhões;
-            groups[matKey].num_ibcs += ibcs;
+            groups[matKey].num_caminhoes += Number(item.num_caminhoes) || 0;
+            groups[matKey].num_ibcs += Number(item.num_ibcs) || 0;
 
             total_dif_custo += custo;
-            total_caminhoes += caminhões;
-            total_ibcs += ibcs;
+            total_caminhoes += Number(item.num_caminhoes) || 0;
+            total_ibcs += Number(item.num_ibcs) || 0;
 
             const rKey = item.regional || 'N/D';
             regionaisMap[rKey] = (regionaisMap[rKey] || 0) + custo;
@@ -1631,14 +1630,9 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             flow.in_val += g.entradas_val;
             flow.out_val += g.saidas_val;
             flow.fin_val += g.est_fin_val;
-            flow.ini_qty += g.est_inicial_sap;
-            flow.fin_qty += g.est_final_real;
-
             const denom = g.est_in_val + g.entradas_val;
             return { ...g, variacaoPct: denom !== 0 ? (g.custo_dif / denom) : 0 };
         }).sort((a, b) => a.custo_dif - b.custo_dif);
-
-        const totalDenom = flow.ini_val + flow.in_val;
 
         return { 
             chartsData: { 
@@ -1648,12 +1642,12 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             inventoryFlow: flow,
             consolidatedDiff: { custo: total_dif_custo, caminhoes: total_caminhoes, ibcs: total_ibcs },
             analiticaData: processedAnalitica,
-            adjustedVariation: totalDenom !== 0 ? (total_dif_custo / totalDenom) : 0,
+            adjustedVariation: (flow.ini_val + flow.in_val) !== 0 ? (total_dif_custo / (flow.ini_val + flow.in_val)) : 0,
             lista: rawList
         };
     }, [data]);
 
-    if (loading) return <div className="p-10 text-center text-slate-400 animate-pulse">Carregando dados...</div>;
+    if (loading) return <div className="p-10 text-center text-slate-400">Carregando...</div>;
 
     const fmtMoney = (v) => Utils.formatters.currency(v);
     const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
@@ -1664,98 +1658,61 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         return <IconComponent className={className} width={width} height={width} />;
     };
 
-    const FlowCard = ({ title, val, icon, color }) => (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border p-4 flex flex-col justify-between shadow-sm print-card">
-            <div className="flex justify-between items-start mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{title}</span>
-                <div className={`p-1 rounded bg-opacity-10 ${color.replace('text-', 'bg-')}`}>
-                    <SafeIcon name={icon} className={color} width={14} />
-                </div>
-            </div>
-            <div className="text-lg font-bold text-slate-800 dark:text-white">{fmtMoney(val)}</div>
-        </div>
-    );
-
     return (
         <div className="space-y-6 pb-10 report-container">
-            <style>{`
-                @media print {
-                    @page { margin: 0.5cm; size: A4; }
-                    .no-print { display: none !important; }
-                    .print-grid-cols-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; }
-                    .print-card { border: 1px solid #000 !important; }
-                }
-            `}</style>
-
-            {/* HEADER COM LOGO E PERÍODO */}
-            <div className="flex justify-between items-end mb-4 no-print gap-4">
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+            {/* TOOLBAR E CARDS KPI */}
+            <div className="flex justify-between items-end no-print mb-4">
+                <h2 className="text-2xl font-bold flex items-center gap-2">
                     <SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos
                 </h2>
-                <div className="flex items-center gap-3">
-                    <input type="month" className="border rounded-lg px-3 py-1.5 text-sm" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} />
-                    <button onClick={() => window.print()} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all">
+                <div className="flex gap-3">
+                    <input type="month" className="border rounded px-2 py-1" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} />
+                    <button onClick={() => window.print()} className="bg-slate-800 text-white px-4 py-2 rounded flex items-center gap-2 font-bold shadow-lg">
                         <SafeIcon name="Download" width={16} /> PDF
                     </button>
                 </div>
             </div>
 
-            {/* KPIS PRINCIPAIS (6 CARDS) */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print-grid-cols-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print-grid-cols-3 mb-6">
                 <FlowCard title="Estoque Inicial" val={inventoryFlow.ini_val} icon="Database" color="text-slate-500" />
                 <FlowCard title="Entradas ($)" val={inventoryFlow.in_val} icon="ArrowDownCircle" color="text-emerald-600" />
                 <FlowCard title="Saídas ($)" val={inventoryFlow.out_val} icon="ArrowUpCircle" color="text-red-500" />
                 <FlowCard title="Estoque Final" val={inventoryFlow.fin_val} icon="CheckCircle" color="text-blue-600" />
-                
-                <div className="bg-white dark:bg-slate-800 rounded-lg border p-4 shadow-sm print-card">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-2">Evolução Valor</span>
-                    <div className={`text-2xl font-black ${(inventoryFlow.fin_val - inventoryFlow.ini_val) < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                        {fmtPerc(inventoryFlow.ini_val > 0 ? (inventoryFlow.fin_val - inventoryFlow.ini_val)/inventoryFlow.ini_val : 0)}
-                    </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-800 rounded-lg border p-4 shadow-sm print-card">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-2">Variação Ajustada</span>
+                <div className="bg-white p-4 rounded-lg border shadow-sm print-card">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-2">Variação Ajustada</span>
                     <div className={`text-2xl font-black ${adjustedVariation < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{fmtPerc(adjustedVariation)}</div>
                 </div>
             </div>
 
-            {/* BLOCO CENTRAL: IMPACTO E GRÁFICOS */}
+            {/* IMPACTO FINANCEIRO E GRÁFICOS */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-1">
-                    <div className="bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/10 rounded-xl border border-purple-100 p-6 shadow-sm h-full flex flex-col justify-center print-card">
-                        <h3 className="text-xs font-bold uppercase text-purple-900 dark:text-purple-300 tracking-wider mb-4">Diferença de Estoque (R$)</h3>
+                    <div className="bg-gradient-to-br from-white to-purple-50 rounded-xl border border-purple-100 p-6 shadow-sm h-full flex flex-col justify-center print-card">
+                        <h3 className="text-xs font-bold uppercase text-purple-900 mb-4">Diferença de Estoque (R$)</h3>
                         <div className="mb-6">
                             <span className={`text-4xl font-black ${consolidatedDiff.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                                {consolidatedDiff.custo > 0 ? '+' : ''}{fmtMoney(consolidatedDiff.custo)}
+                                {fmtMoney(consolidatedDiff.custo)}
                             </span>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 border-t pt-4">
-                            <div>
-                                <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">Caminhões</p>
-                                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                                    <SafeIcon name="Truck" width={16} />
-                                    <span className="font-bold text-lg">{fmtNum(consolidatedDiff.caminhoes)}</span>
-                                </div>
+                        <div className="flex gap-4 border-t pt-4">
+                            <div className="flex items-center gap-2">
+                                <SafeIcon name="Truck" className="text-slate-400" />
+                                <span className="font-bold">{fmtNum(consolidatedDiff.caminhoes)} Caminhões</span>
                             </div>
-                            <div>
-                                <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">IBC's</p>
-                                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                                    <SafeIcon name="Box" width={16} />
-                                    <span className="font-bold text-lg">{fmtNum(consolidatedDiff.ibcs)}</span>
-                                </div>
+                            <div className="flex items-center gap-2">
+                                <SafeIcon name="Box" className="text-slate-400" />
+                                <span className="font-bold">{fmtNum(consolidatedDiff.ibcs)} IBC's</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* GRÁFICOS TOP 10 AJUSTES */}
                 <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-lg border p-4 shadow-sm h-[280px] print-card">
-                        <h3 className="font-bold text-slate-700 text-[10px] mb-4 uppercase flex items-center gap-2">
+                    <div className="bg-white rounded-lg border p-4 shadow-sm h-[280px] print-card">
+                        <h3 className="font-bold text-slate-700 text-[10px] mb-4 uppercase flex items-center gap-2 border-b pb-2">
                             <SafeIcon name="BarChart2" className="text-purple-500" /> Top Ajustes (Região)
                         </h3>
-                        <ResponsiveContainer width="100%" height="90%">
+                        <ResponsiveContainer width="100%" height="85%">
                             <BarChart data={chartsData.regionais} layout="vertical">
                                 <XAxis type="number" hide />
                                 <YAxis dataKey="name" type="category" width={80} tick={{fontSize: 9}} />
@@ -1765,11 +1722,11 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 rounded-lg border p-4 shadow-sm h-[280px] print-card">
-                        <h3 className="font-bold text-slate-700 text-[10px] mb-4 uppercase flex items-center gap-2">
+                    <div className="bg-white rounded-lg border p-4 shadow-sm h-[280px] print-card">
+                        <h3 className="font-bold text-slate-700 text-[10px] mb-4 uppercase flex items-center gap-2 border-b pb-2">
                             <SafeIcon name="AlertCircle" className="text-orange-500" /> Top Ajustes (Material)
                         </h3>
-                        <ResponsiveContainer width="100%" height="90%">
+                        <ResponsiveContainer width="100%" height="85%">
                             <BarChart data={chartsData.materiais} layout="vertical">
                                 <XAxis type="number" hide />
                                 <YAxis dataKey="name" type="category" width={80} tick={{fontSize: 9}} />
@@ -1782,41 +1739,39 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 </div>
             </div>
 
-            {/* TABELA ANALÍTICA DETALHADA */}
-            <div className="bg-white dark:bg-slate-800 rounded-lg border shadow-sm overflow-hidden">
+            {/* TABELA ANALÍTICA */}
+            <div className="bg-white rounded-lg border shadow-sm overflow-hidden mb-6 print-table-container">
                 <div className="px-4 py-2 border-b bg-slate-50 flex items-center gap-2">
                     <SafeIcon name="Table" className="text-purple-600" />
-                    <h3 className="font-black text-slate-700 text-xs uppercase">Detalhamento Analítico Insumos</h3>
+                    <h3 className="font-black text-slate-700 text-xs uppercase">Detalhamento Analítico</h3>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-[10px] text-left border-collapse">
+                    <table className="w-full text-[10px] text-left">
                         <thead className="bg-white border-b uppercase font-bold text-slate-500">
                             <tr>
-                                <th className="px-3 py-2 border-r">Material</th>
-                                <th className="px-2 py-2 text-right">Est. Ini (Q)</th>
-                                <th className="px-2 py-2 text-right text-emerald-600">Entradas (Q)</th>
-                                <th className="px-2 py-2 text-right text-red-500">Saídas (Q)</th>
+                                <th className="px-3 py-2">Material</th>
+                                <th className="px-2 py-2 text-right">Est. Inicial (Q)</th>
+                                <th className="px-2 py-2 text-right">Entradas (Q)</th>
+                                <th className="px-2 py-2 text-right">Saídas (Q)</th>
                                 <th className="px-2 py-2 text-right">SAP (Q)</th>
-                                <th className="px-2 py-2 text-right bg-blue-50">Real (Q)</th>
+                                <th className="px-2 py-2 text-right">Real (Q)</th>
                                 <th className="px-2 py-2 text-right font-bold text-purple-700">Perda (R$)</th>
                                 <th className="px-2 py-2 text-right">Var %</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y">
                             {analiticaData.map((row, i) => (
-                                <tr key={i} className="hover:bg-purple-50 transition-colors">
-                                    <td className="px-3 py-2 font-medium border-r">{row.name}</td>
+                                <tr key={i} className="hover:bg-purple-50">
+                                    <td className="px-3 py-2 font-medium">{row.name}</td>
                                     <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_inicial_sap)}</td>
                                     <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtNum(row.entradas_sap)}</td>
                                     <td className="px-2 py-2 text-right font-mono text-red-500">-{fmtNum(row.saidas_sap)}</td>
                                     <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_final_sap)}</td>
-                                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 bg-blue-50/30">{fmtNum(row.est_final_real)}</td>
+                                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-600">{fmtNum(row.est_final_real)}</td>
                                     <td className={`px-2 py-2 text-right font-bold ${row.custo_dif < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                                         {fmtMoney(row.custo_dif)}
                                     </td>
-                                    <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-500' : 'text-slate-400'}`}>
-                                        {fmtPerc(row.variacaoPct)}
-                                    </td>
+                                    <td className="px-2 py-2 text-right font-bold text-slate-400">{fmtPerc(row.variacaoPct)}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -1824,13 +1779,25 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 </div>
             </div>
 
-            {/* SEÇÃO DE DRILL-DOWN (RESERVADA) */}
-            <div className="no-print space-y-6">
-                <DrillDownTable rawData={lista} title="Explorar por Região" hierarchy={[{key: 'regional', label: 'Regional'}, {key: 'grupo_material', label: 'Material'}]} />
+            <div className="no-print">
+                <DrillDownTable rawData={lista} title="Visão por Região" hierarchy={[{key: 'regional', label: 'Regional'}, {key: 'grupo_material', label: 'Material'}]} />
             </div>
         </div>
     );
 };
+
+// Sub-componente de Card
+const FlowCard = ({ title, val, icon, color }) => (
+    <div className="bg-white p-4 rounded-lg border shadow-sm print-card">
+        <div className="flex justify-between items-start mb-2">
+            <span className="text-[10px] font-bold uppercase text-slate-500">{title}</span>
+            <div className={`p-1 rounded bg-opacity-10 ${color.replace('text-', 'bg-')}`}>
+                <Icons[icon] className={color} size={14} />
+            </div>
+        </div>
+        <div className="text-lg font-bold text-slate-800">{Utils.formatters.currency(val)}</div>
+    </div>
+);
        const InsumosImport = ({ onImport, loading }) => {
     const [date, setDate] = useState('');
 
@@ -6528,6 +6495,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
