@@ -1800,6 +1800,11 @@ const BarChartWidget = ({ title, data }) => (
     </div>
 );
       const InsumosImport = ({ supabaseClient, onNotify }) => {
+    // Tenta usar a prop, se não existir, tenta usar a variável global 'supabase'
+    const sClient = supabaseClient || (typeof supabase !== 'undefined' ? supabase : null);
+    // Tenta usar a prop, se não existir, usa um console.log básico
+    const notify = typeof onNotify === 'function' ? onNotify : (msg) => console.log(msg);
+
     const [loading, setLoading] = React.useState(false);
     const [selectedDate, setSelectedDate] = React.useState('');
 
@@ -1826,7 +1831,11 @@ const BarChartWidget = ({ title, data }) => (
 
     const handleImport = async (file) => {
         if (!selectedDate) {
-            onNotify('Selecione o período antes de importar.', 'error');
+            notify('Selecione o período antes de importar.', 'error');
+            return;
+        }
+        if (!sClient) {
+            notify('Erro: Cliente Supabase não encontrado.', 'error');
             return;
         }
 
@@ -1842,7 +1851,6 @@ const BarChartWidget = ({ title, data }) => (
 
                 if (rows.length === 0) throw new Error("O arquivo está vazio.");
 
-                // LIMPEZA CRÍTICA: Filtra apenas as colunas do mapeamento para evitar "fornecedor"
                 const cleanedData = rows.map(row => {
                     const entry = { periodo: selectedDate };
                     Object.keys(columnMapping).forEach(excelKey => {
@@ -1854,21 +1862,20 @@ const BarChartWidget = ({ title, data }) => (
                     return entry;
                 });
 
-                const { error } = await supabaseClient
+                const { error } = await sClient
                     .from('insumos_estoque')
                     .upsert(cleanedData);
 
                 if (error) throw error;
 
-                onNotify(`Sucesso! ${cleanedData.length} registros importados.`, 'success');
+                notify(`Sucesso! ${cleanedData.length} registros importados.`, 'success');
             } catch (err) {
                 console.error(err);
-                onNotify(`Erro: ${err.message}`, 'error');
+                notify(`Erro: ${err.message}`, 'error');
             } finally {
                 setLoading(false);
             }
         };
-
         reader.readAsArrayBuffer(file);
     };
 
@@ -1895,7 +1902,7 @@ const BarChartWidget = ({ title, data }) => (
                     />
                 </div>
             </div>
-            {loading && <div className="mt-4 text-blue-500 animate-pulse">Processando importação...</div>}
+            {loading && <div className="mt-4 text-blue-500 animate-pulse text-sm">Processando dados...</div>}
         </div>
     );
 };
@@ -6525,6 +6532,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
