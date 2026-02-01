@@ -1767,12 +1767,24 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
     );
 };
 
-const FlowCard = ({ title, val, color, icon }) => (
-    <div className="bg-white p-4 rounded-lg border shadow-sm print-card">
-        <div className="flex justify-between items-start mb-2"><span className="text-[10px] font-bold uppercase text-slate-500">{title}</span><Icons[icon] className={color} size={14} /></div>
-        <div className="text-lg font-bold text-slate-800">{Utils.formatters.currency(val)}</div>
-    </div>
-);
+const FlowCard = ({ title, val, color, icon }) => {
+    // Atribuir o ícone a uma variável com inicial maiúscula resolve o SyntaxError
+    const IconComponent = Icons[icon] || Icons.Activity;
+    
+    return (
+        <div className="bg-white p-4 rounded-lg border shadow-sm print-card">
+            <div className="flex justify-between items-start mb-2">
+                <span className="text-[10px] font-bold uppercase text-slate-500">
+                    {title}
+                </span>
+                <IconComponent className={color} size={14} />
+            </div>
+            <div className="text-lg font-bold text-slate-800">
+                {Utils.formatters.currency(val)}
+            </div>
+        </div>
+    );
+};
 
 const BarChartWidget = ({ title, data }) => (
     <div className="bg-white rounded-lg border p-4 h-[250px] print-card">
@@ -6492,6 +6504,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
