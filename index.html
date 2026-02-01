@@ -1578,19 +1578,20 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
       const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     const [activeTab, setActiveTab] = useState('analitica');
 
-    // --- Lógica de Processamento ---
     const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, adjustedVariation, lista } = useMemo(() => {
         const rawList = data?.lista || [];
         const groups = {}; 
         const regionaisMap = {};
         const materiaisMap = {};
 
-        let total_dif_custo = 0, total_caminhoes = 0, total_ibcs = 0;
+        let total_dif_custo = 0, total_cam = 0, total_ibcs = 0;
         let flow = { ini_val: 0, in_val: 0, out_val: 0, fin_val: 0 };
 
         rawList.forEach((item) => {
             const matKey = item.grupo_material || item.cod_material || 'Outros';
             const custo = Number(item.custo_dif) || 0;
+            const cam = Number(item.num_caminhoes) || 0;
+            const ibcs = Number(item.num_ibcs) || 0;
 
             if (!groups[matKey]) {
                 groups[matKey] = { 
@@ -1601,14 +1602,11 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 };
             }
 
-            // Valores Financeiros
             groups[matKey].custo_dif += custo;
             groups[matKey].est_in_val += Number(item.est_inicial_val) || 0;
             groups[matKey].entradas_val += Number(item.entradas_val) || 0;
             groups[matKey].saidas_val += Number(item.saidas_val) || 0;
             groups[matKey].est_fin_val += Number(item.est_final_val_sap) || 0;
-            
-            // Quantidades
             groups[matKey].est_inicial_sap += Number(item.est_inicial_sap) || 0;
             groups[matKey].entradas_sap += Number(item.entradas_sap) || 0;
             groups[matKey].saidas_sap += Number(item.saidas_sap) || 0;
@@ -1616,8 +1614,8 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             groups[matKey].est_final_real += Number(item.est_final_real) || 0;
 
             total_dif_custo += custo;
-            total_caminhoes += Number(item.num_caminhoes) || 0;
-            total_ibcs += Number(item.num_ibcs) || 0;
+            total_cam += cam;
+            total_ibcs += ibcs;
 
             const rKey = item.regional || 'N/D';
             regionaisMap[rKey] = (regionaisMap[rKey] || 0) + custo;
@@ -1639,14 +1637,14 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 materiais: Object.entries(materiaisMap).map(([name, value]) => ({ name, value, abs: Math.abs(value) })).sort((a, b) => b.abs - a.abs).slice(0, 10)
             },
             inventoryFlow: flow,
-            consolidatedDiff: { custo: total_dif_custo, caminhoes: total_caminhoes, ibcs: total_ibcs },
+            consolidatedDiff: { custo: total_dif_custo, caminhoes: total_cam, ibcs: total_ibcs },
             analiticaData: processedAnalitica,
             adjustedVariation: (flow.ini_val + flow.in_val) !== 0 ? (total_dif_custo / (flow.ini_val + flow.in_val)) : 0,
             lista: rawList
         };
     }, [data]);
 
-    if (loading) return <div className="p-10 text-center text-slate-400">Carregando...</div>;
+    if (loading) return <div className="p-10 text-center text-slate-400">Carregando dados...</div>;
 
     const fmtMoney = (v) => Utils.formatters.currency(v);
     const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
@@ -1661,50 +1659,33 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         const [path, setPath] = useState([]);
         const filtered = useMemo(() => rawData.filter(item => path.every((val, idx) => item[hierarchy[idx].key] === val)), [rawData, path, hierarchy]);
         const currentLevel = path.length;
-        const isLast = currentLevel >= hierarchy.length;
+        if (currentLevel >= hierarchy.length) return <div className="p-4 text-center">Fim do nível. <button onClick={() => setPath(path.slice(0, -1))} className="text-purple-600 underline">Voltar</button></div>;
 
-        const grouped = useMemo(() => {
-            if (isLast) return [];
-            const key = hierarchy[currentLevel].key;
-            const res = {};
-            filtered.forEach(item => {
-                const val = item[key] || 'N/D';
-                if (!res[val]) res[val] = { name: val, cam: 0, custo: 0 };
-                res[val].cam += Number(item.num_caminhoes) || 0;
-                res[val].custo += Number(item.custo_dif) || 0;
-            });
-            return Object.values(res).sort((a, b) => a.custo - b.custo);
-        }, [filtered, currentLevel, hierarchy, isLast]);
-
-        if (isLast) return <div className="p-4 text-center">Fim do nível. <button onClick={() => setPath(path.slice(0, -1))} className="text-purple-600 underline">Voltar</button></div>;
+        const grouped = {};
+        filtered.forEach(item => {
+            const key = item[hierarchy[currentLevel].key] || 'N/D';
+            if (!grouped[key]) grouped[key] = { name: key, cam: 0, custo: 0 };
+            grouped[key].cam += Number(item.num_caminhoes) || 0;
+            grouped[key].custo += Number(item.custo_dif) || 0;
+        });
 
         return (
-            <div className="bg-white rounded-lg border shadow-sm overflow-hidden mb-6">
+            <div className="bg-white rounded-lg border shadow-sm mb-6">
                 <div className="px-4 py-2 border-b bg-slate-50 flex items-center gap-2">
                     <SafeIcon name={iconName} className="text-purple-600" />
-                    <h3 className="font-black text-slate-700 text-xs uppercase">{path.length === 0 ? title : `${title}: ${path.join(' > ')}`}</h3>
+                    <h3 className="font-bold text-xs uppercase">{path.length === 0 ? title : `${title}: ${path.join(' > ')}`}</h3>
                 </div>
-                {path.length > 0 && (
-                    <div className="bg-purple-50 px-4 py-1 text-[10px] text-purple-700 font-bold border-b flex justify-between no-print">
-                        <button onClick={() => setPath(path.slice(0, -1))} className="hover:underline flex items-center gap-1"><SafeIcon name="ArrowLeft" width={10}/> Voltar</button>
-                    </div>
-                )}
                 <table className="w-full text-[10px] text-left">
                     <thead className="bg-white border-b font-bold text-slate-500 uppercase">
-                        <tr>
-                            <th className="px-3 py-2">{hierarchy[currentLevel].label}</th>
-                            <th className="px-2 py-2 text-right">Caminhões</th>
-                            <th className="px-2 py-2 text-right">Custo Total</th>
-                            <th className="px-2 py-2 text-center no-print">Ação</th>
-                        </tr>
+                        <tr><th className="px-3 py-2">{hierarchy[currentLevel].label}</th><th className="px-2 py-2 text-right">Caminhões</th><th className="px-2 py-2 text-right">Custo</th><th className="px-2 py-2 text-center no-print">Ação</th></tr>
                     </thead>
                     <tbody className="divide-y">
-                        {grouped.map((row, i) => (
+                        {Object.values(grouped).map((row, i) => (
                             <tr key={i} onClick={() => setPath([...path, row.name])} className="hover:bg-purple-50 cursor-pointer">
                                 <td className="px-3 py-2 font-bold">{row.name}</td>
-                                <td className="px-2 py-2 text-right">{fmtNum(row.cam)}</td>
+                                <td className="px-2 py-2 text-right font-mono">{fmtNum(row.cam)}</td>
                                 <td className={`px-2 py-2 text-right font-bold ${row.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(row.custo)}</td>
-                                <td className="px-2 py-2 text-center no-print text-slate-300"><SafeIcon name="ChevronRight" width={12} /></td>
+                                <td className="px-2 py-2 text-center no-print"><SafeIcon name="ChevronRight" width={12} /></td>
                             </tr>
                         ))}
                     </tbody>
@@ -1715,50 +1696,27 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
 
     return (
         <div className="space-y-6 pb-10 report-container">
-            {/* TOOLBAR */}
+            <style>{`@media print { .no-print { display: none !important; } .print-grid { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; } .print-card { border: 1px solid #000 !important; } }`}</style>
+
             <div className="flex justify-between items-end no-print">
-                <h2 className="text-2xl font-bold flex items-center gap-2">
-                    <SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos
-                </h2>
+                <h2 className="text-2xl font-bold flex items-center gap-2"><SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos</h2>
                 <div className="flex gap-3">
                     <input type="month" className="border rounded px-2 py-1" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} />
-                    <button onClick={() => window.print()} className="bg-slate-800 text-white px-4 py-2 rounded flex items-center gap-2 font-bold shadow-lg">
-                        <SafeIcon name="Download" width={16} /> PDF
-                    </button>
+                    <button onClick={() => window.print()} className="bg-slate-800 text-white px-4 py-2 rounded flex items-center gap-2">PDF</button>
                 </div>
             </div>
 
-            {/* KPI CARDS (6 CARDS) */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <div className="bg-white p-4 rounded-lg border shadow-sm">
-                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Estoque Inicial</span>
-                    <div className="text-lg font-bold">{fmtMoney(inventoryFlow.ini_val)}</div>
-                </div>
-                <div className="bg-white p-4 rounded-lg border shadow-sm">
-                    <span className="text-[10px] font-bold uppercase text-emerald-600 block mb-1">Entradas ($)</span>
-                    <div className="text-lg font-bold">{fmtMoney(inventoryFlow.in_val)}</div>
-                </div>
-                <div className="bg-white p-4 rounded-lg border shadow-sm">
-                    <span className="text-[10px] font-bold uppercase text-red-500 block mb-1">Saídas ($)</span>
-                    <div className="text-lg font-bold">{fmtMoney(inventoryFlow.out_val)}</div>
-                </div>
-                <div className="bg-white p-4 rounded-lg border shadow-sm">
-                    <span className="text-[10px] font-bold uppercase text-blue-600 block mb-1">Estoque Final</span>
-                    <div className="text-lg font-bold">{fmtMoney(inventoryFlow.fin_val)}</div>
-                </div>
-                <div className="bg-white p-4 rounded-lg border shadow-sm">
-                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Evolução</span>
-                    <div className="text-lg font-bold">{fmtPerc(inventoryFlow.ini_val > 0 ? (inventoryFlow.fin_val - inventoryFlow.ini_val)/inventoryFlow.ini_val : 0)}</div>
-                </div>
-                <div className="bg-white p-4 rounded-lg border shadow-sm">
-                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Var. Ajustada</span>
-                    <div className="text-lg font-bold">{fmtPerc(adjustedVariation)}</div>
-                </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print-grid">
+                <FlowCard title="Estoque Inicial" val={inventoryFlow.ini_val} color="text-slate-500" icon="Database" />
+                <FlowCard title="Entradas ($)" val={inventoryFlow.in_val} color="text-emerald-600" icon="ArrowDownCircle" />
+                <FlowCard title="Saídas ($)" val={inventoryFlow.out_val} color="text-red-500" icon="ArrowUpCircle" />
+                <FlowCard title="Estoque Final" val={inventoryFlow.fin_val} color="text-blue-600" icon="CheckCircle" />
+                <div className="bg-white p-4 rounded-lg border shadow-sm print-card"><span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Evolução</span><div className="text-lg font-bold">{fmtPerc(inventoryFlow.ini_val > 0 ? (inventoryFlow.fin_val - inventoryFlow.ini_val)/inventoryFlow.ini_val : 0)}</div></div>
+                <div className="bg-white p-4 rounded-lg border shadow-sm print-card"><span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Var. Ajustada</span><div className="text-lg font-bold">{fmtPerc(adjustedVariation)}</div></div>
             </div>
 
-            {/* GRÁFICOS */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-1 bg-gradient-to-br from-white to-purple-50 rounded-xl border p-6 shadow-sm">
+                <div className="lg:col-span-1 bg-gradient-to-br from-white to-purple-50 rounded-xl border p-6 shadow-sm print-card">
                     <h3 className="text-[10px] font-bold uppercase text-purple-900 mb-4">Diferença Financeira</h3>
                     <div className="text-4xl font-black mb-6">{fmtMoney(consolidatedDiff.custo)}</div>
                     <div className="flex gap-4 border-t pt-4">
@@ -1767,39 +1725,14 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                     </div>
                 </div>
                 <div className="lg:col-span-2 grid grid-cols-2 gap-4">
-                    <div className="bg-white rounded-lg border p-4 h-[250px]">
-                        <h4 className="text-[10px] font-bold uppercase mb-2 border-b">Top Ajustes (Região)</h4>
-                        <ResponsiveContainer width="100%" height="90%">
-                            <BarChart data={chartsData.regionais} layout="vertical">
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" width={80} tick={{fontSize: 9}} />
-                                <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={12}>
-                                    {chartsData.regionais.map((e, i) => ( <Cell key={i} fill={e.value < 0 ? '#ef4444' : '#10b981'} /> ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                    <div className="bg-white rounded-lg border p-4 h-[250px]">
-                        <h4 className="text-[10px] font-bold uppercase mb-2 border-b">Top Ajustes (Material)</h4>
-                        <ResponsiveContainer width="100%" height="90%">
-                            <BarChart data={chartsData.materiais} layout="vertical">
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" width={80} tick={{fontSize: 9}} />
-                                <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={12}>
-                                    {chartsData.materiais.map((e, i) => ( <Cell key={i} fill={e.value < 0 ? '#ef4444' : '#10b981'} /> ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
+                    <BarChartWidget title="Top Ajustes (Região)" data={chartsData.regionais} />
+                    <BarChartWidget title="Top Ajustes (Material)" data={chartsData.materiais} />
                 </div>
             </div>
 
-            {/* SELETOR E CONTEÚDO */}
             <div className="flex gap-2 p-1 bg-slate-100 rounded-lg w-fit no-print">
                 {['analitica', 'regiao_material', 'material_regiao', 'categoria_material', 'usina_material'].map(tab => (
-                    <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-[10px] font-bold rounded-md uppercase ${activeTab === tab ? 'bg-white shadow-sm text-purple-700' : 'text-slate-500'}`}>
-                        {tab.replace('_', ' + ')}
-                    </button>
+                    <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-[10px] font-bold rounded-md uppercase ${activeTab === tab ? 'bg-white shadow-sm text-purple-700' : 'text-slate-500'}`}>{tab.replace('_', ' + ')}</button>
                 ))}
             </div>
 
@@ -1808,15 +1741,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                     <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
                         <table className="w-full text-[10px] text-left">
                             <thead className="bg-slate-50 border-b font-bold text-slate-500 uppercase">
-                                <tr>
-                                    <th className="px-3 py-2">Material</th>
-                                    <th className="px-2 py-2 text-right">Est. Ini (Q)</th>
-                                    <th className="px-2 py-2 text-right">Entradas (Q)</th>
-                                    <th className="px-2 py-2 text-right">SAP (Q)</th>
-                                    <th className="px-2 py-2 text-right">Real (Q)</th>
-                                    <th className="px-2 py-2 text-right font-bold text-purple-700">Perda (R$)</th>
-                                    <th className="px-2 py-2 text-right">Var %</th>
-                                </tr>
+                                <tr><th className="px-3 py-2">Material</th><th className="px-2 py-2 text-right">Est. Ini (Q)</th><th className="px-2 py-2 text-right">Entradas (Q)</th><th className="px-2 py-2 text-right">Real (Q)</th><th className="px-2 py-2 text-right font-bold text-purple-700">Perda (R$)</th><th className="px-2 py-2 text-right">Var %</th></tr>
                             </thead>
                             <tbody className="divide-y">
                                 {analiticaData.map((row, i) => (
@@ -1824,7 +1749,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                                         <td className="px-3 py-2 font-medium">{row.name}</td>
                                         <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_inicial_sap)}</td>
                                         <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtNum(row.entradas_sap)}</td>
-                                        <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_final_sap)}</td>
                                         <td className="px-2 py-2 text-right font-mono font-bold text-blue-600">{fmtNum(row.est_final_real)}</td>
                                         <td className={`px-2 py-2 text-right font-bold ${row.custo_dif < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(row.custo_dif)}</td>
                                         <td className="px-2 py-2 text-right font-bold text-slate-400">{fmtPerc(row.variacaoPct)}</td>
@@ -1842,10 +1766,32 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         </div>
     );
 };
-       const InsumosImport = ({ onImport, loading }) => {
+
+const FlowCard = ({ title, val, color, icon }) => (
+    <div className="bg-white p-4 rounded-lg border shadow-sm print-card">
+        <div className="flex justify-between items-start mb-2"><span className="text-[10px] font-bold uppercase text-slate-500">{title}</span><Icons[icon] className={color} size={14} /></div>
+        <div className="text-lg font-bold text-slate-800">{Utils.formatters.currency(val)}</div>
+    </div>
+);
+
+const BarChartWidget = ({ title, data }) => (
+    <div className="bg-white rounded-lg border p-4 h-[250px] print-card">
+        <h4 className="text-[10px] font-bold uppercase mb-2 border-b">{title}</h4>
+        <ResponsiveContainer width="100%" height="90%">
+            <BarChart data={data} layout="vertical">
+                <XAxis type="number" hide /><YAxis dataKey="name" type="category" width={80} tick={{fontSize: 9}} />
+                <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={12}>
+                    {data.map((e, i) => ( <Cell key={i} fill={e.value < 0 ? '#ef4444' : '#10b981'} /> ))}
+                </Bar>
+            </BarChart>
+        </ResponsiveContainer>
+    </div>
+);
+      const InsumosImport = ({ onImport, loading }) => {
     const [date, setDate] = useState('');
 
     const handleFileChange = (e) => {
+        // Validação: Garante que a data foi escolhida antes de prosseguir
         if (!date) {
             alert("⚠️ Atenção:\n\nPor favor, selecione o Mês de Referência antes de carregar o arquivo.");
             e.target.value = null;
@@ -1854,26 +1800,29 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         
         const file = e.target.files[0];
         if (file) {
+            // 1. Definição do Mapeamento (Nome no Excel -> Nome na Coluna do Banco)
             const columnMapping = {
-    'REGIONAL': 'regional',
-    'FILIAL': 'filial',
-    'CÓD': 'cod_material',
-    'GRUPO MATERIAL': 'grupo_material',
-    'CATEGORIA': 'categoria',
-    'EST. IN. SAP': 'est_inicial_sap',
-    '+ SAP': 'entradas_sap',
-    '- SAP': 'saidas_sap',
-    'EST. FIN. SAP': 'est_final_sap',
-    'EST. FIN. REAL': 'est_final_real',
-    'DIF REAL X SAP': 'dif_real_sap',
-    'DIF CUSTO': 'custo_dif',
-    'Nº CAMINHÕES': 'num_caminhoes',
-    'Nº IBC\'S': 'num_ibcs',
-    'EST. IN.SAP ($)': 'est_inicial_val',
-    '+ (SÓ ENT 101) $': 'entradas_val',
-    '- (SÓ SAÍ 201) $': 'saidas_val',
-    'EST.FIN.SAP ($)': 'est_final_val_sap'
-};
+                'REGIONAL': 'regional',
+                'FILIAL': 'filial',
+                'CÓD': 'cod_material',
+                'GRUPO MATERIAL': 'grupo_material',
+                'CATEGORIA': 'categoria',
+                'EST. IN. SAP': 'est_inicial_sap',
+                '+ SAP': 'entradas_sap',
+                '- SAP': 'saidas_sap',
+                'EST. FIN. SAP': 'est_final_sap',
+                'EST. FIN. REAL': 'est_final_real',
+                'DIF REAL X SAP': 'dif_real_sap',
+                'DIF CUSTO': 'custo_dif',
+                'Nº CAMINHÕES': 'num_caminhoes',
+                'Nº IBC\'S': 'num_ibcs',
+                'EST. IN.SAP ($)': 'est_inicial_val',
+                '+ (SÓ ENT 101) $': 'entradas_val',
+                '- (SÓ SAÍ 201) $': 'saidas_val',
+                'EST.FIN.SAP ($)': 'est_final_val_sap'
+            };
+
+            // 2. Chamada da função de importação passando o mapeamento estrito
             onImport(file, date, columnMapping);
         }
         e.target.value = null;
@@ -1886,7 +1835,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             </h3>
             <div className="space-y-6">
                 <div className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-lg border border-purple-100 dark:border-purple-800/30 text-[10px] text-purple-800 dark:text-purple-300">
-                    <strong>Layout Atualizado:</strong> REGIONAL | FILIAL | CÓD | GRUPO MATERIAL | ... | DIF CUSTO | Nº CAMINHÕES | EST. IN.SAP ($) | + (101) $ | - (201) $ | EST.FIN.SAP ($)
+                    <strong>Layout de Importação:</strong> REGIONAL | FILIAL | CÓD | GRUPO MATERIAL | CATEGORIA | ... | DIF CUSTO | Nº CAMINHÕES | Nº IBC'S | EST. IN.SAP ($) | + (101) $ | - (201) $ | EST.FIN.SAP ($)
                 </div>
                 
                 <MonthPicker label="Mês de Referência" value={date} onChange={setDate} />
@@ -1896,7 +1845,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                         type="file" 
                         accept=".xlsx, .csv" 
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
-                        disabled={loading} 
+                        disabled={loading}
                         onChange={handleFileChange} 
                     />
                     <div className={`flex flex-col items-center transition-opacity ${!date ? 'opacity-60' : 'opacity-100'}`}>
@@ -1906,7 +1855,11 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                         <span className="font-bold text-slate-700 dark:text-slate-300">
                             {loading ? 'Processando...' : 'Selecionar Arquivo Excel'}
                         </span>
-                        {!date && <span className="text-xs text-red-500 mt-2 font-bold animate-pulse">* Selecione o mês acima primeiro</span>}
+                        {!date && (
+                            <span className="text-xs text-red-500 mt-2 font-bold animate-pulse">
+                                * Selecione o mês acima primeiro
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>
@@ -6539,6 +6492,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
