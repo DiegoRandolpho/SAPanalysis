@@ -1578,8 +1578,8 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     const [activeTab, setActiveTab] = useState('analitica');
 
-    // --- PROCESSAMENTO DE DADOS (Ajustado para Novo Layout Financeiro) ---
-    const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, analiticaTotals, adjustedVariation, lista } = useMemo(() => {
+    // --- PROCESSAMENTO DE DADOS ---
+    const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, adjustedVariation, lista } = useMemo(() => {
         const rawList = data?.lista || [];
         const groups = {}; 
         const regionaisMap = {};
@@ -1588,13 +1588,12 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         let total_dif_custo = 0, total_caminhoes = 0, total_ibcs = 0;
         let flow = { ini_val: 0, in_val: 0, out_val: 0, fin_val: 0 };
 
-        rawList.forEach(item => {
+        rawList.forEach((item) => {
             const matKey = item.grupo_material || item.cod_material || 'Outros';
             const custo = Number(item.custo_dif) || 0;
             const caminhões = Number(item.num_caminhoes) || 0;
             const ibcs = Number(item.num_ibcs) || 0;
 
-            // Agrupamento por Material
             if (!groups[matKey]) {
                 groups[matKey] = { 
                     name: matKey, 
@@ -1616,24 +1615,21 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             groups[matKey].num_caminhoes += caminhões;
             groups[matKey].num_ibcs += ibcs;
 
-            // Totais Gerais para Cards
             total_dif_custo += custo;
             total_caminhoes += caminhões;
             total_ibcs += ibcs;
 
-            // Mapas para Gráficos
             const rKey = item.regional || 'N/D';
             regionaisMap[rKey] = (regionaisMap[rKey] || 0) + custo;
             materiaisMap[matKey] = (materiaisMap[matKey] || 0) + custo;
         });
 
-        const processedAnalitica = Object.values(groups).map(g => {
+        const processedAnalitica = Object.values(groups).map((g) => {
             flow.ini_val += g.est_in_val;
             flow.in_val += g.entradas_val;
             flow.out_val += g.saidas_val;
             flow.fin_val += g.est_fin_val;
 
-            // Variação Ajustada: Diferença R$ / (Estoque Inicial R$ + Entradas R$)
             const denominadorVar = g.est_in_val + g.entradas_val;
             const variacaoPct = denominadorVar !== 0 ? (g.custo_dif / denominadorVar) : 0;
 
@@ -1641,7 +1637,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         }).sort((a, b) => a.custo_dif - b.custo_dif);
 
         const totalDenom = flow.ini_val + flow.in_val;
-        const adjustedVariation = totalDenom !== 0 ? (total_dif_custo / totalDenom) : 0;
+        const adjVar = totalDenom !== 0 ? (total_dif_custo / totalDenom) : 0;
 
         return { 
             chartsData: { 
@@ -1651,33 +1647,32 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             inventoryFlow: flow,
             consolidatedDiff: { custo: total_dif_custo, caminhoes: total_caminhoes, ibcs: total_ibcs },
             analiticaData: processedAnalitica,
-            adjustedVariation, 
+            adjustedVariation: adjVar, 
             lista: rawList
         };
     }, [data]);
 
-    if (loading) return <div className="p-10 text-center text-slate-400 animate-pulse">Carregando dados... [cite: 38]</div>;
+    if (loading) return <div className="p-10 text-center text-slate-400 animate-pulse">Carregando dados...</div>;
 
-    const fmtMoney = (v) => Utils.formatters.currency(v); [cite: 39]
-    const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); [cite: 39]
-    const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; [cite: 40]
+    const fmtMoney = (v) => Utils.formatters.currency(v);
+    const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 
-    // --- Sub-Componentes Internos (Mantidos conforme original) ---
     const SafeIcon = ({ name, className, width, height }) => {
-        const IconComponent = Icons[name] || Icons.Activity; [cite: 2, 3]
+        const IconComponent = Icons[name] || Icons.Activity;
         return <IconComponent className={className} width={width || 16} height={height || 16} />;
     };
 
     const FlowCard = ({ title, val, iconName, color }) => (
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
             <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span> [cite: 42]
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span>
                 <div className={`p-1.5 rounded-md bg-opacity-10 ${color.replace('text-', 'bg-')} print-color-force`}>
-                    <SafeIcon name={iconName} width={14} className={`${color} print-color-force`} /> [cite: 42]
+                    <SafeIcon name={iconName} width={14} className={`${color} print-color-force`} />
                 </div>
             </div>
             <div>
-                <div className="text-lg font-bold text-slate-800 dark:text-white force-black-print">{fmtMoney(val)}</div> [cite: 43]
+                <div className="text-lg font-bold text-slate-800 dark:text-white force-black-print">{fmtMoney(val)}</div>
             </div>
         </div>
     );
@@ -1685,14 +1680,14 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
     const VariationCard = ({ qty, title, subtitle }) => (
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
              <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span> [cite: 45]
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span>
                 <div className="p-1.5 rounded-md bg-purple-50 print-color-force">
-                    <SafeIcon name="Activity" width={14} className="text-purple-600 print-color-force" /> [cite: 46]
+                    <SafeIcon name="Activity" width={14} className="text-purple-600 print-color-force" />
                 </div>
             </div>
             <div className="flex flex-col">
-                <span className={`text-2xl font-black ${qty < 0 ? [cite_start]'text-red-500' : 'text-emerald-500'} print-color-force`}>{fmtPerc(qty)}</span> [cite: 47]
-                <span className="text-[10px] text-slate-400 print:text-black">{subtitle}</span> [cite: 47]
+                <span className={`text-2xl font-black ${qty < 0 ? 'text-red-500' : 'text-emerald-500'} print-color-force`}>{fmtPerc(qty)}</span>
+                <span className="text-[10px] text-slate-400 print:text-black">{subtitle}</span>
             </div>
         </div>
     );
@@ -1701,97 +1696,93 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-table-container overflow-hidden break-inside-avoid w-full mb-6">
             <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print-header">
                 <h3 className="font-black text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 uppercase tracking-wide print:text-black">
-                    <SafeIcon name={iconName} width={16} className="text-purple-600 print:text-black" /> {title} [cite: 49, 50]
+                    <SafeIcon name={iconName} width={16} className="text-purple-600 print:text-black" /> {title}
                 </h3>
             </div>
             <div className="overflow-x-auto print:overflow-visible w-full">
-                {children} [cite: 51]
+                {children}
             </div>
         </div>
     );
 
-    // --- Renderização Principal ---
     return (
         <div className="space-y-6 pb-10 report-container">
             <style>{`
                 @media print {
-                    @page { margin: 0.5cm; size: A4; } [cite: 101, 102]
-                    .force-black-print { color: #000 !important; } [cite: 102]
-                    .print-card, .print-table-container { border: 1px solid #000 !important; } [cite: 108]
-                    .no-print { display: none !important; } [cite: 126]
-                    .print-grid-cols-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; } [cite: 114, 115]
+                    @page { margin: 0.5cm; size: A4; }
+                    .force-black-print { color: #000 !important; }
+                    .print-card, .print-table-container { border: 1px solid #000 !important; }
+                    .no-print { display: none !important; }
+                    .print-grid-cols-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; }
                 }
             `}</style>
             
-            {/* Header Impressão */}
             <div className="hidden print:flex justify-between items-center border-b-2 border-black pb-4 mb-6">
                 <div className="flex items-center gap-4">
-                     <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-10 object-contain" /> [cite: 129]
+                     <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-10 object-contain" />
                      <div className="h-8 w-px bg-black"></div>
-                     <h1 className="text-xl font-black uppercase text-black tracking-wider">Inventário de Insumos</h1> [cite: 130]
+                     <h1 className="text-xl font-black uppercase text-black tracking-wider">Inventário de Insumos</h1>
                 </div>
                 <div className="text-right">
-                    <p className="text-sm font-bold uppercase text-black">Mês de Referência</p> [cite: 131]
-                    <p className="text-lg font-black text-black print-color-force">{Utils.date.formatNice(filters.periodo)}</p> [cite: 131]
+                    <p className="text-sm font-bold uppercase text-black">Mês de Referência</p>
+                    <p className="text-lg font-black text-black print-color-force">{Utils.date.formatNice(filters.periodo)}</p>
                 </div>
             </div>
 
-            {/* Toolbar Tela */}
             <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos [cite: 133]
+                    <SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos
                 </h2>
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm">
-                        <input type="month" className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} /> [cite: 135]
+                        <input type="month" className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none" value={filters.periodo} onChange={(e) => setFilters((prev) => ({...prev, periodo: e.target.value}))} />
                     </div>
-                    <button onClick={() => window.print()} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all"><SafeIcon name="Download" width={16} /> PDF</button> [cite: 135]
+                    <button onClick={() => window.print()} className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg transition-all"><SafeIcon name="Download" width={16} /> PDF</button>
                 </div>
             </div>
 
             <div className="print-page-1-container">
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print-grid-cols-3 mb-6">
-                    <FlowCard title="Estoque Inicial" val={inventoryFlow.ini_val} iconName="Database" color="text-slate-500" /> [cite: 137]
-                    <FlowCard title="Entradas (101)" val={inventoryFlow.in_val} iconName="ArrowDownCircle" color="text-emerald-600" /> [cite: 137]
-                    <FlowCard title="Saídas (201)" val={inventoryFlow.out_val} iconName="ArrowUpCircle" color="text-red-500" /> [cite: 137]
-                    <FlowCard title="Estoque Final" val={inventoryFlow.fin_val} iconName="CheckCircle" color="text-blue-600" /> [cite: 138]
-                    <VariationCard title="Evolução Valor" qty={(inventoryFlow.ini_val > 0 ? (inventoryFlow.fin_val - inventoryFlow.ini_val)/inventoryFlow.ini_val : 0)} subtitle="Var. Inicial vs Final"/> [cite: 138]
-                    <VariationCard title="Variação Ajustada" qty={adjustedVariation} subtitle="Diferença / Movimentação"/> [cite: 139]
+                    <FlowCard title="Estoque Inicial" val={inventoryFlow.ini_val} iconName="Database" color="text-slate-500" />
+                    <FlowCard title="Entradas (101)" val={inventoryFlow.in_val} iconName="ArrowDownCircle" color="text-emerald-600" />
+                    <FlowCard title="Saídas (201)" val={inventoryFlow.out_val} iconName="ArrowUpCircle" color="text-red-500" />
+                    <FlowCard title="Estoque Final" val={inventoryFlow.fin_val} iconName="CheckCircle" color="text-blue-600" />
+                    <VariationCard title="Evolução Valor" qty={(inventoryFlow.ini_val > 0 ? (inventoryFlow.fin_val - inventoryFlow.ini_val)/inventoryFlow.ini_val : 0)} subtitle="Var. Inicial vs Final"/>
+                    <VariationCard title="Variação Ajustada" qty={adjustedVariation} subtitle="Diferença / Movimentação"/>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:grid print:grid-cols-1">
                     <div className="lg:col-span-1 print:mb-6">
                         <div className="bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/50 p-6 shadow-sm relative overflow-hidden h-full flex flex-col justify-center print-card">
-                            <h3 className="text-sm font-bold uppercase text-purple-900 dark:text-purple-300 tracking-wider mb-4 print:text-black">Impacto Financeiro (Perda/Ganho)</h3> [cite: 141]
+                            <h3 className="text-sm font-bold uppercase text-purple-900 dark:text-purple-300 tracking-wider mb-4 print:text-black">Impacto Financeiro (Perda/Ganho)</h3>
                             <div className="mb-6">
                                 <span className={`text-4xl font-black ${consolidatedDiff.custo < 0 ? 'text-red-600' : 'text-emerald-600'} tracking-tight print-color-force`}>
-                                    {consolidatedDiff.custo > 0 ? '+' : ''}{fmtMoney(consolidatedDiff.custo)} [cite: 142, 143]
+                                    {consolidatedDiff.custo > 0 ? '+' : ''}{fmtMoney(consolidatedDiff.custo)}
                                 </span>
                             </div>
                             <div className="grid grid-cols-2 gap-4 border-t border-purple-100 dark:border-slate-700/50 pt-4 print:border-black">
                                 <div>
-                                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">Veículos</p> [cite: 146]
+                                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">Veículos</p>
                                     <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 print:text-black">
                                         <SafeIcon name="Truck" width={16} />
-                                        <span className="font-bold text-lg">{fmtNum(consolidatedDiff.caminhoes)}</span> [cite: 147]
+                                        <span className="font-bold text-lg">{fmtNum(consolidatedDiff.caminhoes)}</span>
                                     </div>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">IBC's</p> [cite: 149]
+                                    <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 print:text-black">IBC's</p>
                                     <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 print:text-black">
                                         <SafeIcon name="Box" width={16} />
-                                        <span className="font-bold text-lg">{fmtNum(consolidatedDiff.ibcs)}</span> [cite: 151]
+                                        <span className="font-bold text-lg">{fmtNum(consolidatedDiff.ibcs)}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Gráficos Top Ajustes */}
                     <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print-grid-charts">
                         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
                             <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print:text-black">
-                                <SafeIcon name="BarChart2" width={14} className="text-purple-500" /> Top Ajustes (Região) [cite: 154]
+                                <SafeIcon name="BarChart2" width={14} className="text-purple-500" /> Top Ajustes (Região)
                             </h3>
                             <div className="flex-1 w-full min-h-0">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -1799,7 +1790,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                                         <XAxis type="number" hide />
                                         <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10}} />
                                         <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
-                                            {chartsData.regionais.map((entry, index) => ( <Cell key={index} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))} [cite: 159]
+                                            {chartsData.regionais.map((entry, index) => ( <Cell key={index} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -1807,7 +1798,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                         </div>
                         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex flex-col h-[350px] print:h-[220px] print-card">
                             <h3 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-4 flex items-center gap-2 uppercase tracking-wide border-b border-slate-100 pb-2 print:border-black print:text-black">
-                                <SafeIcon name="AlertCircle" width={14} className="text-orange-500" /> Top Ajustes (Material) [cite: 163]
+                                <SafeIcon name="AlertCircle" width={14} className="text-orange-500" /> Top Ajustes (Material)
                             </h3>
                             <div className="flex-1 w-full min-h-0">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -1815,7 +1806,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                                         <XAxis type="number" hide />
                                         <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10}} />
                                         <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={15}>
-                                            {chartsData.materiais.map((entry, index) => ( <Cell key={index} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))} [cite: 168]
+                                            {chartsData.materiais.map((entry, index) => ( <Cell key={index} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -1825,30 +1816,29 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 </div>
             </div>
 
-            {/* Tabela Analítica Baseada em Valor */}
             <StandardTable title="Detalhamento Financeiro por Material" iconName="Table">
                 <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300">
                     <thead className="uppercase bg-white dark:bg-slate-900 border-b font-bold text-slate-500">
                         <tr>
-                            <th className="px-3 py-2">Material</th> [cite: 177]
-                            <th className="px-2 py-2 text-right">Est. Inicial ($)</th> [cite: 177]
-                            <th className="px-2 py-2 text-right">Entradas ($)</th> [cite: 178]
-                            <th className="px-2 py-2 text-right">Saídas ($)</th> [cite: 179]
-                            <th className="px-2 py-2 text-right">Final SAP ($)</th> [cite: 179]
-                            <th className="px-2 py-2 text-right">Perda/Ganho (R$)</th> [cite: 180]
-                            <th className="px-2 py-2 text-right">Var %</th> [cite: 180]
+                            <th className="px-3 py-2">Material</th>
+                            <th className="px-2 py-2 text-right">Est. Inicial ($)</th>
+                            <th className="px-2 py-2 text-right">Entradas ($)</th>
+                            <th className="px-2 py-2 text-right">Saídas ($)</th>
+                            <th className="px-2 py-2 text-right">Final SAP ($)</th>
+                            <th className="px-2 py-2 text-right">Perda/Ganho (R$)</th>
+                            <th className="px-2 py-2 text-right">Var %</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                         {analiticaData.map((row, i) => (
                             <tr key={i} className="hover:bg-purple-50">
-                                <td className="px-3 py-2 font-medium">{row.name}</td> [cite: 184]
-                                <td className="px-2 py-2 text-right font-mono">{fmtMoney(row.est_in_val)}</td> [cite: 186]
-                                <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtMoney(row.entradas_val)}</td> [cite: 186]
-                                <td className="px-2 py-2 text-right font-mono text-red-500">{fmtMoney(row.saidas_val)}</td> [cite: 187]
-                                <td className="px-2 py-2 text-right font-mono font-bold">{fmtMoney(row.est_fin_val)}</td> [cite: 187]
-                                <td className={`px-2 py-2 text-right font-bold ${row.custo_dif < 0 ? [cite_start]'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(row.custo_dif)}</td> [cite: 188]
-                                <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'}`}>{fmtPerc(row.variacaoPct)}</td> [cite: 189]
+                                <td className="px-3 py-2 font-medium">{row.name}</td>
+                                <td className="px-2 py-2 text-right font-mono">{fmtMoney(row.est_in_val)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtMoney(row.entradas_val)}</td>
+                                <td className="px-2 py-2 text-right font-mono text-red-500">{fmtMoney(row.saidas_val)}</td>
+                                <td className="px-2 py-2 text-right font-mono font-bold">{fmtMoney(row.est_fin_val)}</td>
+                                <td className={`px-2 py-2 text-right font-bold ${row.custo_dif < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(row.custo_dif)}</td>
+                                <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'}`}>{fmtPerc(row.variacaoPct)}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -6546,6 +6536,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
