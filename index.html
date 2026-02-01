@@ -1799,113 +1799,103 @@ const BarChartWidget = ({ title, data }) => (
         </ResponsiveContainer>
     </div>
 );
-      const InsumosImport = ({ onImport, loading }) => {
-    const [date, setDate] = useState('');
+      const InsumosImport = ({ supabaseClient, onNotify }) => {
+    const [loading, setLoading] = React.useState(false);
+    const [selectedDate, setSelectedDate] = React.useState('');
 
-    const handleFileChange = (e) => {
-        // Validação: Garante que a data foi escolhida antes de prosseguir
-        if (!date) {
-            alert("⚠️ Atenção:\n\nPor favor, selecione o Mês de Referência antes de carregar o arquivo.");
-            e.target.value = null;
+    const columnMapping = {
+        'REGIONAL': 'regional',
+        'FILIAL': 'filial',
+        'CÓD': 'cod_material',
+        'GRUPO MATERIAL': 'grupo_material',
+        'CATEGORIA': 'categoria',
+        'EST. IN. SAP': 'est_inicial_sap',
+        '+ SAP': 'entradas_sap',
+        '- SAP': 'saidas_sap',
+        'EST. FIN. SAP': 'est_final_sap',
+        'EST. FIN. REAL': 'est_final_real',
+        'DIF REAL X SAP': 'dif_real_sap',
+        'DIF CUSTO': 'custo_dif',
+        'Nº CAMINHÕES': 'num_caminhoes',
+        'Nº IBC\'S': 'num_ibcs',
+        'EST. IN.SAP ($)': 'est_inicial_val',
+        '+ (SÓ ENT 101) $': 'entradas_val',
+        '- (SÓ SAÍ 201) $': 'saidas_val',
+        'EST.FIN.SAP ($)': 'est_final_val_sap'
+    };
+
+    const handleImport = async (file) => {
+        if (!selectedDate) {
+            onNotify('Selecione o período antes de importar.', 'error');
             return;
         }
-        
-        const file = e.target.files[0];
-        if (file) {
-            // 1. Definição do Mapeamento (Nome no Excel -> Nome na Coluna do Banco)
-            const columnMapping = {
-                'REGIONAL': 'regional',
-                'FILIAL': 'filial',
-                'CÓD': 'cod_material',
-                'GRUPO MATERIAL': 'grupo_material',
-                'CATEGORIA': 'categoria',
-                'EST. IN. SAP': 'est_inicial_sap',
-                '+ SAP': 'entradas_sap',
-                '- SAP': 'saidas_sap',
-                'EST. FIN. SAP': 'est_final_sap',
-                'EST. FIN. REAL': 'est_final_real',
-                'DIF REAL X SAP': 'dif_real_sap',
-                'DIF CUSTO': 'custo_dif',
-                'Nº CAMINHÕES': 'num_caminhoes',
-                'Nº IBC\'S': 'num_ibcs',
-                'EST. IN.SAP ($)': 'est_inicial_val',
-                '+ (SÓ ENT 101) $': 'entradas_val',
-                '- (SÓ SAÍ 201) $': 'saidas_val',
-                'EST.FIN.SAP ($)': 'est_final_val_sap'
-            };
 
-           // Verifique se a função ao redor tem o 'async'
-const onImport = async (rows, selectedDate) => { // <-- Adicione 'async' aqui se não tiver
-    
-    // 1. Limpeza total dos dados para garantir que "fornecedor" não exista
-    const rowsCleaned = rows.map(row => {
-        const entry = {};
-        
-        // Usamos o seu columnMapping para pegar APENAS o que é necessário
-        Object.keys(columnMapping).forEach(excelKey => {
-            const dbKey = columnMapping[excelKey];
-            // Se o dbKey for 'fornecedor', ele será ignorado aqui
-            if (dbKey && dbKey !== 'fornecedor') {
-                entry[dbKey] = row[excelKey];
+        setLoading(true);
+        const reader = new FileReader();
+
+        reader.onload = async (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(firstSheet);
+
+                if (rows.length === 0) throw new Error("O arquivo está vazio.");
+
+                // LIMPEZA CRÍTICA: Filtra apenas as colunas do mapeamento para evitar "fornecedor"
+                const cleanedData = rows.map(row => {
+                    const entry = { periodo: selectedDate };
+                    Object.keys(columnMapping).forEach(excelKey => {
+                        const dbKey = columnMapping[excelKey];
+                        if (row[excelKey] !== undefined) {
+                            entry[dbKey] = row[excelKey];
+                        }
+                    });
+                    return entry;
+                });
+
+                const { error } = await supabaseClient
+                    .from('insumos_estoque')
+                    .upsert(cleanedData);
+
+                if (error) throw error;
+
+                onNotify(`Sucesso! ${cleanedData.length} registros importados.`, 'success');
+            } catch (err) {
+                console.error(err);
+                onNotify(`Erro: ${err.message}`, 'error');
+            } finally {
+                setLoading(false);
             }
-        });
+        };
 
-        // Adiciona o período
-        entry.periodo = selectedDate; 
-
-        return entry;
-    });
-
-    try {
-        // 2. Agora o await funcionará porque a função é async
-        const { error } = await supabase
-            .from('insumos_estoque')
-            .upsert(rowsCleaned);
-
-        if (error) throw error;
-        alert("Importação concluída com sucesso!");
-        
-    } catch (err) {
-        console.error("Erro na importação:", err);
-        alert("Erro: " + err.message);
-    }
-};
+        reader.readAsArrayBuffer(file);
+    };
 
     return (
-        <div className="max-w-2xl mx-auto glass-card p-8 animate-enter">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                <Icons.Upload className="text-purple-500" /> Importação de Insumos
-            </h3>
-            <div className="space-y-6">
-                <div className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-lg border border-purple-100 dark:border-purple-800/30 text-[10px] text-purple-800 dark:text-purple-300">
-                    <strong>Layout de Importação:</strong> REGIONAL | FILIAL | CÓD | GRUPO MATERIAL | CATEGORIA | ... | DIF CUSTO | Nº CAMINHÕES | Nº IBC'S | EST. IN.SAP ($) | + (101) $ | - (201) $ | EST.FIN.SAP ($)
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+            <div className="flex flex-col md:flex-row gap-4 items-end">
+                <div className="flex-1">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Período Referência</label>
+                    <input 
+                        type="month" 
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="w-full p-2 rounded border border-slate-300 dark:bg-slate-700 dark:border-slate-600"
+                    />
                 </div>
-                
-                <MonthPicker label="Mês de Referência" value={date} onChange={setDate} />
-                
-                <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group cursor-pointer relative">
+                <div className="flex-1">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Arquivo Excel</label>
                     <input 
                         type="file" 
-                        accept=".xlsx, .csv" 
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                        accept=".xlsx, .xls"
+                        onChange={(e) => e.target.files[0] && handleImport(e.target.files[0])}
                         disabled={loading}
-                        onChange={handleFileChange} 
+                        className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
                     />
-                    <div className={`flex flex-col items-center transition-opacity ${!date ? 'opacity-60' : 'opacity-100'}`}>
-                        <div className="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 p-4 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                            <Icons.FileText width={32} height={32} />
-                        </div>
-                        <span className="font-bold text-slate-700 dark:text-slate-300">
-                            {loading ? 'Processando...' : 'Selecionar Arquivo Excel'}
-                        </span>
-                        {!date && (
-                            <span className="text-xs text-red-500 mt-2 font-bold animate-pulse">
-                                * Selecione o mês acima primeiro
-                            </span>
-                        )}
-                    </div>
                 </div>
             </div>
+            {loading && <div className="mt-4 text-blue-500 animate-pulse">Processando importação...</div>}
         </div>
     );
 };
@@ -6535,6 +6525,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
