@@ -1800,11 +1800,6 @@ const BarChartWidget = ({ title, data }) => (
     </div>
 );
       const InsumosImport = ({ supabaseClient, onNotify }) => {
-    // Tenta usar a prop, se não existir, tenta usar a variável global 'supabase'
-    const sClient = supabaseClient || (typeof supabase !== 'undefined' ? supabase : null);
-    // Tenta usar a prop, se não existir, usa um console.log básico
-    const notify = typeof onNotify === 'function' ? onNotify : (msg) => console.log(msg);
-
     const [loading, setLoading] = React.useState(false);
     const [selectedDate, setSelectedDate] = React.useState('');
 
@@ -1831,11 +1826,13 @@ const BarChartWidget = ({ title, data }) => (
 
     const handleImport = async (file) => {
         if (!selectedDate) {
-            notify('Selecione o período antes de importar.', 'error');
+            onNotify('Selecione o período antes de importar.', 'error');
             return;
         }
-        if (!sClient) {
-            notify('Erro: Cliente Supabase não encontrado.', 'error');
+
+        // Verifica se o cliente do Supabase existe antes de tentar usar
+        if (!supabaseClient || typeof supabaseClient.from !== 'function') {
+            onNotify('Erro crítico: Cliente Supabase não inicializado corretamente.', 'error');
             return;
         }
 
@@ -1851,31 +1848,35 @@ const BarChartWidget = ({ title, data }) => (
 
                 if (rows.length === 0) throw new Error("O arquivo está vazio.");
 
+                // LIMPEZA: Cria um objeto NOVO para cada linha apenas com o que o banco aceita
                 const cleanedData = rows.map(row => {
                     const entry = { periodo: selectedDate };
                     Object.keys(columnMapping).forEach(excelKey => {
                         const dbKey = columnMapping[excelKey];
-                        if (row[excelKey] !== undefined) {
+                        // Só adiciona se o valor existir no Excel e não for 'fornecedor'
+                        if (row[excelKey] !== undefined && dbKey !== 'fornecedor') {
                             entry[dbKey] = row[excelKey];
                         }
                     });
                     return entry;
                 });
 
-                const { error } = await sClient
+                // Tenta salvar no banco
+                const { error } = await supabaseClient
                     .from('insumos_estoque')
                     .upsert(cleanedData);
 
                 if (error) throw error;
 
-                notify(`Sucesso! ${cleanedData.length} registros importados.`, 'success');
+                onNotify(`Sucesso! ${cleanedData.length} registros importados.`, 'success');
             } catch (err) {
-                console.error(err);
-                notify(`Erro: ${err.message}`, 'error');
+                console.error('Erro detalhado:', err);
+                onNotify(`Erro na importação: ${err.message}`, 'error');
             } finally {
                 setLoading(false);
             }
         };
+
         reader.readAsArrayBuffer(file);
     };
 
@@ -1902,7 +1903,7 @@ const BarChartWidget = ({ title, data }) => (
                     />
                 </div>
             </div>
-            {loading && <div className="mt-4 text-blue-500 animate-pulse text-sm">Processando dados...</div>}
+            {loading && <div className="mt-4 text-purple-600 animate-pulse text-sm font-medium">Enviando dados para o banco...</div>}
         </div>
     );
 };
@@ -6532,6 +6533,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
