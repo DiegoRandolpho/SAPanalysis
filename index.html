@@ -1864,16 +1864,23 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 'CÓD': 'cod_material',
                 'GRUPO MATERIAL': 'grupo_material',
                 'CATEGORIA': 'categoria',
-                'DIF CUSTO': 'dif_custo',
+                'EST. IN. SAP': 'est_inicial_qty',
+                '+ SAP': 'entradas_sap_qty',
+                '- SAP': 'saidas_sap_qty',
+                'EST. FIN. SAP': 'est_final_qty_sap',
+                'EST. FIN. REAL': 'est_final_qty_real',
+                'DIF REAL X SAP': 'dif_real_sap',
+                'DIF CUSTO': 'custo_dif',
                 'Nº CAMINHÕES': 'num_caminhoes',
                 'Nº IBC\'S': 'num_ibcs',
                 'EST. IN.SAP ($)': 'est_inicial_val',
-                '+ (SÓ ENT 101) $': 'entradas_val',
-                '- (SÓ SAÍ 201) $': 'saidas_val',
+                '+ (SÓ ENT 101)': 'entradas_qty_101',
+                '- (SÓ SAÍ 201)': 'saidas_qty_201',
+                '+ (SÓ ENT 101) $': 'entradas_val_101',
+                '- (SÓ SAÍ 201) $': 'saidas_val_201',
                 'EST.FIN.SAP ($)': 'est_final_val_sap'
             };
 
-            // Envia "2026-01" puro para o banco
             onImport(file, date, columnMapping);
         }
         e.target.value = null;
@@ -1885,14 +1892,28 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 <Icons.Upload className="text-purple-500" /> Importação de Insumos
             </h3>
             <div className="space-y-6">
+                <div className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-lg border border-purple-100 dark:border-purple-800/30 text-[10px] text-purple-800 dark:text-purple-300">
+                    <strong>Layout Atualizado:</strong> REGIONAL | FILIAL | CÓD | GRUPO MATERIAL | ... | DIF CUSTO | Nº CAMINHÕES | EST. IN.SAP ($) | + (101) $ | - (201) $ | EST.FIN.SAP ($)
+                </div>
+                
                 <MonthPicker label="Mês de Referência" value={date} onChange={setDate} />
-                <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:bg-slate-50 cursor-pointer relative">
-                    <input type="file" accept=".xlsx, .csv" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={loading} onChange={handleFileChange} />
-                    <div className={`flex flex-col items-center ${!date ? 'opacity-60' : 'opacity-100'}`}>
-                        <div className="bg-purple-100 text-purple-600 p-4 rounded-full mb-3">
+                
+                <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group cursor-pointer relative">
+                    <input 
+                        type="file" 
+                        accept=".xlsx, .csv" 
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                        disabled={loading} 
+                        onChange={handleFileChange} 
+                    />
+                    <div className={`flex flex-col items-center transition-opacity ${!date ? 'opacity-60' : 'opacity-100'}`}>
+                        <div className="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 p-4 rounded-full mb-3 group-hover:scale-110 transition-transform">
                             <Icons.FileText width={32} height={32} />
                         </div>
-                        <span className="font-bold text-slate-700">{loading ? 'Processando...' : 'Selecionar Arquivo Excel'}</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                            {loading ? 'Processando...' : 'Selecionar Arquivo Excel'}
+                        </span>
+                        {!date && <span className="text-xs text-red-500 mt-2 font-bold animate-pulse">* Selecione o mês acima primeiro</span>}
                     </div>
                 </div>
             </div>
@@ -6525,6 +6546,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
