@@ -1578,6 +1578,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
       const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     const [activeTab, setActiveTab] = useState('analitica');
 
+    // --- PROCESSAMENTO DE DADOS ---
     const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, adjustedVariation, lista } = useMemo(() => {
         const rawList = data?.lista || [];
         const groups = {}; 
@@ -1590,7 +1591,9 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         rawList.forEach((item) => {
             const matKey = item.grupo_material || item.cod_material || 'Outros';
             const custo = Number(item.custo_dif) || 0;
-            
+            const cam = Number(item.num_caminhoes) || 0;
+            const ibcs = Number(item.num_ibcs) || 0;
+
             if (!groups[matKey]) {
                 groups[matKey] = { 
                     name: matKey, custo_dif: 0, est_in_val: 0, entradas_val: 0, 
@@ -1600,25 +1603,20 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 };
             }
 
-            // Soma de Valores
             groups[matKey].custo_dif += custo;
             groups[matKey].est_in_val += Number(item.est_inicial_val) || 0;
             groups[matKey].entradas_val += Number(item.entradas_val) || 0;
             groups[matKey].saidas_val += Number(item.saidas_val) || 0;
             groups[matKey].est_fin_val += Number(item.est_final_val_sap) || 0;
-            
-            // Soma de Quantidades
             groups[matKey].est_inicial_sap += Number(item.est_inicial_sap) || 0;
             groups[matKey].entradas_sap += Number(item.entradas_sap) || 0;
             groups[matKey].saidas_sap += Number(item.saidas_sap) || 0;
             groups[matKey].est_final_sap += Number(item.est_final_sap) || 0;
             groups[matKey].est_final_real += Number(item.est_final_real) || 0;
-            groups[matKey].num_caminhoes += Number(item.num_caminhoes) || 0;
-            groups[matKey].num_ibcs += Number(item.num_ibcs) || 0;
 
             total_dif_custo += custo;
-            total_caminhoes += Number(item.num_caminhoes) || 0;
-            total_ibcs += Number(item.num_ibcs) || 0;
+            total_caminhoes += cam;
+            total_ibcs += ibcs;
 
             const rKey = item.regional || 'N/D';
             regionaisMap[rKey] = (regionaisMap[rKey] || 0) + custo;
@@ -1647,7 +1645,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         };
     }, [data]);
 
-    if (loading) return <div className="p-10 text-center text-slate-400">Carregando...</div>;
+    if (loading) return <div className="p-10 text-center text-slate-400">Carregando dados...</div>;
 
     const fmtMoney = (v) => Utils.formatters.currency(v);
     const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
@@ -1658,37 +1656,131 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         return <IconComponent className={className} width={width} height={width} />;
     };
 
+    const FlowCard = ({ title, val, icon, color }) => (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border p-4 flex flex-col justify-between shadow-sm print-card">
+            <div className="flex justify-between items-start mb-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{title}</span>
+                <div className={`p-1 rounded bg-opacity-10 ${color.replace('text-', 'bg-')}`}>
+                    <SafeIcon name={icon} className={color} width={14} />
+                </div>
+            </div>
+            <div className="text-lg font-bold text-slate-800 dark:text-white">{fmtMoney(val)}</div>
+        </div>
+    );
+
+    const StandardTable = ({ children, title, iconName }) => (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border shadow-sm overflow-hidden mb-6 print-table-container">
+            <div className="px-4 py-2 border-b bg-slate-50 dark:bg-slate-800/50 flex items-center gap-2">
+                <SafeIcon name={iconName} className="text-purple-600" />
+                <h3 className="font-black text-slate-700 dark:text-slate-200 text-xs uppercase">{title}</h3>
+            </div>
+            <div className="overflow-x-auto">{children}</div>
+        </div>
+    );
+
+    // --- COMPONENTE DE DRILL DOWN ---
+    const DrillDownTable = ({ rawData, hierarchy, title, iconName }) => {
+        const [path, setPath] = useState([]);
+        const filteredData = useMemo(() => rawData.filter(item => path.every((val, idx) => item[hierarchy[idx].key] === val)), [rawData, path, hierarchy]);
+        const currentLevelIdx = path.length;
+        const isLastLevel = currentLevelIdx >= hierarchy.length;
+
+        const grouped = useMemo(() => {
+            if (isLastLevel) return [];
+            const key = hierarchy[currentLevelIdx].key;
+            const res = {};
+            filteredData.forEach(item => {
+                const val = item[key] || 'N/D';
+                if (!res[val]) res[val] = { name: val, cam: 0, custo: 0, sap: 0, real: 0 };
+                res[val].cam += Number(item.num_caminhoes) || 0;
+                res[val].custo += Number(item.custo_dif) || 0;
+                res[val].sap += Number(item.est_final_sap) || 0;
+                res[val].real += Number(item.est_final_real) || 0;
+            });
+            return Object.values(res).sort((a, b) => a.custo - b.custo);
+        }, [filteredData, currentLevelIdx, hierarchy, isLastLevel]);
+
+        if (isLastLevel) return <div className="p-4 text-center text-slate-400">Fim do nível. <button onClick={() => setPath(path.slice(0, -1))} className="text-purple-600 underline">Voltar</button></div>;
+
+        return (
+            <StandardTable title={path.length === 0 ? title : `${title}: ${path.join(' > ')}`} iconName={iconName}>
+                {path.length > 0 && (
+                    <div className="bg-purple-50 px-4 py-1 text-[10px] text-purple-700 font-bold border-b flex justify-between no-print">
+                        <span>Filtrando: {hierarchy[currentLevelIdx].label}</span>
+                        <button onClick={() => setPath(path.slice(0, -1))} className="hover:underline flex items-center gap-1"><SafeIcon name="ArrowLeft" width={10}/> Voltar</button>
+                    </div>
+                )}
+                <table className="w-full text-[10px] text-left">
+                    <thead className="bg-white border-b font-bold text-slate-500 uppercase">
+                        <tr>
+                            <th className="px-3 py-2">{hierarchy[currentLevelIdx].label}</th>
+                            <th className="px-2 py-2 text-right">Caminhões</th>
+                            <th className="px-2 py-2 text-right">Custo Total</th>
+                            <th className="px-2 py-2 text-center no-print">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                        {grouped.map((row, i) => (
+                            <tr key={i} onClick={() => setPath([...path, row.name])} className="hover:bg-purple-50 cursor-pointer">
+                                <td className="px-3 py-2 font-bold">{row.name}</td>
+                                <td className="px-2 py-2 text-right font-mono">{fmtNum(row.cam)}</td>
+                                <td className={`px-2 py-2 text-right font-bold ${row.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(row.custo)}</td>
+                                <td className="px-2 py-2 text-center no-print text-slate-300"><SafeIcon name="ChevronRight" width={12} /></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </StandardTable>
+        );
+    };
+
     return (
         <div className="space-y-6 pb-10 report-container">
-            {/* TOOLBAR E CARDS KPI */}
-            <div className="flex justify-between items-end no-print mb-4">
-                <h2 className="text-2xl font-bold flex items-center gap-2">
+            <style>{`
+                @media print {
+                    @page { margin: 0.5cm; size: A4; }
+                    .no-print { display: none !important; }
+                    .print-grid-cols-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; }
+                    .print-card { border: 1px solid #000 !important; }
+                }
+            `}</style>
+
+            {/* BARRA DE FERRAMENTAS */}
+            <div className="flex justify-between items-end mb-4 no-print">
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     <SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos
                 </h2>
-                <div className="flex gap-3">
-                    <input type="month" className="border rounded px-2 py-1" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} />
-                    <button onClick={() => window.print()} className="bg-slate-800 text-white px-4 py-2 rounded flex items-center gap-2 font-bold shadow-lg">
+                <div className="flex items-center gap-3">
+                    <input type="month" className="border rounded-lg px-3 py-1.5 text-sm" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} />
+                    <button onClick={() => window.print()} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2">
                         <SafeIcon name="Download" width={16} /> PDF
                     </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print-grid-cols-3 mb-6">
+            {/* KPI CARDS */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print-grid-cols-3">
                 <FlowCard title="Estoque Inicial" val={inventoryFlow.ini_val} icon="Database" color="text-slate-500" />
                 <FlowCard title="Entradas ($)" val={inventoryFlow.in_val} icon="ArrowDownCircle" color="text-emerald-600" />
                 <FlowCard title="Saídas ($)" val={inventoryFlow.out_val} icon="ArrowUpCircle" color="text-red-500" />
                 <FlowCard title="Estoque Final" val={inventoryFlow.fin_val} icon="CheckCircle" color="text-blue-600" />
+                <div className="bg-white p-4 rounded-lg border shadow-sm print-card">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-2">Evolução Valor</span>
+                    <div className={`text-2xl font-black ${inventoryFlow.fin_val < inventoryFlow.ini_val ? 'text-red-500' : 'text-emerald-500'}`}>
+                        {fmtPerc(inventoryFlow.ini_val > 0 ? (inventoryFlow.fin_val - inventoryFlow.ini_val)/inventoryFlow.ini_val : 0)}
+                    </div>
+                </div>
                 <div className="bg-white p-4 rounded-lg border shadow-sm print-card">
                     <span className="text-[10px] font-bold uppercase text-slate-500 block mb-2">Variação Ajustada</span>
                     <div className={`text-2xl font-black ${adjustedVariation < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{fmtPerc(adjustedVariation)}</div>
                 </div>
             </div>
 
-            {/* IMPACTO FINANCEIRO E GRÁFICOS */}
+            {/* IMPACTO E GRÁFICOS */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-1">
-                    <div className="bg-gradient-to-br from-white to-purple-50 rounded-xl border border-purple-100 p-6 shadow-sm h-full flex flex-col justify-center print-card">
-                        <h3 className="text-xs font-bold uppercase text-purple-900 mb-4">Diferença de Estoque (R$)</h3>
+                    <div className="bg-gradient-to-br from-white to-purple-50 rounded-xl border p-6 shadow-sm h-full flex flex-col justify-center print-card">
+                        <h3 className="text-[10px] font-bold uppercase text-purple-900 mb-4">Diferença Financeira Total</h3>
                         <div className="mb-6">
                             <span className={`text-4xl font-black ${consolidatedDiff.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                                 {fmtMoney(consolidatedDiff.custo)}
@@ -1708,30 +1800,26 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 </div>
 
                 <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white rounded-lg border p-4 shadow-sm h-[280px] print-card">
-                        <h3 className="font-bold text-slate-700 text-[10px] mb-4 uppercase flex items-center gap-2 border-b pb-2">
-                            <SafeIcon name="BarChart2" className="text-purple-500" /> Top Ajustes (Região)
-                        </h3>
-                        <ResponsiveContainer width="100%" height="85%">
+                    <div className="bg-white rounded-lg border p-4 shadow-sm h-[250px] print-card">
+                        <h3 className="font-bold text-slate-700 text-[10px] mb-2 uppercase border-b pb-1">Top Ajustes (Região)</h3>
+                        <ResponsiveContainer width="100%" height="90%">
                             <BarChart data={chartsData.regionais} layout="vertical">
                                 <XAxis type="number" hide />
                                 <YAxis dataKey="name" type="category" width={80} tick={{fontSize: 9}} />
                                 <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={12}>
-                                    {chartsData.regionais.map((entry, index) => ( <Cell key={index} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
+                                    {chartsData.regionais.map((e, i) => ( <Cell key={i} fill={e.value < 0 ? '#ef4444' : '#10b981'} /> ))}
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                    <div className="bg-white rounded-lg border p-4 shadow-sm h-[280px] print-card">
-                        <h3 className="font-bold text-slate-700 text-[10px] mb-4 uppercase flex items-center gap-2 border-b pb-2">
-                            <SafeIcon name="AlertCircle" className="text-orange-500" /> Top Ajustes (Material)
-                        </h3>
-                        <ResponsiveContainer width="100%" height="85%">
+                    <div className="bg-white rounded-lg border p-4 shadow-sm h-[250px] print-card">
+                        <h3 className="font-bold text-slate-700 text-[10px] mb-2 uppercase border-b pb-1">Top Ajustes (Material)</h3>
+                        <ResponsiveContainer width="100%" height="90%">
                             <BarChart data={chartsData.materiais} layout="vertical">
                                 <XAxis type="number" hide />
                                 <YAxis dataKey="name" type="category" width={80} tick={{fontSize: 9}} />
                                 <Bar dataKey="abs" radius={[0, 4, 4, 0]} barSize={12}>
-                                    {chartsData.materiais.map((entry, index) => ( <Cell key={index} fill={entry.value < 0 ? '#ef4444' : '#10b981'} /> ))}
+                                    {chartsData.materiais.map((e, i) => ( <Cell key={i} fill={e.value < 0 ? '#ef4444' : '#10b981'} /> ))}
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
@@ -1739,65 +1827,58 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 </div>
             </div>
 
-            {/* TABELA ANALÍTICA */}
-            <div className="bg-white rounded-lg border shadow-sm overflow-hidden mb-6 print-table-container">
-                <div className="px-4 py-2 border-b bg-slate-50 flex items-center gap-2">
-                    <SafeIcon name="Table" className="text-purple-600" />
-                    <h3 className="font-black text-slate-700 text-xs uppercase">Detalhamento Analítico</h3>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-[10px] text-left">
-                        <thead className="bg-white border-b uppercase font-bold text-slate-500">
-                            <tr>
-                                <th className="px-3 py-2">Material</th>
-                                <th className="px-2 py-2 text-right">Est. Inicial (Q)</th>
-                                <th className="px-2 py-2 text-right">Entradas (Q)</th>
-                                <th className="px-2 py-2 text-right">Saídas (Q)</th>
-                                <th className="px-2 py-2 text-right">SAP (Q)</th>
-                                <th className="px-2 py-2 text-right">Real (Q)</th>
-                                <th className="px-2 py-2 text-right font-bold text-purple-700">Perda (R$)</th>
-                                <th className="px-2 py-2 text-right">Var %</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {analiticaData.map((row, i) => (
-                                <tr key={i} className="hover:bg-purple-50">
-                                    <td className="px-3 py-2 font-medium">{row.name}</td>
-                                    <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_inicial_sap)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtNum(row.entradas_sap)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-red-500">-{fmtNum(row.saidas_sap)}</td>
-                                    <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_final_sap)}</td>
-                                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-600">{fmtNum(row.est_final_real)}</td>
-                                    <td className={`px-2 py-2 text-right font-bold ${row.custo_dif < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                                        {fmtMoney(row.custo_dif)}
-                                    </td>
-                                    <td className="px-2 py-2 text-right font-bold text-slate-400">{fmtPerc(row.variacaoPct)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+            {/* SELETOR DE ABAS */}
+            <div className="flex gap-2 p-1 bg-slate-100 rounded-lg w-fit no-print">
+                {['analitica', 'regiao_material', 'material_regiao', 'categoria_material', 'usina_material'].map(tab => (
+                    <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 text-[10px] font-bold rounded-md transition-all uppercase ${activeTab === tab ? 'bg-white shadow-sm text-purple-700' : 'text-slate-500'}`}>
+                        {tab.replace('_', ' + ')}
+                    </button>
+                ))}
             </div>
 
-            <div className="no-print">
-                <DrillDownTable rawData={lista} title="Visão por Região" hierarchy={[{key: 'regional', label: 'Regional'}, {key: 'grupo_material', label: 'Material'}]} />
+            {/* CONTEÚDO DAS ABAS */}
+            <div className="min-h-[400px]">
+                {activeTab === 'analitica' && (
+                    <StandardTable title="Detalhamento Analítico" iconName="Table">
+                        <table className="w-full text-[10px] text-left">
+                            <thead className="bg-white border-b font-bold text-slate-500 uppercase">
+                                <tr>
+                                    <th className="px-3 py-2">Material</th>
+                                    <th className="px-2 py-2 text-right">Est. Ini (Q)</th>
+                                    <th className="px-2 py-2 text-right">Entradas (Q)</th>
+                                    <th className="px-2 py-2 text-right">Saídas (Q)</th>
+                                    <th className="px-2 py-2 text-right">SAP (Q)</th>
+                                    <th className="px-2 py-2 text-right">Real (Q)</th>
+                                    <th className="px-2 py-2 text-right font-bold text-purple-700">Perda (R$)</th>
+                                    <th className="px-2 py-2 text-right">Var %</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {analiticaData.map((row, i) => (
+                                    <tr key={i} className="hover:bg-purple-50">
+                                        <td className="px-3 py-2 font-medium">{row.name}</td>
+                                        <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_inicial_sap)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtNum(row.entradas_sap)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-red-500">-{fmtNum(row.saidas_sap)}</td>
+                                        <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_final_sap)}</td>
+                                        <td className="px-2 py-2 text-right font-mono font-bold text-blue-600">{fmtNum(row.est_final_real)}</td>
+                                        <td className={`px-2 py-2 text-right font-bold ${row.custo_dif < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(row.custo_dif)}</td>
+                                        <td className="px-2 py-2 text-right font-bold text-slate-400">{fmtPerc(row.variacaoPct)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </StandardTable>
+                )}
+
+                {activeTab === 'regiao_material' && <DrillDownTable rawData={lista} title="Região > Material" iconName="Target" hierarchy={[{key: 'regional', label: 'Regional'}, {key: 'grupo_material', label: 'Material'}]} />}
+                {activeTab === 'material_regiao' && <DrillDownTable rawData={lista} title="Material > Região" iconName="Box" hierarchy={[{key: 'grupo_material', label: 'Material'}, {key: 'regional', label: 'Regional'}]} />}
+                {activeTab === 'categoria_material' && <DrillDownTable rawData={lista} title="Categoria > Material" iconName="ListFilter" hierarchy={[{key: 'categoria', label: 'Categoria'}, {key: 'grupo_material', label: 'Material'}]} />}
+                {activeTab === 'usina_material' && <DrillDownTable rawData={lista} title="Usina > Material" iconName="Briefcase" hierarchy={[{key: 'filial', label: 'Usina / Filial'}, {key: 'grupo_material', label: 'Material'}]} />}
             </div>
         </div>
     );
 };
-
-// Sub-componente de Card
-const FlowCard = ({ title, val, icon, color }) => (
-    <div className="bg-white p-4 rounded-lg border shadow-sm print-card">
-        <div className="flex justify-between items-start mb-2">
-            <span className="text-[10px] font-bold uppercase text-slate-500">{title}</span>
-            <div className={`p-1 rounded bg-opacity-10 ${color.replace('text-', 'bg-')}`}>
-                <Icons[icon] className={color} size={14} />
-            </div>
-        </div>
-        <div className="text-lg font-bold text-slate-800">{Utils.formatters.currency(val)}</div>
-    </div>
-);
        const InsumosImport = ({ onImport, loading }) => {
     const [date, setDate] = useState('');
 
@@ -6495,6 +6576,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
