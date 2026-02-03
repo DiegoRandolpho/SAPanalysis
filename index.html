@@ -1801,84 +1801,73 @@ const BarChartWidget = ({ title, data, isDark }) => {
         </div>
     );
 };
-      const InsumosImport = ({ onImport, loading }) => {
-    const [date, setDate] = useState('');
+      const processInsumosFile = (file, periodDate) => {
+    const XLSX = window.XLSX;
+    if (!XLSX) { addLog("Biblioteca XLSX não carregada.", "error"); return; }
+    
+    setLoading(true);
+    const reader = new FileReader();
+    
+    reader.onload = async (e) => {
+        try {
+            const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+            const sheetName = wb.SheetNames[0];
+            const jsonData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" });
 
-    const handleFileChange = (e) => {
-        // Validação: Garante que a data foi escolhida antes de prosseguir
-        if (!date) {
-            alert("⚠️ Atenção:\n\nPor favor, selecione o Mês de Referência antes de carregar o arquivo.");
-            e.target.value = null;
-            return;
-        }
-        
-        const file = e.target.files[0];
-        if (file) {
-            // 1. Definição do Mapeamento (Nome no Excel -> Nome na Coluna do Banco)
-            const columnMapping = {
-                'REGIONAL': 'regional',
-                'FILIAL': 'filial',
-                'CÓD': 'cod_material',
-                'GRUPO MATERIAL': 'grupo_material',
-                'CATEGORIA': 'categoria',
-                'EST. IN. SAP': 'est_inicial_sap',
-                '+ SAP': 'entradas_sap',
-                '- SAP': 'saidas_sap',
-                'EST. FIN. SAP': 'est_final_sap',
-                'EST. FIN. REAL': 'est_final_real',
-                'DIF REAL X SAP': 'dif_real_sap',
-                'DIF CUSTO': 'custo_dif',
-                'Nº CAMINHÕES': 'num_caminhoes',
-                'Nº IBC\'S': 'num_ibcs',
-                'EST. IN.SAP ($)': 'est_inicial_val',
-                '+ (SÓ ENT 101) $': 'entradas_val',
-                '- (SÓ SAÍ 201) $': 'saidas_val',
-                'EST.FIN.SAP ($)': 'est_final_val_sap'
-            };
+            if (jsonData.length === 0) throw new Error("Arquivo vazio.");
 
-            // 2. Chamada da função de importação passando o mapeamento estrito
-            onImport(file, date, columnMapping);
+            const batch = jsonData.map(row => {
+                // Função auxiliar para buscar colunas ignorando espaços nas pontas
+                const get = (exactName) => {
+                    const foundKey = Object.keys(row).find(k => k.trim() === exactName);
+                    return foundKey ? row[foundKey] : null;
+                };
+
+                // Pular linhas de total ou vazias
+                if (!get("REGIONAL") || get("REGIONAL") === "Total") return null;
+
+                return {
+                    periodo: periodDate,
+                    regional: get("REGIONAL"),
+                    filial: get("Filial"),
+                    cod_material: String(get("Cód") || ""),
+                    grupo_material: get("Grupo Material"),
+                    categoria: get("Categoria"),
+                    
+                    // Colunas que você listou para o banco
+                    est_inicial_sap: Utils.formatters.parseBrl(get("Est. In. Sap")),
+                    est_final_sap: Utils.formatters.parseBrl(get("Est. Fin. Sap")),
+                    dif_real_sap: Utils.formatters.parseBrl(get("Dif real x sap")),
+                    custo_dif: Utils.formatters.parseBrl(get("DIF CUSTO")),
+                    num_caminhoes: Utils.formatters.parseBrl(get("Nº Caminhões")),
+                    num_ibcs: Utils.formatters.parseBrl(get("Nº IBC's")),
+                    
+                    // Colunas que serão usadas nos cálculos matemáticos
+                    est_inicial_val: Utils.formatters.parseBrl(get("Est In. Sap ($)")),
+                    entradas_sap: Utils.formatters.parseBrl(get("+ ( Só ENT 101)")),
+                    saidas_sap: Utils.formatters.parseBrl(get("- (Só SAI 201)")),
+                    entradas_val: Utils.formatters.parseBrl(get("SÓ ENT 101) $")),
+                    saidas_val: Utils.formatters.parseBrl(get("- (SÓ SAÍ 201) $")),
+                    est_final_val_sap: Utils.formatters.parseBrl(get("EST.FIN.SAP ($)"))
+                };
+            }).filter(i => i !== null);
+
+            // Limpa o período anterior e insere os novos dados
+            await supabaseClient.from('insumos_estoque').delete().eq('periodo', periodDate);
+            const { error } = await supabaseClient.from('insumos_estoque').insert(batch);
+            
+            if (error) throw error;
+            
+            addLog(`Sucesso! ${batch.length} registros importados.`, "success");
+            fetchInsumosData(periodDate); // Atualiza a tela
+
+        } catch (err) {
+            addLog("Erro na importação: " + err.message, "error");
+        } finally {
+            setLoading(false);
         }
-        e.target.value = null;
     };
-
-    return (
-        <div className="max-w-2xl mx-auto glass-card p-8 animate-enter">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                <Icons.Upload className="text-purple-500" /> Importação de Insumos
-            </h3>
-            <div className="space-y-6">
-                <div className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-lg border border-purple-100 dark:border-purple-800/30 text-[10px] text-purple-800 dark:text-purple-300">
-                    <strong>Layout de Importação:</strong> REGIONAL | FILIAL | CÓD | GRUPO MATERIAL | CATEGORIA | ... | DIF CUSTO | Nº CAMINHÕES | Nº IBC'S | EST. IN.SAP ($) | + (101) $ | - (201) $ | EST.FIN.SAP ($)
-                </div>
-                
-                <MonthPicker label="Mês de Referência" value={date} onChange={setDate} />
-                
-                <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group cursor-pointer relative">
-                    <input 
-                        type="file" 
-                        accept=".xlsx, .csv" 
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
-                        disabled={loading}
-                        onChange={handleFileChange} 
-                    />
-                    <div className={`flex flex-col items-center transition-opacity ${!date ? 'opacity-60' : 'opacity-100'}`}>
-                        <div className="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 p-4 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                            <Icons.FileText width={32} height={32} />
-                        </div>
-                        <span className="font-bold text-slate-700 dark:text-slate-300">
-                            {loading ? 'Processando...' : 'Selecionar Arquivo Excel'}
-                        </span>
-                        {!date && (
-                            <span className="text-xs text-red-500 mt-2 font-bold animate-pulse">
-                                * Selecione o mês acima primeiro
-                            </span>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+    reader.readAsArrayBuffer(file);
 };
      const NotaDebitoCredito = ({ supabaseClient, onNotify, session }) => {
     const [history, setHistory] = React.useState([]);
@@ -6519,6 +6508,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
