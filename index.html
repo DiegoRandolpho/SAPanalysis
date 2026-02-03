@@ -154,6 +154,7 @@ const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
             normalizeClass: (str) => str ? str.toString().trim().toUpperCase().replace(/\s+/g, ' ') : '',
             checkPermission: (role, required) => {
     if (!role) return false;
+    if (required === 'notas_dc') return true;
     const r = role.toLowerCase();
     
     // Admin vê tudo
@@ -2322,14 +2323,15 @@ const BarChartWidget = ({ title, data, isDark }) => {
                             )}
                         </div>
                     )}
+                    <button onClick={() => { setView('notas_dc'); toggleModule('notas'); }} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${view === 'notas_dc' ? 'text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}> <div className="flex items-center gap-3"><Icons.FileText className="w-5 h-5" />{isSidebarOpen && <span>Gerar Nota D/C</span>}</div>
+                            </button>
                     {(userRole === 'admin' || userRole === 'administrador') && (
                         <div>
                             <button onClick={() => toggleModule('admin')} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${expandedModules.admin ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
                                 <div className="flex items-center gap-3"><IconSettings width={18} />{isSidebarOpen && <span>Admin</span>}</div>
                                 {isSidebarOpen && (expandedModules.admin ? <IconChevronDown width={14} /> : <IconChevronRight width={14} />)}
                             </button>
-                            <button onClick={() => { setView('notas_dc'); toggleModule('notas'); }} className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors ${view === 'notas_dc' ? 'text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}> <div className="flex items-center gap-3"><Icons.FileText className="w-5 h-5" />{isSidebarOpen && <span>Gerar Nota D/C</span>}</div>
-                            </button>
+                            
                             {isSidebarOpen && (
                                 <div className={`overflow-hidden transition-all duration-300 ${expandedModules.admin ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
                                     <div className="space-y-0.5 mb-2">
@@ -6505,4 +6507,5 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
