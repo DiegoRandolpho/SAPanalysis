@@ -1078,15 +1078,31 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             const chartColors = getChartColors(isDark);
             
             useEffect(() => { if(contas.length > 0 && !selectedConta) setSelectedConta(contas[0]); }, [contas]);
-            const fetchInsumosData = async (periodoOverride) => {
+            const fetchInsumosData = async (periodDate) => {
     setLoading(true);
     try {
-        const p = periodoOverride || insumosFilters.periodo;
-        const { data, error } = await supabaseClient.rpc('get_insumos_dashboard', { p_periodo: p });
+        // Chamada via RPC (Função que criamos no SQL)
+        const { data, error } = await supabaseClient.rpc('get_insumos_dashboard', {
+            p_periodo: periodDate
+        });
+
         if (error) throw error;
-        setInsumosData(data);
-    } catch (e) {
-        addLog("Erro ao carregar insumos: " + e.message, "error");
+
+        // Se a RPC falhar ou não estiver disponível, o fallback deve ser:
+        if (!data || !data.lista) {
+            const { data: rawData, error: rawError } = await supabaseClient
+                .from('insumos_estoque')
+                .select('*') // Use '*' para evitar erro de nomes de colunas específicos
+                .eq('periodo', periodDate);
+            
+            if (rawError) throw rawError;
+            setInsumosData(rawData || []);
+        } else {
+            setInsumosData(data.lista || []);
+        }
+
+    } catch (err) {
+        addLog("Erro ao carregar dashboard: " + err.message, "error");
     } finally {
         setLoading(false);
     }
@@ -6494,6 +6510,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
