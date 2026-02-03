@@ -1806,88 +1806,41 @@ const BarChartWidget = ({ title, data, isDark }) => {
 
     const handleFileChange = (e) => {
         if (!date) {
-            alert("⚠️ Atenção:\n\nPor favor, selecione o Mês de Referência antes de carregar o arquivo.");
+            alert("Selecione o Mês de Referência primeiro.");
             e.target.value = null;
             return;
         }
-        
         const file = e.target.files[0];
         if (file) {
-            // Definição do Mapeamento Estrito conforme sua lista
-            // Nome no Excel => Nome da Coluna no Banco (definido no Passo 1)
-            const columnMapping = {
-                'REGIONAL': 'regional',
-                'Filial': 'filial',
-                'Cód': 'cod_material',
-                'Grupo Material': 'grupo_material',
-                'Categoria': 'categoria',
-                'Est. In. Sap': 'est_inicial_sap',
-                'Est. Fin. Sap': 'est_final_sap',
-                'Dif real x sap': 'dif_real_sap',
-                'DIF CUSTO': 'custo_dif',
-                'Nº Caminhões': 'num_caminhoes',
-                'Nº IBC\'s': 'num_ibcs',
-                'Est In. Sap ($)': 'est_inicial_val',
-                '+ ( Só ENT 101)': 'entradas_sap',
-                '- (Só SAI 201)': 'saidas_sap',
-                'SÓ ENT 101) $': 'entradas_val',
-                '- (SÓ SAÍ 201) $': 'saidas_val',
-                'EST.FIN.SAP ($)': 'est_final_val_sap'
-            };
-
-            // Dispara a função de importação que está no App.js
-            // Passamos o mapeamento para que a lógica de parse saiba o que procurar
-            onImport(file, 'insumos', date, columnMapping);
+            // No seu App.js, a função handleImport deve chamar processInsumosFile
+            onImport(file, 'insumos', date);
         }
         e.target.value = null;
     };
 
     return (
         <div className="max-w-2xl mx-auto glass-card p-8 animate-enter">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                <Icons.Upload className="text-purple-500" /> Importação de Insumos (Estoque vs SAP)
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                <Icons.Upload className="text-purple-500" /> Importar Relatório de Insumos
             </h3>
+            
             <div className="space-y-6">
-                <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg border border-blue-100 dark:border-blue-800/30 text-[11px] text-blue-800 dark:text-blue-300">
-                    <p className="font-bold mb-1">ℹ️ Instruções de Cálculo:</p>
-                    <ul className="list-disc ml-4 space-y-1">
-                        <li>As colunas de QTDD (Est. In/Fin) serão registradas apenas para consulta.</li>
-                        <li>Os cálculos de variação utilizarão as colunas de <strong>valores ($)</strong>.</li>
-                        <li>Campos com "*" no Excel original serão ignorados conforme solicitado.</li>
-                    </ul>
-                </div>
-                
                 <MonthPicker label="Mês de Referência" value={date} onChange={setDate} />
                 
-                <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-10 text-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group cursor-pointer relative">
+                <label className="relative border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-12 text-center hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all cursor-pointer block">
                     <input 
                         type="file" 
-                        accept=".xlsx, .csv" 
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                        accept=".xlsx, .xls" 
+                        className="hidden" 
+                        onChange={handleFileChange}
                         disabled={loading}
-                        onChange={handleFileChange} 
                     />
-                    <div className={`flex flex-col items-center transition-opacity ${!date ? 'opacity-60' : 'opacity-100'}`}>
-                        <div className="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 p-4 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                            <Icons.FileText width={32} height={32} />
-                        </div>
-                        <span className="font-bold text-slate-700 dark:text-slate-300">
-                            {loading ? 'Processando dados...' : 'Clique para selecionar o Excel'}
-                        </span>
-                        {!date && (
-                            <span className="text-xs text-red-500 mt-2 font-bold animate-pulse">
-                                * Selecione o mês acima antes de carregar
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                {loading && (
-                    <div className="flex items-center justify-center gap-3 text-sm text-purple-600 font-bold">
-                        <div className="loader h-4 w-4 border-2 border-purple-600 rounded-full border-t-transparent animate-spin"></div>
-                        Lendo linhas e processando cálculos...
-                    </div>
-                )}
+                    <Icons.FileText className="mx-auto text-slate-400 mb-4" width={48} height={48} />
+                    <p className="text-slate-600 dark:text-slate-300 font-medium">
+                        {loading ? "Processando..." : "Clique para selecionar o arquivo Excel"}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-2">Formatos aceitos: .xlsx, .xls</p>
+                </label>
             </div>
         </div>
     );
@@ -6092,61 +6045,57 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             if (jsonData.length === 0) throw new Error("Arquivo vazio.");
 
             const batch = jsonData.map(row => {
-                // Função para buscar a coluna no Excel ignorando espaços extras
-                const get = (colName) => {
-                    const foundKey = Object.keys(row).find(k => k.trim() === colName);
-                    return foundKey ? row[foundKey] : null;
+                // Função para extrair valor limpando espaços e garantindo que o nome da coluna seja exato
+                const get = (name) => {
+                    const value = row[name];
+                    return value !== undefined && value !== null ? value : null;
                 };
 
-                // Pular linhas de totais ou sem identificação de Regional
-                if (!get("REGIONAL") || get("REGIONAL") === "Total") return null;
+                // Pula linhas vazias ou de totalizadores
+                if (!get("REGIONAL") || get("REGIONAL").toString().includes("Total")) return null;
 
                 return {
                     periodo: periodDate,
                     regional: get("REGIONAL"),
-                    filial: get("Filial"),
-                    cod_material: String(get("Cód") || ""),
-                    grupo_material: get("Grupo Material"),
-                    categoria: get("Categoria"),
+                    filial: get("FILIAL"),
+                    cod_material: String(get("CÓD") || ""),
+                    grupo_material: get("GRUPO MATERIAL"),
+                    categoria: get("CATEGORIA"),
                     
-                    // Colunas de Quantidade (QTDD)
-                    est_inicial_sap: Utils.formatters.parseBrl(get("Est. In. Sap")),
-                    est_final_sap: Utils.formatters.parseBrl(get("Est. Fin. Sap")),
-                    dif_real_sap: Utils.formatters.parseBrl(get("Dif real x sap")),
+                    // Quantidades (QTDD)
+                    est_inicial_sap: Utils.formatters.parseBrl(get("EST. IN. SAP")),
+                    entradas_sap: Utils.formatters.parseBrl(get("+ SAP")),
+                    saidas_sap: Utils.formatters.parseBrl(get("- SAP")),
+                    est_final_sap: Utils.formatters.parseBrl(get("EST. FIN. SAP")),
+                    est_final_real: Utils.formatters.parseBrl(get("EST. FIN. REAL")),
+                    dif_real_sap: Utils.formatters.parseBrl(get("DIF REAL X SAP")),
                     
-                    // Colunas Financeiras e Logísticas (Conforme sua lista)
+                    // Financeiro e Logística
                     custo_dif: Utils.formatters.parseBrl(get("DIF CUSTO")),
-                    num_caminhoes: Utils.formatters.parseBrl(get("Nº Caminhões")),
-                    num_ibcs: Utils.formatters.parseBrl(get("Nº IBC's")),
+                    num_caminhoes: Utils.formatters.parseBrl(get("Nº CAMINHÕES")),
+                    num_ibcs: Utils.formatters.parseBrl(get("Nº IBC'S")),
                     
-                    // Colunas para Cálculo de Variação
-                    est_inicial_val: Utils.formatters.parseBrl(get("Est In. Sap ($)")),
-                    entradas_sap: Utils.formatters.parseBrl(get("+ ( Só ENT 101)")),
-                    saidas_sap: Utils.formatters.parseBrl(get("- (Só SAI 201)")),
-                    entradas_val: Utils.formatters.parseBrl(get("SÓ ENT 101) $")),
-                    saidas_val: Utils.formatters.parseBrl(get("- (SÓ SAÍ 201) $")),
+                    // Valores para Cálculo Financeiro (As colunas finais da sua lista)
+                    est_inicial_val: Utils.formatters.parseBrl(get("EST. IN.SAP ($)")),
+                    entradas_val_101_qtd: Utils.formatters.parseBrl(get("+ (SÓ ENT 101)")), // Quantidade 101
+                    saidas_val_201_qtd: Utils.formatters.parseBrl(get("- (SÓ SAÍ 201)")),   // Quantidade 201
+                    entradas_val: Utils.formatters.parseBrl(get("+ (SÓ ENT 101) $")),       // Valor R$ 101
+                    saidas_val: Utils.formatters.parseBrl(get("- (SÓ SAÍ 201) $")),         // Valor R$ 201
                     est_final_val_sap: Utils.formatters.parseBrl(get("EST.FIN.SAP ($)"))
                 };
             }).filter(i => i !== null);
 
-            // 1. Limpa dados antigos do mesmo período para evitar duplicidade
+            // Envio ao banco
             await supabaseClient.from('insumos_estoque').delete().eq('periodo', periodDate);
-            
-            // 2. Insere a nova massa de dados
             const { error } = await supabaseClient.from('insumos_estoque').insert(batch);
             
             if (error) throw error;
+            addLog(`Sucesso! ${batch.length} itens de insumos processados para ${periodDate}.`, "success");
             
-            addLog(`Sucesso! ${batch.length} registros de insumos importados.`, "success");
-            
-            // 3. Atualiza o dashboard se estiver na visualização de insumos
-            if (view === 'insumos' && subView === 'dash') {
-                fetchInsumosData(periodDate);
-            }
+            if (typeof fetchInsumosData === 'function') fetchInsumosData(periodDate);
 
         } catch (err) {
-            console.error(err);
-            addLog("Erro na importação de Insumos: " + err.message, "error");
+            addLog("Falha na leitura das colunas: " + err.message, "error");
         } finally {
             setLoading(false);
         }
@@ -6545,6 +6494,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
