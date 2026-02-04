@@ -1735,76 +1735,86 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             </div>
 
             <div className="min-h-[400px]">
-                {/* ABA 1: ANALÍTICA (MANTIDA) */}
-                {activeTab === 'analitica' && (
-                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden animate-enter">
-                        <table className="w-full text-[10px] text-left">
-                            <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 font-bold text-slate-500 dark:text-slate-400 uppercase">
-                                <tr>
-                                    <th className="px-3 py-2">Grupo de Material</th>
-                                    <th className="px-2 py-2 text-right">Est. Ini (Q)</th>
-                                    <th className="px-2 py-2 text-right">Entradas (Q)</th>
-                                    <th className="px-2 py-2 text-right">Real (Q)</th>
-                                    <th className="px-2 py-2 text-right font-bold text-purple-700 dark:text-purple-400">DIF CUSTO (R$)</th>
-                                    <th className="px-2 py-2 text-right">Var %</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                {analiticaData.map((row, i) => (
-                                    <tr key={i} className="hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-colors">
-                                        <td className="px-3 py-2 font-medium text-slate-700 dark:text-slate-300">{row.name}</td>
-                                        <td className="px-2 py-2 text-right font-mono text-slate-600 dark:text-slate-400">{fmtNum(row.est_inicial_sap)}</td>
-                                        <td className="px-2 py-2 text-right font-mono text-emerald-600 dark:text-emerald-400">+{fmtNum(row.entradas_sap)}</td>
-                                        <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 dark:text-blue-400">{fmtNum(row.est_final_real)}</td>
-                                        <td className={`px-2 py-2 text-right font-bold ${row.custo_dif < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(row.custo_dif)}</td>
-                                        <td className="px-2 py-2 text-right font-bold text-slate-400">{fmtPerc(row.variacaoPct)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+    {/* ABA 1: ANALÍTICA (MANUTENÇÃO TÉCNICA) */}
+    {activeTab === 'analitica' && (
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden animate-enter">
+            <table className="w-full text-[10px] text-left">
+                <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 font-bold text-slate-500 uppercase">
+                    <tr>
+                        <th className="px-3 py-3">Material (Validação de Preço/Qtd)</th>
+                        <th className="px-2 py-3 text-right">Est. Inicial (Q)</th>
+                        <th className="px-2 py-3 text-right">Entradas (Q)</th>
+                        <th className="px-2 py-3 text-right">Est. Final Real (Q)</th>
+                        <th className="px-2 py-3 text-right">Est. Final SAP (Q)</th>
+                        <th className="px-2 py-3 text-right">Diferença (Q)</th>
+                        <th className="px-2 py-3 text-right font-bold text-purple-600">Preço Médio Unit.</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                    {analiticaData.map((row, i) => (
+                        <tr key={i} className="hover:bg-slate-50">
+                            <td className="px-3 py-2 font-medium">{row.name}</td>
+                            <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_inicial_sap)}</td>
+                            <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtNum(row.entradas_sap)}</td>
+                            <td className="px-2 py-2 text-right font-mono font-bold text-blue-600">{fmtNum(row.est_final_real)}</td>
+                            <td className="px-2 py-2 text-right font-mono text-slate-400">{fmtNum(row.est_final_sap)}</td>
+                            <td className={`px-2 py-2 text-right font-bold ${row.est_final_real - row.est_final_sap < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                {fmtNum(row.est_final_real - row.est_final_sap)}
+                            </td>
+                            <td className="px-2 py-2 text-right font-bold text-purple-700">
+                                {Utils.formatters.currency((row.est_in_val + row.entradas_val) / (row.est_inicial_sap + row.entradas_sap || 1))}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    )}
 
-                {/* ABA 2: REGIÃO + MATERIAL */}
-                {activeTab === 'regiao_material' && (
-                    <DrillDownTable 
-                        data={lista} 
-                        groupKey="regional" 
-                        subKey="grupo_material" 
-                        title="Diferença por Regional e Material" 
-                    />
-                )}
+    {/* ABA 2: REGIÃO + MATERIAL (VISÃO OPERACIONAL) */}
+    {activeTab === 'regiao_material' && (
+        <InsumosDrillDownTable 
+            data={lista} 
+            groupKey="regional" 
+            subKey="grupo_material" 
+            title="Impacto Financeiro: Onde estão os furos por Região?" 
+            isDark={isDark}
+        />
+    )}
 
-                {/* ABA 3: MATERIAL + REGIÃO */}
-                {activeTab === 'material_regiao' && (
-                    <DrillDownTable 
-                        data={lista} 
-                        groupKey="grupo_material" 
-                        subKey="regional" 
-                        title="Diferença por Material e Regional" 
-                    />
-                )}
+    {/* ABA 3: MATERIAL + REGIÃO (VISÃO SISTÊMICA) */}
+    {activeTab === 'material_regiao' && (
+        <InsumosDrillDownTable 
+            data={lista} 
+            groupKey="grupo_material" 
+            subKey="regional" 
+            title="O Vilão do Estoque: Qual produto causa mais prejuízo?" 
+            isDark={isDark}
+        />
+    )}
 
-                {/* ABA 4: CATEGORIA + MATERIAL */}
-                {activeTab === 'categoria_material' && (
-                    <DrillDownTable 
-                        data={lista} 
-                        groupKey="categoria" 
-                        subKey="grupo_material" 
-                        title="Diferença por Categoria de Insumo" 
-                    />
-                )}
+    {/* ABA 4: CATEGORIA + MATERIAL (VISÃO EXECUTIVA) */}
+    {activeTab === 'categoria_material' && (
+        <InsumosDrillDownTable 
+            data={lista} 
+            groupKey="categoria" 
+            subKey="grupo_material" 
+            title="Famílias de Materiais: Perda em Areia (Volume) ou Aditivo (Valor)?" 
+            isDark={isDark}
+        />
+    )}
 
-                {/* ABA 5: USINA (FILIAL) + MATERIAL */}
-                {activeTab === 'usina_material' && (
-                    <DrillDownTable 
-                        data={lista} 
-                        groupKey="filial" 
-                        subKey="grupo_material" 
-                        title="Diferença por Filial e Material" 
-                    />
-                )}
-            </div>
+    {/* ABA 5: USINA + MATERIAL (AUDITORIA LOCAL) */}
+    {activeTab === 'usina_material' && (
+        <InsumosDrillDownTable 
+            data={lista} 
+            groupKey="filial" 
+            subKey="grupo_material" 
+            title="Ranking de Filiais: Top 10 Usinas com furos críticos" 
+            isDark={isDark}
+        />
+    )}
+</div>
         </div>
     );
 };
@@ -5778,82 +5788,105 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         </div>
     );
 };
-        const DrillDownTable = ({ data, groupKey, subKey, title }) => {
-    // Estado para controlar quais grupos estão expandidos
+        const InsumosDrillDownTable = ({ data, groupKey, subKey, title, isDark }) => {
     const [expandedGroups, setExpandedGroups] = useState({});
+    const chartColors = getChartColors(isDark);
 
-    const grouped = useMemo(() => {
+    const groupedData = useMemo(() => {
         const map = {};
         data.forEach(item => {
             const main = item[groupKey] || 'N/D';
             const sub = item[subKey] || 'Outros';
-            const val = Number(item.custo_dif) || 0;
             
-            if (!map[main]) map[main] = { name: main, total: 0, subs: {} };
-            map[main].total += val;
+            if (!map[main]) {
+                map[main] = { 
+                    name: main, custo: 0, cam: 0, ibc: 0, 
+                    est_ini_val: 0, entradas_val: 0, subs: {} 
+                };
+            }
             
-            if (!map[main].subs[sub]) map[main].subs[sub] = 0;
-            map[main].subs[sub] += val;
+            map[main].custo += Number(item.custo_dif) || 0;
+            map[main].cam += Number(item.num_caminhoes) || 0;
+            map[main].ibc += Number(item.num_ibcs) || 0;
+            map[main].est_ini_val += Number(item.est_inicial_val) || 0;
+            map[main].entradas_val += Number(item.entradas_val) || 0;
+
+            if (!map[main].subs[sub]) {
+                map[main].subs[sub] = { name: sub, custo: 0, cam: 0, ibc: 0, est_ini_val: 0, entradas_val: 0 };
+            }
+            map[main].subs[sub].custo += Number(item.custo_dif) || 0;
+            map[main].subs[sub].cam += Number(item.num_caminhoes) || 0;
+            map[main].subs[sub].ibc += Number(item.num_ibcs) || 0;
+            map[main].subs[sub].est_ini_val += Number(item.est_inicial_val) || 0;
+            map[main].subs[sub].entradas_val += Number(item.entradas_val) || 0;
         });
-        return Object.values(map).sort((a, b) => a.total - b.total);
+
+        return Object.values(map).sort((a, b) => a.custo - b.custo);
     }, [data, groupKey, subKey]);
 
     const toggleGroup = (name) => {
-        setExpandedGroups(prev => ({
-            ...prev,
-            [name]: !prev[name]
-        }));
+        setExpandedGroups(prev => ({ ...prev, [name]: !prev[name] }));
+    };
+
+    const calcVar = (custo, ini, ent) => {
+        const total = (Number(ini) || 0) + (Number(ent) || 0);
+        return total !== 0 ? (custo / total) * 100 : 0;
     };
 
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden animate-enter">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden animate-enter">
             <div className="p-3 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
-                <h4 className="text-[10px] font-bold uppercase text-slate-500">{title}</h4>
+                <h4 className="text-[10px] font-bold uppercase text-slate-500 tracking-widest">{title}</h4>
             </div>
-            <table className="w-full text-[10px] text-left">
-                <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 font-bold uppercase">
-                    <tr>
-                        <th className="px-4 py-2">{groupKey.toUpperCase()}</th>
-                        <th className="px-4 py-2 text-right">TOTAL DIFERENÇA (R$)</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                    {grouped.map((group, i) => {
-                        const isExpanded = expandedGroups[group.name];
-                        return (
+            <div className="overflow-x-auto">
+                <table className="w-full text-[11px] text-left">
+                    <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 font-bold uppercase border-b dark:border-slate-700">
+                        <tr>
+                            <th className="px-4 py-3">Agrupamento</th>
+                            <th className="px-2 py-3 text-right">Caminhões</th>
+                            <th className="px-2 py-3 text-right">IBC's</th>
+                            <th className="px-2 py-3 text-right">Var %</th>
+                            <th className="px-4 py-3 text-right">Impacto Finan. (R$)</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                        {groupedData.map((group, i) => (
                             <React.Fragment key={i}>
-                                {/* LINHA DO GRUPO (CLICÁVEL) */}
-                                <tr 
-                                    onClick={() => toggleGroup(group.name)}
-                                    className="interactive-row bg-white dark:bg-slate-800 font-bold cursor-pointer"
-                                >
-                                    <td className="px-4 py-3 text-slate-800 dark:text-white flex items-center gap-3">
-                                        <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
-                                            <Icons.ChevronDown width={14} className="text-blue-500" />
+                                <tr onClick={() => toggleGroup(group.name)} className="interactive-row bg-white dark:bg-slate-800 font-bold cursor-pointer hover:bg-slate-50">
+                                    <td className="px-4 py-4 text-slate-800 dark:text-white flex items-center gap-3">
+                                        <div className={`transition-transform ${expandedGroups[group.name] ? 'rotate-180' : ''}`}>
+                                            <Icons.ChevronDown width={14} className="text-purple-500" />
                                         </div>
                                         {group.name}
                                     </td>
-                                    <td className={`px-4 py-3 text-right font-mono text-xs ${group.total < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                                        {Utils.formatters.currency(group.total)}
+                                    <td className="px-2 py-4 text-right">{group.cam.toFixed(1)}</td>
+                                    <td className="px-2 py-4 text-right">{group.ibc.toFixed(1)}</td>
+                                    <td className="px-2 py-4 text-right font-mono text-slate-400">
+                                        {calcVar(group.custo, group.est_ini_val, group.entradas_val).toFixed(2)}%
+                                    </td>
+                                    <td className={`px-4 py-4 text-right font-bold font-mono text-sm ${group.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                        {Utils.formatters.currency(group.custo)}
                                     </td>
                                 </tr>
 
-                                {/* ITENS DETALHADOS (SÓ APARECEM SE EXPANDIDO) */}
-                                {isExpanded && Object.entries(group.subs).map(([subName, subVal], j) => (
-                                    <tr key={j} className="bg-slate-50/50 dark:bg-slate-900/30 animate-enter">
-                                        <td className="px-12 py-2 text-slate-500 dark:text-slate-400 italic border-l-4 border-blue-500/30">
-                                            {subName}
+                                {expandedGroups[group.name] && Object.values(group.subs).map((sub, j) => (
+                                    <tr key={j} className="bg-slate-50/40 dark:bg-slate-900/40 border-l-4 border-purple-500/20">
+                                        <td className="px-12 py-2 text-slate-600 dark:text-slate-400 italic">{sub.name}</td>
+                                        <td className="px-2 py-2 text-right opacity-70">{sub.cam.toFixed(1)}</td>
+                                        <td className="px-2 py-2 text-right opacity-70">{sub.ibc.toFixed(1)}</td>
+                                        <td className="px-2 py-2 text-right font-mono opacity-50">
+                                            {calcVar(sub.custo, sub.est_ini_val, sub.entradas_val).toFixed(2)}%
                                         </td>
-                                        <td className={`px-4 py-2 text-right font-medium font-mono ${subVal < 0 ? 'text-red-500/70' : 'text-emerald-500/70'}`}>
-                                            {Utils.formatters.currency(subVal)}
+                                        <td className={`px-4 py-2 text-right font-mono font-bold ${sub.custo < 0 ? 'text-red-500/80' : 'text-emerald-500/80'}`}>
+                                            {Utils.formatters.currency(sub.custo)}
                                         </td>
                                     </tr>
                                 ))}
                             </React.Fragment>
-                        );
-                    })}
-                </tbody>
-            </table>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 };
@@ -6629,6 +6662,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
