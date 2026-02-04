@@ -1671,68 +1671,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         const IconComponent = Icons[name] || Icons.Activity;
         return <IconComponent className={className} width={width} height={width} />;
     };
-          const exportToPDF = () => {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    
-    // 1. CABEÇALHO PROFISSIONAL
-    // Logo (Usando a URL oficial presente no seu favicon)
-    const logoUrl = "https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png";
-    doc.addImage(logoUrl, 'PNG', 10, 10, 25, 10); 
-
-    // Título Principal (Preto)
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.setTextColor(0, 0, 0); // Fonte Preta
-    doc.text("Inventário de Insumos", pageWidth / 2, 18, { align: "center" });
-
-    // Período de Referência (Canto Superior Direito)
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(60, 60, 60);
-    const periodoFormatado = Utils.date.formatNice(filters.periodo);
-    doc.text(`Referência: ${periodoFormatado.toUpperCase()}`, pageWidth - 10, 18, { align: "right" });
-
-    // Linha Divisória
-    doc.setDrawColor(200, 200, 200);
-    doc.line(10, 25, pageWidth - 10, 25);
-
-    // 2. CONFIGURAÇÃO DA TABELA (Fontes Pretas)
-    doc.autoTable({
-        startY: 32,
-        head: [['Material', 'Est. Inicial (Q)', 'Entradas (Q)', 'Real (Q)', 'Diferença (R$)', 'Acuracidade']],
-        body: analiticaData.map(row => [
-            row.name,
-            row.est_inicial_sap.toFixed(2),
-            row.entradas_sap.toFixed(2),
-            row.est_final_real.toFixed(2),
-            Utils.formatters.currency(row.custo_dif),
-            (row.variacaoPct * 100).toFixed(2) + '%'
-        ]),
-        headStyles: {
-            fillColor: [240, 240, 240], 
-            textColor: [0, 0, 0],       // FONTE PRETA NOS HEADERS
-            fontStyle: 'bold',
-            fontSize: 8,
-            halign: 'center'
-        },
-        bodyStyles: {
-            fontSize: 8,
-            textColor: [0, 0, 0]        // FONTE PRETA NO CORPO
-        },
-        columnStyles: {
-            4: { halign: 'right' },
-            5: { halign: 'center' }
-        },
-        alternateRowStyles: {
-            fillColor: [252, 252, 252]
-        },
-        margin: { top: 30 }
-    });
-
-    doc.save(`Inventario_Insumos_${filters.periodo}.pdf`);
-};
 
     return (
         <div className="space-y-6 pb-10 report-container">
@@ -1747,7 +1685,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                         value={filters.periodo} 
                         onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} 
                     />
-                    <button onClick={exportToPDF} className="bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 text-white px-4 py-2 rounded flex items-center gap-2 transition-colors"> <SafeIcon name="FileText" /> Exportar PDF </button>
+                    <button onClick={() => window.print()} className="bg-slate-800 dark:bg-slate-700 text-white px-4 py-2 rounded flex items-center gap-2">PDF</button>
                 </div>
             </div>
 
@@ -6724,8 +6662,6 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
-
-
 
 
 
