@@ -1735,16 +1735,17 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             </div>
 
             <div className="min-h-[400px]">
+                {/* ABA 1: ANALÍTICA (MANTIDA) */}
                 {activeTab === 'analitica' && (
-                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden animate-enter">
                         <table className="w-full text-[10px] text-left">
                             <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 font-bold text-slate-500 dark:text-slate-400 uppercase">
                                 <tr>
-                                    <th className="px-3 py-2">Material</th>
+                                    <th className="px-3 py-2">Grupo de Material</th>
                                     <th className="px-2 py-2 text-right">Est. Ini (Q)</th>
                                     <th className="px-2 py-2 text-right">Entradas (Q)</th>
                                     <th className="px-2 py-2 text-right">Real (Q)</th>
-                                    <th className="px-2 py-2 text-right font-bold text-purple-700 dark:text-purple-400">Perda (R$)</th>
+                                    <th className="px-2 py-2 text-right font-bold text-purple-700 dark:text-purple-400">DIF CUSTO (R$)</th>
                                     <th className="px-2 py-2 text-right">Var %</th>
                                 </tr>
                             </thead>
@@ -1762,6 +1763,48 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                             </tbody>
                         </table>
                     </div>
+                )}
+
+                {/* ABA 2: REGIÃO + MATERIAL */}
+                {activeTab === 'regiao_material' && (
+                    <DrillDownTable 
+                        data={lista} 
+                        groupKey="regional" 
+                        subKey="grupo_material" 
+                        title="Diferença por Regional e Material" 
+                    />
+                )}
+
+                {/* ABA 3: MATERIAL + REGIÃO */}
+                {activeTab === 'material_regiao' && (
+                    <DrillDownTable 
+                        data={lista} 
+                        groupKey="grupo_material" 
+                        subKey="regional" 
+                        title="Diferença por Material e Regional" 
+                    />
+                )}
+
+                {/* ABA 4: CATEGORIA + MATERIAL */}
+                {activeTab === 'categoria_material' && (
+                    <DrillDownTable 
+                        data={lista} 
+                        groupKey="categoria" 
+                        subKey="grupo_material" 
+                        title="Diferença por Categoria de Insumo" 
+                    />
+                )}
+
+                {/* ABA 5: USINA (FILIAL) + MATERIAL */}
+                {activeTab === 'usina_material' && (
+                    <DrillDownTable 
+                        data={lista} 
+                        groupKey="filial" 
+                        subKey="grupo_material" 
+                        title="Diferença por Filial e Material" 
+                    />
+                )}
+            </div>
                 )}
                 {/* Repita a lógica de isDark para as DrillDownTables se necessário */}
             </div>
@@ -6510,6 +6553,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
