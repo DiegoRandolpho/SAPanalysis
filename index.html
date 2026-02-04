@@ -5778,7 +5778,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         </div>
     );
 };
-        cconst DrillDownTable = ({ data, groupKey, subKey, title }) => {
+        const DrillDownTable = ({ data, groupKey, subKey, title }) => {
     // Estado para controlar quais grupos estão expandidos
     const [expandedGroups, setExpandedGroups] = useState({});
 
@@ -6629,6 +6629,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
