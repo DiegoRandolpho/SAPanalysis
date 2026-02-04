@@ -1592,24 +1592,37 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         </div>
     );
 };
-      const InsumosDashboard = ({ lista, isDark }) => {
+      const InsumosDashboard = ({ lista = [], isDark }) => {
     const [activeTab, setActiveTab] = React.useState('analitica');
     const [expandedPaths, setExpandedPaths] = React.useState({});
 
-    // Funções de Utilitário Internas
+    // Proteção: Se a lista não existir ou não for um array, mostra um estado de carregamento/vazio
+    if (!lista || !Array.isArray(lista)) {
+        return (
+            <div className="flex items-center justify-center p-20 text-slate-500">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mr-3"></div>
+                Carregando dados do dashboard...
+            </div>
+        );
+    }
+
     const fmtNum = (v) => Utils.formatters.number(v);
     const fmtMoney = (v) => Utils.formatters.currency(v);
-    const fmtPerc = (v) => (Number(v) * 100).toFixed(2) + '%';
+    const fmtPerc = (v) => {
+        const n = Number(v);
+        if (isNaN(n) || !isFinite(n)) return '0.00%';
+        return (n * 100).toFixed(2) + '%';
+    };
 
-    // 1. PROCESSAMENTO DA TABELA ANALÍTICA
+    // 1. TABELA ANALÍTICA (ESTÁTICA)
     const analiticaData = React.useMemo(() => {
         const map = {};
         lista.forEach(item => {
-            const key = item.cod_material;
+            const key = item.cod_material || 'S/C';
             if (!map[key]) {
                 map[key] = {
                     name: item.grupo_material || 'S/N',
-                    cod: item.cod_material,
+                    cod: item.cod_material || 'S/C',
                     ini: 0, ent: 0, sai: 0, fin_t: 0, fin_r: 0, 
                     val_ini: 0, val_ent: 0, custo_dif: 0
                 };
@@ -1630,7 +1643,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         }));
     }, [lista]);
 
-    // 2. MOTOR DE DRILL-DOWN (Agrupamento Dinâmico para Tabelas 2 a 6)
+    // 2. MOTOR DRILL-DOWN (DINÂMICO)
     const renderDrillDown = (hierarchy, title) => {
         const getGrouped = (data, level = 0, path = "") => {
             const key = hierarchy[level];
@@ -1658,8 +1671,8 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                                 {hasNext && <Icons.ChevronDown width={12} className={`text-blue-500 transition-transform ${isOpen ? '' : '-rotate-90'}`} />}
                                 <span className={level === 0 ? "font-bold text-slate-700 dark:text-slate-200" : "text-slate-500"}>{g.name}</span>
                             </td>
-                            <td className="p-2 text-right font-mono">{Math.round(g.cam)}</td>
-                            <td className="p-2 text-right font-mono">{Math.round(g.ibc)}</td>
+                            <td className="p-2 text-right font-mono text-slate-500">{Math.round(g.cam)}</td>
+                            <td className="p-2 text-right font-mono text-slate-500">{Math.round(g.ibc)}</td>
                             <td className={`p-2 text-right font-bold font-mono ${g.total < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{fmtMoney(g.total)}</td>
                         </tr>
                         {isOpen && hasNext && renderRows(g.items, level + 1, g.path)}
@@ -1672,10 +1685,10 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             <table className="w-full text-[10px] bg-white dark:bg-slate-850 rounded-lg shadow-sm">
                 <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 font-bold uppercase">
                     <tr>
-                        <th className="p-2 text-left">Hierarquia: {hierarchy.join(' > ')}</th>
+                        <th className="p-2 text-left">Hierarquia</th>
                         <th className="p-2 text-right">Caminhões</th>
                         <th className="p-2 text-right">IBCs</th>
-                        <th className="p-2 text-right">Custo Total</th>
+                        <th className="p-2 text-right">Prejuízo/Lucro (R$)</th>
                     </tr>
                 </thead>
                 <tbody>{renderRows(lista)}</tbody>
@@ -1685,24 +1698,22 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
 
     return (
         <div className="space-y-6">
-            {/* ABAS ORIGINAIS */}
             <div className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
                 {[
-                    {id: 'analitica', label: 'Analítica'},
-                    {id: 'regiao_mat', label: 'Região + Material', h: ['regional', 'grupo_material']},
-                    {id: 'mat_regiao', label: 'Material + Região', h: ['grupo_material', 'regional', 'filial']},
-                    {id: 'cat_mat', label: 'Categoria + Material', h: ['categoria', 'grupo_material']},
-                    {id: 'reg_usina', label: 'Regional + Usina', h: ['regional', 'filial', 'grupo_material']},
-                    {id: 'usina_mat', label: 'Usina + Material', h: ['filial', 'grupo_material']}
+                    {id: 'analitica', label: '1. Analítica (Validação)'},
+                    {id: 'regiao_mat', label: '2. Região + Material'},
+                    {id: 'mat_regiao', label: '3. Material + Região'},
+                    {id: 'cat_mat', label: '4. Categoria + Material'},
+                    {id: 'reg_usina', label: '5. Regional + Usina'},
+                    {id: 'usina_mat', label: '6. Usina + Material'}
                 ].map(tab => (
                     <button key={tab.id} onClick={() => {setActiveTab(tab.id); setExpandedPaths({});}}
-                        className={`px-4 py-2 rounded-lg text-[10px] font-bold transition-all ${activeTab === tab.id ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                        className={`px-4 py-2 rounded-lg text-[10px] font-bold transition-all ${activeTab === tab.id ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'}`}>
                         {tab.label}
                     </button>
                 ))}
             </div>
 
-            {/* RENDERIZAÇÃO DAS TABELAS */}
             <div className="animate-enter">
                 {activeTab === 'analitica' ? (
                     <table className="w-full text-[10px] bg-white dark:bg-slate-850 rounded-lg shadow-sm">
@@ -1712,29 +1723,28 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                                 <th className="p-2 text-right">Est. Ini (Q)</th>
                                 <th className="p-2 text-right">Entradas (Q)</th>
                                 <th className="p-2 text-right">Saídas (Q)</th>
-                                <th className="p-2 text-right">Final T</th>
-                                <th className="p-2 text-right">Final R</th>
+                                <th className="p-2 text-right">Final Teórico</th>
+                                <th className="p-2 text-right">Final Real</th>
                                 <th className="p-2 text-right">Var %</th>
-                                <th className="p-2 text-right">R$ Méd</th>
+                                <th className="p-2 text-right">R$ Médio</th>
                             </tr>
                         </thead>
                         <tbody>
                             {analiticaData.map((m, i) => (
-                                <tr key={i} className="border-b border-slate-100 dark:border-slate-800">
+                                <tr key={i} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                                     <td className="p-2 font-medium">{m.cod} - {m.name}</td>
                                     <td className="p-2 text-right font-mono">{fmtNum(m.ini)}</td>
                                     <td className="p-2 text-right font-mono text-emerald-600">+{fmtNum(m.ent)}</td>
                                     <td className="p-2 text-right font-mono text-red-600">-{fmtNum(m.sai)}</td>
-                                    <td className="p-2 text-right font-mono font-bold">{fmtNum(m.fin_t)}</td>
+                                    <td className="p-2 text-right font-mono font-bold text-slate-400">{fmtNum(m.fin_t)}</td>
                                     <td className="p-2 text-right font-mono font-bold text-blue-600">{fmtNum(m.fin_r)}</td>
-                                    <td className={`p-2 text-right font-bold ${Math.abs(m.var_pct) > 0.05 ? 'text-orange-500' : ''}`}>{fmtPerc(m.var_pct)}</td>
-                                    <td className="p-2 text-right text-slate-400 font-mono">{fmtMoney(m.r_med)}</td>
+                                    <td className={`p-2 text-right font-bold ${Math.abs(m.var_pct) > 0.05 ? 'text-orange-500' : 'text-slate-400'}`}>{fmtPerc(m.var_pct)}</td>
+                                    <td className="p-2 text-right text-slate-400 font-mono italic">{fmtMoney(m.r_med)}</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 ) : (
-                    // Renderiza as tabelas dinâmicas conforme a aba selecionada
                     activeTab === 'regiao_mat' ? renderDrillDown(['regional', 'grupo_material'], "Região > Material") :
                     activeTab === 'mat_regiao' ? renderDrillDown(['grupo_material', 'regional', 'filial'], "Material > Região > Usina") :
                     activeTab === 'cat_mat' ? renderDrillDown(['categoria', 'grupo_material', 'regional'], "Categoria > Grupo > Região") :
@@ -1745,7 +1755,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         </div>
     );
 };
-
+        
 const FlowCard = ({ title, val, color, icon }) => {
     // Atribuir o ícone a uma variável com inicial maiúscula resolve o SyntaxError
     const IconComponent = Icons[icon] || Icons.Activity;
@@ -6566,6 +6576,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
