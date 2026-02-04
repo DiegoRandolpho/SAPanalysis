@@ -1592,170 +1592,223 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         </div>
     );
 };
-      const InsumosDashboard = ({ lista = [], isDark }) => {
-    const [activeTab, setActiveTab] = React.useState('analitica');
-    const [expandedPaths, setExpandedPaths] = React.useState({});
+      const InsumosDashboard = ({ data, loading, filters, setFilters, onExport, isDark }) => {
+    const [activeTab, setActiveTab] = useState('analitica');
+    const chartColors = getChartColors(isDark);
 
-    // Proteção: Se a lista não existir ou não for um array, mostra um estado de carregamento/vazio
-    if (!lista || !Array.isArray(lista)) {
-        return (
-            <div className="flex items-center justify-center p-20 text-slate-500">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mr-3"></div>
-                Carregando dados do dashboard...
-            </div>
-        );
-    }
+    const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, adjustedVariation, lista } = useMemo(() => {
+        const rawList = data?.lista || [];
+        const groups = {}; 
+        const regionaisMap = {};
+        const materiaisMap = {};
 
-    const fmtNum = (v) => Utils.formatters.number(v);
-    const fmtMoney = (v) => Utils.formatters.currency(v);
-    const fmtPerc = (v) => {
-        const n = Number(v);
-        if (isNaN(n) || !isFinite(n)) return '0.00%';
-        return (n * 100).toFixed(2) + '%';
-    };
+        let total_dif_custo = 0, total_cam = 0, total_ibcs = 0;
+        let flow = { ini_val: 0, in_val: 0, out_val: 0, fin_val: 0 };
 
-    // 1. TABELA ANALÍTICA (ESTÁTICA)
-    const analiticaData = React.useMemo(() => {
-        const map = {};
-        lista.forEach(item => {
-            const key = item.cod_material || 'S/C';
-            if (!map[key]) {
-                map[key] = {
-                    name: item.grupo_material || 'S/N',
-                    cod: item.cod_material || 'S/C',
-                    ini: 0, ent: 0, sai: 0, fin_t: 0, fin_r: 0, 
-                    val_ini: 0, val_ent: 0, custo_dif: 0
+        rawList.forEach((item) => {
+            const matKey = item.grupo_material || item.cod_material || 'Outros';
+            const custo = Number(item.custo_dif) || 0;
+            const cam = Number(item.num_caminhoes) || 0;
+            const ibcs = Number(item.num_ibcs) || 0;
+
+            if (!groups[matKey]) {
+                groups[matKey] = { 
+                    name: matKey, custo_dif: 0, est_in_val: 0, entradas_val: 0, 
+                    saidas_val: 0, est_fin_val: 0, num_caminhoes: 0, num_ibcs: 0,
+                    est_inicial_sap: 0, entradas_sap: 0, saidas_sap: 0, 
+                    est_final_sap: 0, est_final_real: 0
                 };
             }
-            map[key].ini += Number(item.est_inicial_sap || 0);
-            map[key].ent += Number(item.entradas_sap || 0);
-            map[key].sai += Number(item.saidas_sap || 0);
-            map[key].fin_t += Number(item.est_final_sap || 0);
-            map[key].fin_r += Number(item.est_final_real || 0);
-            map[key].val_ini += Number(item.est_inicial_val || 0);
-            map[key].val_ent += Number(item.entradas_val || 0);
-            map[key].custo_dif += Number(item.custo_dif || 0);
+
+            groups[matKey].custo_dif += custo;
+            groups[matKey].est_in_val += Number(item.est_inicial_val) || 0;
+            groups[matKey].entradas_val += Number(item.entradas_val) || 0;
+            groups[matKey].saidas_val += Number(item.saidas_val) || 0;
+            groups[matKey].est_fin_val += Number(item.est_final_val_sap) || 0;
+            groups[matKey].est_inicial_sap += Number(item.est_inicial_sap) || 0;
+            groups[matKey].entradas_sap += Number(item.entradas_sap) || 0;
+            groups[matKey].saidas_sap += Number(item.saidas_sap) || 0;
+            groups[matKey].est_final_sap += Number(item.est_final_sap) || 0;
+            groups[matKey].est_final_real += Number(item.est_final_real) || 0;
+            total_dif_custo += custo;
+            total_cam += cam;
+            total_ibcs += ibcs;
+
+            const rKey = item.regional || 'N/D';
+            regionaisMap[rKey] = (regionaisMap[rKey] || 0) + custo;
+            materiaisMap[matKey] = (materiaisMap[matKey] || 0) + custo;
         });
-        return Object.values(map).map(m => ({
-            ...m,
-            r_med: (m.val_ini + m.val_ent) / (m.ini + m.ent || 1),
-            var_pct: (m.fin_r - m.fin_t) / (m.fin_t || 1)
-        }));
-    }, [lista]);
 
-    // 2. MOTOR DRILL-DOWN (DINÂMICO)
-    const renderDrillDown = (hierarchy, title) => {
-        const getGrouped = (data, level = 0, path = "") => {
-            const key = hierarchy[level];
-            const groups = {};
-            data.forEach(item => {
-                const val = item[key] || "N/D";
-                if (!groups[val]) groups[val] = { name: val, items: [], total: 0, cam: 0, ibc: 0, path: path ? `${path}|${val}` : val };
-                groups[val].items.push(item);
-                groups[val].total += Number(item.custo_dif || 0);
-                groups[val].cam += Number(item.num_caminhoes || 0);
-                groups[val].ibc += Number(item.num_ibcs || 0);
-            });
-            return Object.values(groups).sort((a, b) => a.total - b.total);
+        const processedAnalitica = Object.values(groups).map((g) => {
+            flow.ini_val += g.est_in_val;
+            flow.in_val += g.entradas_val;
+            flow.out_val += g.saidas_val;
+            flow.fin_val += g.est_fin_val;
+            const denom = g.est_in_val + g.entradas_val;
+            return { ...g, variacaoPct: denom !== 0 ? (g.custo_dif / denom) : 0 };
+        }).sort((a, b) => a.custo_dif - b.custo_dif);
+
+        return { 
+            chartsData: { 
+                regionais: Object.entries(regionaisMap).map(([name, value]) => ({ name, value, abs: Math.abs(value) })).sort((a, b) => b.abs - a.abs).slice(0, 10),
+                materiais: Object.entries(materiaisMap).map(([name, value]) => ({ name, value, abs: Math.abs(value) })).sort((a, b) => b.abs - a.abs).slice(0, 10)
+            },
+            inventoryFlow: flow,
+            consolidatedDiff: { custo: total_dif_custo, caminhoes: total_cam, ibcs: total_ibcs },
+            analiticaData: processedAnalitica,
+            adjustedVariation: (flow.ini_val + flow.in_val) !== 0 ? (total_dif_custo / (flow.ini_val + flow.in_val)) : 0,
+            lista: rawList
         };
+    }, [data]);
 
-        const renderRows = (data, level = 0, path = "") => {
-            return getGrouped(data, level, path).map((g, i) => {
-                const isOpen = expandedPaths[g.path];
-                const hasNext = level < hierarchy.length - 1;
-                return (
-                    <React.Fragment key={i}>
-                        <tr onClick={() => hasNext && setExpandedPaths(p => ({...p, [g.path]: !isOpen}))} 
-                            className={`border-b border-slate-100 dark:border-slate-800 transition-colors ${hasNext ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/30' : ''}`}>
-                            <td className="p-2 flex items-center gap-2" style={{ paddingLeft: `${(level + 1) * 12}px` }}>
-                                {hasNext && <Icons.ChevronDown width={12} className={`text-blue-500 transition-transform ${isOpen ? '' : '-rotate-90'}`} />}
-                                <span className={level === 0 ? "font-bold text-slate-700 dark:text-slate-200" : "text-slate-500"}>{g.name}</span>
-                            </td>
-                            <td className="p-2 text-right font-mono text-slate-500">{Math.round(g.cam)}</td>
-                            <td className="p-2 text-right font-mono text-slate-500">{Math.round(g.ibc)}</td>
-                            <td className={`p-2 text-right font-bold font-mono ${g.total < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{fmtMoney(g.total)}</td>
-                        </tr>
-                        {isOpen && hasNext && renderRows(g.items, level + 1, g.path)}
-                    </React.Fragment>
-                );
-            });
-        };
+    if (loading) return <div className="p-10 text-center text-slate-400">Carregando dados...</div>;
 
-        return (
-            <table className="w-full text-[10px] bg-white dark:bg-slate-850 rounded-lg shadow-sm">
-                <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 font-bold uppercase">
-                    <tr>
-                        <th className="p-2 text-left">Hierarquia</th>
-                        <th className="p-2 text-right">Caminhões</th>
-                        <th className="p-2 text-right">IBCs</th>
-                        <th className="p-2 text-right">Prejuízo/Lucro (R$)</th>
-                    </tr>
-                </thead>
-                <tbody>{renderRows(lista)}</tbody>
-            </table>
-        );
+    const fmtMoney = (v) => Utils.formatters.currency(v);
+    const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + '%';
+
+    const SafeIcon = ({ name, className, width = 16 }) => {
+        const IconComponent = Icons[name] || Icons.Activity;
+        return <IconComponent className={className} width={width} height={width} />;
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
-                {[
-                    {id: 'analitica', label: '1. Analítica (Validação)'},
-                    {id: 'regiao_mat', label: '2. Região + Material'},
-                    {id: 'mat_regiao', label: '3. Material + Região'},
-                    {id: 'cat_mat', label: '4. Categoria + Material'},
-                    {id: 'reg_usina', label: '5. Regional + Usina'},
-                    {id: 'usina_mat', label: '6. Usina + Material'}
-                ].map(tab => (
-                    <button key={tab.id} onClick={() => {setActiveTab(tab.id); setExpandedPaths({});}}
-                        className={`px-4 py-2 rounded-lg text-[10px] font-bold transition-all ${activeTab === tab.id ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'}`}>
-                        {tab.label}
+        <div className="space-y-6 pb-10 report-container">
+            <div className="flex justify-between items-end no-print">
+                <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
+                    <SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos
+                </h2>
+                <div className="flex gap-3">
+                    <input 
+                        type="month" 
+                        className="border rounded px-2 py-1 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700" 
+                        value={filters.periodo} 
+                        onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} 
+                    />
+                    <button onClick={() => window.print()} className="bg-slate-800 dark:bg-slate-700 text-white px-4 py-2 rounded flex items-center gap-2">PDF</button>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print-grid">
+                <FlowCard title="Estoque Inicial" val={inventoryFlow.ini_val} color="text-slate-500" icon="Database" />
+                <FlowCard title="Entradas ($)" val={inventoryFlow.in_val} color="text-emerald-600" icon="ArrowDownCircle" />
+                <FlowCard title="Saídas ($)" val={inventoryFlow.out_val} color="text-red-500" icon="ArrowUpCircle" />
+                <FlowCard title="Estoque Final" val={inventoryFlow.fin_val} color="text-blue-600" icon="CheckCircle" />
+                
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-card">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Evolução</span>
+                    <div className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                        {fmtPerc(inventoryFlow.ini_val > 0 ? (inventoryFlow.fin_val - inventoryFlow.ini_val)/inventoryFlow.ini_val : 0)}
+                    </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-card">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Var. Ajustada</span>
+                    <div className="text-lg font-bold text-slate-800 dark:text-slate-100">{fmtPerc(adjustedVariation)}</div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1 bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/20 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm print-card">
+                    <h3 className="text-[10px] font-bold uppercase text-purple-900 dark:text-purple-300 mb-4">Diferença Financeira</h3>
+                    <div className="text-4xl font-black mb-6 text-slate-800 dark:text-white">{fmtMoney(consolidatedDiff.custo)}</div>
+                    <div className="flex gap-4 border-t border-slate-100 dark:border-slate-700 pt-4">
+                        <div className="flex items-center gap-1 text-xs font-bold text-slate-600 dark:text-slate-300"><SafeIcon name="Truck" /> {fmtNum(consolidatedDiff.caminhoes)}</div>
+                        <div className="flex items-center gap-1 text-xs font-bold text-slate-600 dark:text-slate-300"><SafeIcon name="Box" /> {fmtNum(consolidatedDiff.ibcs)}</div>
+                    </div>
+                </div>
+                <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+                    <BarChartWidget title="Top Ajustes (Região)" data={chartsData.regionais} isDark={isDark} />
+                    <BarChartWidget title="Top Ajustes (Material)" data={chartsData.materiais} isDark={isDark} />
+                </div>
+            </div>
+
+            <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit no-print">
+                {['analitica', 'regiao_material', 'material_regiao', 'categoria_material', 'usina_material'].map(tab => (
+                    <button 
+                        key={tab} 
+                        onClick={() => setActiveTab(tab)} 
+                        className={`px-4 py-2 text-[10px] font-bold rounded-md uppercase transition-all ${activeTab === tab ? 'bg-white dark:bg-slate-600 shadow-sm text-purple-700 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'}`}
+                    >
+                        {tab.replace('_', ' + ')}
                     </button>
                 ))}
             </div>
 
-            <div className="animate-enter">
-                {activeTab === 'analitica' ? (
-                    <table className="w-full text-[10px] bg-white dark:bg-slate-850 rounded-lg shadow-sm">
-                        <thead className="bg-slate-100 dark:bg-slate-900 font-bold uppercase text-slate-500">
-                            <tr>
-                                <th className="p-2 text-left">Material</th>
-                                <th className="p-2 text-right">Est. Ini (Q)</th>
-                                <th className="p-2 text-right">Entradas (Q)</th>
-                                <th className="p-2 text-right">Saídas (Q)</th>
-                                <th className="p-2 text-right">Final Teórico</th>
-                                <th className="p-2 text-right">Final Real</th>
-                                <th className="p-2 text-right">Var %</th>
-                                <th className="p-2 text-right">R$ Médio</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {analiticaData.map((m, i) => (
-                                <tr key={i} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                                    <td className="p-2 font-medium">{m.cod} - {m.name}</td>
-                                    <td className="p-2 text-right font-mono">{fmtNum(m.ini)}</td>
-                                    <td className="p-2 text-right font-mono text-emerald-600">+{fmtNum(m.ent)}</td>
-                                    <td className="p-2 text-right font-mono text-red-600">-{fmtNum(m.sai)}</td>
-                                    <td className="p-2 text-right font-mono font-bold text-slate-400">{fmtNum(m.fin_t)}</td>
-                                    <td className="p-2 text-right font-mono font-bold text-blue-600">{fmtNum(m.fin_r)}</td>
-                                    <td className={`p-2 text-right font-bold ${Math.abs(m.var_pct) > 0.05 ? 'text-orange-500' : 'text-slate-400'}`}>{fmtPerc(m.var_pct)}</td>
-                                    <td className="p-2 text-right text-slate-400 font-mono italic">{fmtMoney(m.r_med)}</td>
+            <div className="min-h-[400px]">
+                {/* ABA 1: ANALÍTICA (MANTIDA) */}
+                {activeTab === 'analitica' && (
+                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden animate-enter">
+                        <table className="w-full text-[10px] text-left">
+                            <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 font-bold text-slate-500 dark:text-slate-400 uppercase">
+                                <tr>
+                                    <th className="px-3 py-2">Grupo de Material</th>
+                                    <th className="px-2 py-2 text-right">Est. Ini (Q)</th>
+                                    <th className="px-2 py-2 text-right">Entradas (Q)</th>
+                                    <th className="px-2 py-2 text-right">Real (Q)</th>
+                                    <th className="px-2 py-2 text-right font-bold text-purple-700 dark:text-purple-400">DIF CUSTO (R$)</th>
+                                    <th className="px-2 py-2 text-right">Var %</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                ) : (
-                    activeTab === 'regiao_mat' ? renderDrillDown(['regional', 'grupo_material'], "Região > Material") :
-                    activeTab === 'mat_regiao' ? renderDrillDown(['grupo_material', 'regional', 'filial'], "Material > Região > Usina") :
-                    activeTab === 'cat_mat' ? renderDrillDown(['categoria', 'grupo_material', 'regional'], "Categoria > Grupo > Região") :
-                    activeTab === 'reg_usina' ? renderDrillDown(['regional', 'filial', 'grupo_material'], "Regional > Usina > Material") :
-                    renderDrillDown(['filial', 'grupo_material'], "Usina > Material")
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                {analiticaData.map((row, i) => (
+                                    <tr key={i} className="hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-colors">
+                                        <td className="px-3 py-2 font-medium text-slate-700 dark:text-slate-300">{row.name}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-slate-600 dark:text-slate-400">{fmtNum(row.est_inicial_sap)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-emerald-600 dark:text-emerald-400">+{fmtNum(row.entradas_sap)}</td>
+                                        <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 dark:text-blue-400">{fmtNum(row.est_final_real)}</td>
+                                        <td className={`px-2 py-2 text-right font-bold ${row.custo_dif < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(row.custo_dif)}</td>
+                                        <td className="px-2 py-2 text-right font-bold text-slate-400">{fmtPerc(row.variacaoPct)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {/* ABA 2: REGIÃO + MATERIAL */}
+                {activeTab === 'regiao_material' && (
+                    <DrillDownTable 
+                        data={lista} 
+                        groupKey="regional" 
+                        subKey="grupo_material" 
+                        title="Diferença por Regional e Material" 
+                    />
+                )}
+
+                {/* ABA 3: MATERIAL + REGIÃO */}
+                {activeTab === 'material_regiao' && (
+                    <DrillDownTable 
+                        data={lista} 
+                        groupKey="grupo_material" 
+                        subKey="regional" 
+                        title="Diferença por Material e Regional" 
+                    />
+                )}
+
+                {/* ABA 4: CATEGORIA + MATERIAL */}
+                {activeTab === 'categoria_material' && (
+                    <DrillDownTable 
+                        data={lista} 
+                        groupKey="categoria" 
+                        subKey="grupo_material" 
+                        title="Diferença por Categoria de Insumo" 
+                    />
+                )}
+
+                {/* ABA 5: USINA (FILIAL) + MATERIAL */}
+                {activeTab === 'usina_material' && (
+                    <DrillDownTable 
+                        data={lista} 
+                        groupKey="filial" 
+                        subKey="grupo_material" 
+                        title="Diferença por Filial e Material" 
+                    />
                 )}
             </div>
         </div>
     );
 };
-        
+
 const FlowCard = ({ title, val, color, icon }) => {
     // Atribuir o ícone a uma variável com inicial maiúscula resolve o SyntaxError
     const IconComponent = Icons[icon] || Icons.Activity;
@@ -6576,9 +6629,6 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
-
-
-
 
 
 
