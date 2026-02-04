@@ -1829,7 +1829,7 @@ const BarChartWidget = ({ title, data, isDark }) => {
         const file = e.target.files[0];
         if (file) {
             // No seu App.js, a função handleImport deve chamar processInsumosFile
-            onImport(file, 'insumos', date);
+            onImport(file, date , 'insumos');
         }
         e.target.value = null;
     };
@@ -6510,6 +6510,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
