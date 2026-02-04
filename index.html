@@ -1674,6 +1674,20 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
 
     return (
         <div className="space-y-6 pb-10 report-container">
+            {/* CABEÇALHO EXCLUSIVO PARA IMPRESSÃO */}
+            <div className="hidden print:flex justify-between items-center mb-6 border-b-2 border-slate-800 pb-4">
+                <div className="flex items-center gap-4">
+                    <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" className="h-12" alt="Logo" />
+                    <div>
+                        <h1 className="text-xl font-black uppercase tracking-tight text-slate-900">Inventário de Insumos</h1>
+                        <p className="text-sm font-bold text-slate-600">Referência: {Utils.date.formatNice(filters.periodo)}</p>
+                    </div>
+                </div>
+                <div className="text-right text-[10px] text-slate-400 font-mono">
+                    Gerado em: {new Date().toLocaleString('pt-BR')}
+                </div>
+            </div>
+
             <div className="flex justify-between items-end no-print">
                 <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
                     <SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos
@@ -1685,7 +1699,9 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                         value={filters.periodo} 
                         onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} 
                     />
-                    <button onClick={() => window.print()} className="bg-slate-800 dark:bg-slate-700 text-white px-4 py-2 rounded flex items-center gap-2">PDF</button>
+                    <button onClick={() => window.print()} className="bg-slate-800 dark:bg-slate-700 text-white px-4 py-2 rounded flex items-center gap-2 transition-transform hover:scale-105">
+                        <Icons.Download width={16} /> PDF
+                    </button>
                 </div>
             </div>
 
@@ -1735,86 +1751,56 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             </div>
 
             <div className="min-h-[400px]">
-    {/* ABA 1: ANALÍTICA (MANUTENÇÃO TÉCNICA) */}
-    {activeTab === 'analitica' && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden animate-enter">
-            <table className="w-full text-[10px] text-left">
-                <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 font-bold text-slate-500 uppercase">
-                    <tr>
-                        <th className="px-3 py-3">Material (Validação de Preço/Qtd)</th>
-                        <th className="px-2 py-3 text-right">Est. Inicial (Q)</th>
-                        <th className="px-2 py-3 text-right">Entradas (Q)</th>
-                        <th className="px-2 py-3 text-right">Est. Final Real (Q)</th>
-                        <th className="px-2 py-3 text-right">Est. Final SAP (Q)</th>
-                        <th className="px-2 py-3 text-right">Diferença (Q)</th>
-                        <th className="px-2 py-3 text-right font-bold text-purple-600">Preço Médio Unit.</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                    {analiticaData.map((row, i) => (
-                        <tr key={i} className="hover:bg-slate-50">
-                            <td className="px-3 py-2 font-medium">{row.name}</td>
-                            <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_inicial_sap)}</td>
-                            <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtNum(row.entradas_sap)}</td>
-                            <td className="px-2 py-2 text-right font-mono font-bold text-blue-600">{fmtNum(row.est_final_real)}</td>
-                            <td className="px-2 py-2 text-right font-mono text-slate-400">{fmtNum(row.est_final_sap)}</td>
-                            <td className={`px-2 py-2 text-right font-bold ${row.est_final_real - row.est_final_sap < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                {fmtNum(row.est_final_real - row.est_final_sap)}
-                            </td>
-                            <td className="px-2 py-2 text-right font-bold text-purple-700">
-                                {Utils.formatters.currency((row.est_in_val + row.entradas_val) / (row.est_inicial_sap + row.entradas_sap || 1))}
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    )}
+                {/* TABELA ANALÍTICA COM QUEBRA DE PÁGINA PARA IMPRESSÃO */}
+                {activeTab === 'analitica' && (
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden animate-enter print:break-before-page">
+                        <table className="w-full text-[10px] text-left">
+                            <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 font-bold text-slate-500 uppercase">
+                                <tr>
+                                    <th className="px-3 py-3">Material (Validação de Preço/Qtd)</th>
+                                    <th className="px-2 py-3 text-right">Est. Inicial (Q)</th>
+                                    <th className="px-2 py-3 text-right">Entradas (Q)</th>
+                                    <th className="px-2 py-3 text-right">Est. Final Real (Q)</th>
+                                    <th className="px-2 py-3 text-right">Est. Final SAP (Q)</th>
+                                    <th className="px-2 py-3 text-right">Diferença (Q)</th>
+                                    <th className="px-2 py-3 text-right font-bold text-purple-600">Preço Médio Unit.</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                {analiticaData.map((row, i) => (
+                                    <tr key={i} className="hover:bg-slate-50">
+                                        <td className="px-3 py-2 font-medium">{row.name}</td>
+                                        <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_inicial_sap)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtNum(row.entradas_sap)}</td>
+                                        <td className="px-2 py-2 text-right font-mono font-bold text-blue-600">{fmtNum(row.est_final_real)}</td>
+                                        <td className="px-2 py-2 text-right font-mono text-slate-400">{fmtNum(row.est_final_sap)}</td>
+                                        <td className={`px-2 py-2 text-right font-bold ${row.est_final_real - row.est_final_sap < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                            {fmtNum(row.est_final_real - row.est_final_sap)}
+                                        </td>
+                                        <td className="px-2 py-2 text-right font-bold text-purple-700">
+                                            {Utils.formatters.currency((row.est_in_val + row.entradas_val) / (row.est_inicial_sap + row.entradas_sap || 1))}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
 
-    {/* ABA 2: REGIÃO + MATERIAL (VISÃO OPERACIONAL) */}
-    {activeTab === 'regiao_material' && (
-        <InsumosDrillDownTable 
-            data={lista} 
-            groupKey="regional" 
-            subKey="grupo_material" 
-            title="Impacto Financeiro: Onde estão os furos por Região?" 
-            isDark={isDark}
-        />
-    )}
-
-    {/* ABA 3: MATERIAL + REGIÃO (VISÃO SISTÊMICA) */}
-    {activeTab === 'material_regiao' && (
-        <InsumosDrillDownTable 
-            data={lista} 
-            groupKey="grupo_material" 
-            subKey="regional" 
-            title="O Vilão do Estoque: Qual produto causa mais prejuízo?" 
-            isDark={isDark}
-        />
-    )}
-
-    {/* ABA 4: CATEGORIA + MATERIAL (VISÃO EXECUTIVA) */}
-    {activeTab === 'categoria_material' && (
-        <InsumosDrillDownTable 
-            data={lista} 
-            groupKey="categoria" 
-            subKey="grupo_material" 
-            title="Famílias de Materiais: Perda em Areia (Volume) ou Aditivo (Valor)?" 
-            isDark={isDark}
-        />
-    )}
-
-    {/* ABA 5: USINA + MATERIAL (AUDITORIA LOCAL) */}
-    {activeTab === 'usina_material' && (
-        <InsumosDrillDownTable 
-            data={lista} 
-            groupKey="filial" 
-            subKey="grupo_material" 
-            title="Ranking de Filiais: Top 10 Usinas com furos críticos" 
-            isDark={isDark}
-        />
-    )}
-</div>
+                {/* DEMAIS ABAS MANTIDAS SEM ALTERAÇÃO DE LAYOUT */}
+                {activeTab === 'regiao_material' && (
+                    <InsumosDrillDownTable data={lista} groupKey="regional" subKey="grupo_material" title="Impacto Financeiro: Por Região" isDark={isDark} />
+                )}
+                {activeTab === 'material_regiao' && (
+                    <InsumosDrillDownTable data={lista} groupKey="grupo_material" subKey="regional" title="Vilões do Estoque: Por Produto" isDark={isDark} />
+                )}
+                {activeTab === 'categoria_material' && (
+                    <InsumosDrillDownTable data={lista} groupKey="categoria" subKey="grupo_material" title="Famílias de Materiais" isDark={isDark} />
+                )}
+                {activeTab === 'usina_material' && (
+                    <InsumosDrillDownTable data={lista} groupKey="filial" subKey="grupo_material" title="Ranking de Filiais" isDark={isDark} />
+                )}
+            </div>
         </div>
     );
 };
@@ -6662,6 +6648,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
