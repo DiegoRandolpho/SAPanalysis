@@ -53,73 +53,60 @@
         .content-transition { transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .picker-popover { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
         /* --- CSS DE IMPRESSÃO (MODO RETRATO / PORTRAIT) --- */
-/* --- CSS DE IMPRESSÃO (CORREÇÃO DE CORTE DE PÁGINA) --- */
 @media print {
     @page { 
         size: portrait; 
-        margin: 5mm; 
+        margin: 10mm; 
     }
     
-    /* 1. DESTRAVAR ALTURA: Essencial para imprimir múltiplas páginas */
-    html, body, #root, main, .h-screen, .min-h-screen, .overflow-y-auto, .flex-1 {
-        height: auto !important;
-        min-height: 0 !important;
-        overflow: visible !important;
-        display: block !important; /* Remove comportamento flex que pode travar altura */
-    }
-
-    /* 2. OCULTAR UI */
-    nav, header, aside, .sidebar, .filters-area, .status-log, button, .no-print, .fixed { 
-        display: none !important; 
-    }
-
-    /* 3. LAYOUT DO RELATÓRIO */
-    .report-container {
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
+    html, body {
         background: white !important;
         color: black !important;
     }
 
-    /* Remove margens laterais da sidebar */
-    .ml-64, .ml-20 { margin-left: 0 !important; }
+    /* Reset de Dark Mode para Impressão */
+    .dark body, .dark .glass-card, .dark table, .dark td, .dark th {
+        background: white !important;
+        color: black !important;
+        border-color: #000000 !important;
+    }
 
-    /* Estilo dos Cards e Elementos */
+    .no-print, nav, aside, header, button { 
+        display: none !important; 
+    }
+
+    .report-container {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: block !important;
+    }
+
     .glass-card {
-        background: #ffffff !important;
         border: 1px solid #000000 !important;
         box-shadow: none !important;
-        border-radius: 4px !important;
-        margin-bottom: 10px !important;
-        page-break-inside: avoid; /* Tenta não quebrar cards ao meio */
+        background: white !important;
+        page-break-inside: avoid;
     }
 
-    /* 4. CONFIGURAÇÃO DA TABELA (PRINCIPAL) */
-    table { 
-        width: 100% !important; 
-        border-collapse: collapse !important; 
-        font-size: 9px !important; 
-    }
-    
-    /* Faz o cabeçalho da tabela repetir em cada nova página */
-    thead { display: table-header-group !important; }
-    
-    /* Evita que uma linha da tabela seja cortada ao meio */
-    tr { page-break-inside: avoid !important; }
-    
-    th, td {
+    /* Padronização de Tabelas no PDF */
+    table { border-collapse: collapse !important; width: 100% !important; }
+    th { 
+        background-color: #f3f4f6 !important; 
+        color: black !important; 
         border: 1px solid #000000 !important;
-        padding: 3px !important;
+        -webkit-print-color-adjust: exact;
+    }
+    td { 
+        border: 1px solid #000000 !important; 
         color: black !important;
     }
-    th { background-color: #e5e7eb !important; font-weight: bold !important; }
-
-    /* Gráficos */
-    .recharts-wrapper { width: 100% !important; }
     
-    /* Forçar quebra de página antes da tabela se necessário (opcional) */
-    /* .break-before { page-break-before: always; } */
+    /* Forçar cores pretas em textos que usam classes slate no sistema */
+    .text-slate-800, .text-slate-700, .text-slate-600, .text-slate-500,
+    .dark .text-slate-200, .dark .text-slate-300 {
+        color: black !important;
+    }
 }
     </style>
 </head>
@@ -6647,5 +6634,6 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
