@@ -1805,10 +1805,11 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
 };
 
 // Componente FlowCard revisado para suporte híbrido (Tela/PDF)
+// 1. Ajuste no componente FlowCard
 const FlowCard = ({ title, val, color, icon }) => (
-    <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print:border-slate-300 print:shadow-none">
+    <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print:bg-white print:border-slate-300 print:shadow-none">
         <div className="flex items-center gap-2 mb-2">
-            <div className={`p-1.5 rounded-md bg-slate-50 dark:bg-slate-900/50 print:bg-transparent`}>
+            <div className="p-1.5 rounded-md bg-slate-50 dark:bg-slate-900/50 print:bg-transparent">
                 <SafeIcon name={icon} className={`${color} opacity-80 print:opacity-100`} width={14} />
             </div>
             <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 print:text-slate-700">
@@ -1821,51 +1822,24 @@ const FlowCard = ({ title, val, color, icon }) => (
     </div>
 );
 
-// No InsumosDashboard, a chamada dos cards fica assim:
-<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print:gap-2">
-    <FlowCard 
-        title="Estoque Inicial" 
-        val={inventoryFlow.ini_val} 
-        color="text-slate-600 dark:text-slate-400 print:text-slate-800" 
-        icon="Database" 
-    />
-    <FlowCard 
-        title="Entradas ($)" 
-        val={inventoryFlow.in_val} 
-        color="text-emerald-600 dark:text-emerald-400 print:text-emerald-800" 
-        icon="ArrowDownCircle" 
-    />
-    <FlowCard 
-        title="Saídas ($)" 
-        val={inventoryFlow.out_val} 
-        color="text-red-500 dark:text-red-400 print:text-red-800" 
-        icon="ArrowUpCircle" 
-    />
-    <FlowCard 
-        title="Estoque Final" 
-        val={inventoryFlow.fin_val} 
-        color="text-blue-600 dark:text-blue-400 print:text-blue-800" 
-        icon="CheckCircle" 
-    />
-    
-    {/* Card de Evolução */}
-    <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print:border-slate-300">
-        <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1 print:text-slate-700">
-            Evolução
-        </span>
-        <div className="text-lg font-bold text-slate-800 dark:text-slate-100 print:text-black">
-            {fmtPerc(inventoryFlow.ini_val > 0 ? (inventoryFlow.fin_val - inventoryFlow.ini_val)/inventoryFlow.ini_val : 0)}
-        </div>
-    </div>
+// 2. Ajuste nos cards de Evolução e Var. Ajustada dentro do InsumosDashboard
+// Localize o trecho onde esses dois cards são renderizados e substitua por:
 
-    {/* Card de Var. Ajustada */}
-    <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print:border-slate-300">
-        <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1 print:text-slate-700">
-            Var. Ajustada
-        </span>
-        <div className="text-lg font-bold text-slate-800 dark:text-slate-100 print:text-black">
-            {fmtPerc(adjustedVariation)}
-        </div>
+<div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print:bg-white print:border-slate-300">
+    <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1 print:text-slate-700">
+        Evolução
+    </span>
+    <div className="text-lg font-bold text-slate-800 dark:text-slate-100 print:text-black">
+        {fmtPerc(inventoryFlow.ini_val > 0 ? (inventoryFlow.fin_val - inventoryFlow.ini_val)/inventoryFlow.ini_val : 0)}
+    </div>
+</div>
+
+<div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print:bg-white print:border-slate-300">
+    <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1 print:text-slate-700">
+        Var. Ajustada
+    </span>
+    <div className="text-lg font-bold text-slate-800 dark:text-slate-100 print:text-black">
+        {fmtPerc(adjustedVariation)}
     </div>
 </div>
 
@@ -6709,6 +6683,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
