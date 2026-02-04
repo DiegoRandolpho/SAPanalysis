@@ -5778,6 +5778,61 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         </div>
     );
 };
+        const DrillDownTable = ({ data, groupKey, subKey, title }) => {
+    const grouped = useMemo(() => {
+        const map = {};
+        data.forEach(item => {
+            const main = item[groupKey] || 'N/D';
+            const sub = item[subKey] || 'Outros';
+            const val = Number(item.custo_dif) || 0;
+            
+            if (!map[main]) map[main] = { name: main, total: 0, subs: {} };
+            map[main].total += val;
+            
+            if (!map[main].subs[sub]) map[main].subs[sub] = 0;
+            map[main].subs[sub] += val;
+        });
+        return Object.values(map).sort((a, b) => a.total - b.total);
+    }, [data, groupKey, subKey]);
+
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden animate-enter">
+            <table className="w-full text-[10px] text-left">
+                <thead className="bg-slate-100 dark:bg-slate-900 text-slate-500 font-bold uppercase">
+                    <tr>
+                        <th className="px-4 py-2">{groupKey.toUpperCase()} / {subKey.toUpperCase()}</th>
+                        <th className="px-4 py-2 text-right">TOTAL DIFERENÇA (R$)</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                    {grouped.map((group, i) => (
+                        <React.Fragment key={i}>
+                            <tr className="bg-slate-50/50 dark:bg-slate-800/50 font-bold">
+                                <td className="px-4 py-2 text-slate-800 dark:text-white flex items-center gap-2">
+                                    <Icons.ChevronDown width={12} className="text-slate-400" />
+                                    {group.name}
+                                </td>
+                                <td className={`px-4 py-2 text-right ${group.total < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                    {Utils.formatters.currency(group.total)}
+                                </td>
+                            </tr>
+                            {Object.entries(group.subs).map(([subName, subVal], j) => (
+                                <tr key={j} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                    <td className="px-10 py-1.5 text-slate-500 dark:text-slate-400 italic">
+                                        {subName}
+                                    </td>
+                                    <td className={`px-4 py-1.5 text-right font-medium ${subVal < 0 ? 'text-red-500/80' : 'text-emerald-500/80'}`}>
+                                        {Utils.formatters.currency(subVal)}
+                                    </td>
+                                </tr>
+                            ))}
+                        </React.Fragment>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+};
         const App = () => {
             const [supabaseClient, setSupabaseClient] = useState(null);
             const [session, setSession] = useState(null);
@@ -6550,6 +6605,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
