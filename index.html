@@ -6690,19 +6690,49 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                                 )}
                                 {view === 'diesel' && subView === 'report' && <DataTable data={dieselData.lista || []} onNotify={addLog} title="Relatório Diesel" />}
                                 {view === 'diesel' && subView === 'import' && (
-                                    <div className="space-y-6 animate-enter pb-10">
-                                        <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 mb-4">
-                                            <Icons.Upload className="text-orange-500" /> Importar Abastecimentos e Frota
-                                        </h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                            <UploadCard type="diesel_estoque" iconName="fuel" onAnalyze={(f)=>handleImport(f,'diesel_estoque')} isAnalyzing={loading} />
-                                            <UploadCard type="shell" iconName="droplet" onAnalyze={(f)=>handleImport(f,'shell')} isAnalyzing={loading} />
-                                            <UploadCard type="ticket" iconName="creditCard" onAnalyze={(f)=>handleImport(f,'ticket')} isAnalyzing={loading} />
-                                            <UploadCard type="cta" iconName="home" onAnalyze={(f)=>handleImport(f,'cta')} isAnalyzing={loading} />
-                                            <UploadCard type="equipamentos" iconName="truck" onAnalyze={(f) => handleImport(f, 'equipamentos')} isAnalyzing={loading} />
-                                        </div>
-                                    </div>
-                                )}
+    <div className="space-y-6 animate-enter pb-10">
+        <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-6">
+            <div>
+                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                    <Icons.Upload className="text-orange-500" /> Importar Abastecimentos e Frota
+                </h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    Selecione o mês de referência para a importação de Estoque.
+                </p>
+            </div>
+            
+            {/* CORREÇÃO 1: Seletor de Mês adicionado aqui */}
+            <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-3">
+                <span className="text-xs font-bold text-slate-500 uppercase">Mês de Ref:</span>
+                <div className="w-40">
+                    <MonthPicker 
+                        value={filters.dieselPeriodo} 
+                        onChange={(e) => setFilters({...filters, dieselPeriodo: e})} 
+                    />
+                </div>
+            </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* CORREÇÃO 2: Passando o período (3º argumento) para o handleImport */}
+            <UploadCard 
+                type="diesel_estoque" 
+                iconName="fuel" 
+                onAnalyze={(f) => handleImport(f, 'diesel_estoque', filters.dieselPeriodo)} 
+                isAnalyzing={loading} 
+            />
+            
+            <UploadCard type="shell" iconName="droplet" onAnalyze={(f)=>handleImport(f,'shell')} isAnalyzing={loading} />
+            <UploadCard type="ticket" iconName="creditCard" onAnalyze={(f)=>handleImport(f,'ticket')} isAnalyzing={loading} />
+            <UploadCard type="cta" iconName="home" onAnalyze={(f)=>handleImport(f,'cta')} isAnalyzing={loading} />
+            <UploadCard type="equipamentos" iconName="truck" onAnalyze={(f) => handleImport(f, 'equipamentos')} isAnalyzing={loading} />
+        </div>
+        
+        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30 text-xs text-blue-700 dark:text-blue-300">
+            <strong>Nota:</strong> A data selecionada acima será usada apenas para a importação de <u>Estoque Diesel</u>. As importações de cartões (Shell/Ticket/CTA) utilizam a data contida dentro do próprio arquivo.
+        </div>
+    </div>
+)}
 
                                 {/* CONTROLADORIA */}
                                 {view === 'controladoria' && (subView === 'dash' || subView === 'report') && (
@@ -6768,4 +6798,5 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
