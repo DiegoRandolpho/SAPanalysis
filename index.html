@@ -1606,7 +1606,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         const regionaisMap = {};
         const materiaisMap = {};
 
-        // Acumuladores globais
         let total_val_in = 0, total_val_ent = 0, total_val_sai = 0, total_val_fin_sap = 0;
         let total_dif_qty = 0, total_custo_dif = 0, total_caminhoes = 0, total_ibcs = 0;
         let total_qty_fin_real = 0;
@@ -1621,7 +1620,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 };
             }
 
-            // Quantidades
+            // Quantidades para exibição [cite: 5, 6, 7]
             const qty_in = Number(item.est_inicial_sap) || 0;
             const qty_ent = Number(item.entradas_sap) || 0;
             const qty_sai = Number(item.saidas_sap) || 0;
@@ -1636,7 +1635,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             groups[matKey].est_fin_real += qty_fin_real;
             groups[matKey].dif_qty += qty_dif;
 
-            // Valores Financeiros
+            // Valores Financeiros para cálculos [cite: 199, 200]
             const val_in = Number(item.est_inicial_val) || 0;
             const val_ent = Number(item.entradas_val) || 0;
             const val_sai = Number(item.saidas_val) || 0;
@@ -1649,7 +1648,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             groups[matKey].val_fin_sap += val_fin_sap;
             groups[matKey].custo_dif += custo_dif;
 
-            // Globais
             total_val_in += val_in; total_val_ent += val_ent; total_val_sai += val_sai;
             total_val_fin_sap += val_fin_sap; total_custo_dif += custo_dif;
             total_dif_qty += qty_dif; total_qty_fin_real += qty_fin_real;
@@ -1668,13 +1666,12 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 const variacaoPct = denominadorVar !== 0 ? (g.custo_dif / denominadorVar) : 0;
                 const unitPrice = g.est_in !== 0 ? (g.val_in / g.est_in) : 0;
                 
-                // Restauração do Cálculo de Custo Médio Ajustado [cite: 15, 16]
+                // Restauração do Custo Médio Ajustado [cite: 15, 16]
                 const denominadorCustoAj = g.dif_qty + g.est_fin_sap; 
                 const custoMedioAjustado = denominadorCustoAj !== 0 ? (g.custo_dif / denominadorCustoAj) : 0;
 
                 return { ...g, unitPrice, custoMedioAjustado, variacaoPct };
-            })
-            .sort((a, b) => a.custo_dif - b.custo_dif);
+            }).sort((a, b) => a.custo_dif - b.custo_dif);
 
         const adjDenom = total_val_in + total_val_ent;
         const adjustedVariation = adjDenom !== 0 ? (total_custo_dif / adjDenom) : 0;
@@ -1709,7 +1706,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
     const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 
-    // --- Componentes Internos com Correção de PDF ---
+    // --- Componentes Internos com Correção de Impressão [cite: 33, 37, 41] ---
     const FlowCard = ({ title, qty, val, iconName, color }) => (
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
             <div className="flex justify-between items-start mb-2">
@@ -1765,10 +1762,10 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             filteredData.forEach(item => {
                 const keyVal = item[currentKey] || 'N/D';
                 if (!groups[keyVal]) groups[keyVal] = { name: keyVal, caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, val_base: 0 };
-                groups[keyVal].caminhoes += (Number(item.num_caminhoes) || 0);
-                groups[keyVal].ibcs += (Number(item.num_ibcs) || 0);
-                groups[keyVal].custo += (Number(item.custo_dif) || 0);
-                groups[keyVal].dif_qty += (Number(item.dif_real_sap) || 0);
+                groups[keyVal].caminhoes += (Number(item.num_caminhoes) || 0); [cite: 48]
+                groups[keyVal].ibcs += (Number(item.num_ibcs) || 0); [cite: 48]
+                groups[keyVal].custo += (Number(item.custo_dif) || 0); [cite: 48]
+                groups[keyVal].dif_qty += (Number(item.dif_real_sap) || 0); [cite: 48]
                 groups[keyVal].val_base += (Number(item.est_inicial_val) || 0) + (Number(item.entradas_val) || 0);
             });
             return Object.values(groups).map(g => ({ ...g, variacao: g.val_base === 0 ? 0 : g.custo / g.val_base })).sort((a, b) => a.custo - b.custo);
@@ -1776,7 +1773,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
 
         const totals = useMemo(() => groupedData.reduce((acc, curr) => ({
             caminhoes: acc.caminhoes + curr.caminhoes, ibcs: acc.ibcs + curr.ibcs, custo: acc.custo + curr.custo, val_base: acc.val_base + curr.val_base
-        }), { caminhoes: 0, ibcs: 0, custo: 0, val_base: 0 }), [groupedData]);
+        }), { caminhoes: 0, ibcs: 0, custo: 0, val_base: 0 }), [groupedData]); [cite: 51]
 
         if (isLastLevel) return <div className="p-6 text-center text-slate-400 no-print">Fim do nível. <button onClick={() => setPath(path.slice(0, -1))} className="text-purple-600 underline">Voltar</button></div>;
 
@@ -1791,11 +1788,11 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
                     <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
                         <tr>
-                            <th className="px-4 py-2 print:border print:border-black print:px-1">{hierarchy[currentLevelIndex].label}</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Caminhões</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:px-1">IBC's</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Var (%)</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Custo Total</th>
+                            <th className="px-4 py-2 print:border print:border-black print:text-black print:px-1">{hierarchy[currentLevelIndex].label}</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Caminhões</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">IBC's</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Var (%)</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Custo Total</th>
                             <th className="px-4 py-2 text-center no-print">Ação</th>
                         </tr>
                     </thead>
@@ -1803,10 +1800,10 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                         {groupedData.map((row, i) => (
                             <tr key={i} onClick={() => setPath([...path, row.name])} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-slate-50">
                                 <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print:text-black print:border print:border-black print:px-1">{row.name}</td>
-                                <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{Utils.math.roundVolume(row.caminhoes)}</td>
-                                <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{Utils.math.roundVolume(row.ibcs)}</td>
-                                <td className={`px-4 py-2 text-right font-mono font-bold ${Math.abs(row.variacao) > 0.05 ? 'text-red-600' : 'text-slate-600'} print-color-force print:border print:border-black print:px-1`}>{fmtPerc(row.variacao)}</td>
-                                <td className={`px-4 py-2 text-right font-mono font-bold ${row.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force print:border print:border-black print:px-1`}>{fmtMoney(row.custo)}</td>
+                                <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{Utils.math.roundVolume(row.caminhoes)}</td> [cite: 63]
+                                <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{Utils.math.roundVolume(row.ibcs)}</td> [cite: 63, 64]
+                                <td className={`px-4 py-2 text-right font-mono font-bold ${Math.abs(row.variacao) > 0.05 ? 'text-red-600' : 'text-slate-600'} print-color-force print:border print:border-black print:px-1`}>{fmtPerc(row.variacao)}</td> [cite: 65]
+                                <td className={`px-4 py-2 text-right font-mono font-bold ${row.custo < 0 ? [cite_start]'text-red-600' : 'text-emerald-600'} print-color-force print:border print:border-black print:px-1`}>{fmtMoney(row.custo)}</td> [cite: 66]
                                 <td className="px-4 py-2 text-center no-print text-slate-400"><SafeIcon name="ChevronRight" width={14} /></td>
                             </tr>
                         ))}
@@ -1832,18 +1829,14 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 @media print {
                     @page { margin: 0.5cm; size: A4; }
                     .force-black-print { color: #000000 !important; -webkit-text-fill-color: #000000 !important; print-color-adjust: exact !important; }
-                    body, .report-container { background-color: white !important; color: black !important; -webkit-print-color-adjust: exact !important; }
-                    .glass-card, .bg-white, .dark\\:bg-slate-800, .bg-slate-50, .dark\\:bg-slate-900 { background: white !important; background-image: none !important; box-shadow: none !important; border-radius: 4px !important; }
-                    .print-card, .print-table-container { border: 1px solid #000 !important; }
+                    body, .report-container, .bg-white, .dark\\:bg-slate-800, .bg-slate-50, .dark\\:bg-slate-900 { background: white !important; background-color: white !important; background-image: none !important; color: black !important; }
+                    .print-card, .print-table-container { border: 1px solid #000 !important; box-shadow: none !important; }
                     .no-print { display: none !important; }
                     .print-grid-cols-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; }
-                    .print-grid-charts { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px !important; height: 220px !important; break-inside: avoid; }
-                    .print-header { background-color: white !important; border-bottom: 2px solid black !important; }
+                    .print-page-break { page-break-before: always; break-before: page; display: block !important; }
                     .print-color-force { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                     .text-red-500, .text-red-600 { color: #dc2626 !important; }
                     .text-emerald-500, .text-emerald-600 { color: #059669 !important; }
-                    .print-page-break { page-break-before: always; break-before: page; display: block !important; }
-                    .print-force-visible { display: block !important; }
                 }
             `}</style>
 
@@ -1870,7 +1863,9 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                         <span className="text-xs font-bold text-slate-500 uppercase">Período:</span>
                         <input type="month" className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} />
                     </div>
-                    <button onClick={() => window.print()} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg hover:bg-slate-700"><SafeIcon name="Download" width={16} /> PDF</button>
+                    <button onClick={() => window.print()} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg hover:bg-slate-700 transition-all">
+                        <SafeIcon name="Download" width={16} /> PDF
+                    </button>
                 </div>
             </div>
 
@@ -1884,7 +1879,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 <VariationCard title="Variação Ajustada" qty={adjustedVariation} subtitle="Real vs Teórico / Mov"/>
             </div>
 
-            {/* Diferença e Gráficos [cite: 115, 128] */}
+            {/* Diferença e Gráficos */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:grid print:grid-cols-1">
                 <div className="lg:col-span-1 print:mb-6">
                     <div className="bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/50 p-6 shadow-sm h-full flex flex-col justify-center print-card">
@@ -1910,84 +1905,84 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                     </div>
                 </div>
 
-                <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 print-grid-charts">
-                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 p-4 shadow-sm h-[350px] print:h-[220px] flex flex-col print-card">
-                        <h3 className="font-bold text-xs mb-4 uppercase border-b pb-2 print:text-black">Top Ajustes (Região)</h3>
-                        <div className="flex-1 w-full"><ResponsiveContainer width="100%" height="100%"><BarChart data={chartsData.regionais} layout="vertical" margin={{left: 40}}><XAxis type="number" tick={{fontSize: 9, fill: 'black'}}/><YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fill: 'black'}}/><Bar dataKey="abs" barSize={15}>{chartsData.regionais.map((e, i) => (<Cell key={i} fill={e.value < 0 ? '#ef4444' : '#10b981'} />))}</Bar></BarChart></ResponsiveContainer></div>
+                <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 p-4 shadow-sm h-[350px] flex flex-col">
+                        <h3 className="font-bold text-xs mb-4 uppercase border-b pb-2">Top Ajustes (Região)</h3>
+                        <div className="flex-1 w-full"><ResponsiveContainer><BarChart data={chartsData.regionais} layout="vertical" margin={{left: 40}}><XAxis type="number" tick={{fontSize: 9}}/><YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10}}/><Bar dataKey="abs" barSize={15}>{chartsData.regionais.map((e, i) => (<Cell key={i} fill={e.value < 0 ? '#ef4444' : '#10b981'} />))}</Bar></BarChart></ResponsiveContainer></div>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 p-4 shadow-sm h-[350px] print:h-[220px] flex flex-col print-card">
-                        <h3 className="font-bold text-xs mb-4 uppercase border-b pb-2 print:text-black">Top Ajustes (Material)</h3>
-                        <div className="flex-1 w-full"><ResponsiveContainer width="100%" height="100%"><BarChart data={chartsData.materiais} layout="vertical" margin={{left: 40}}><XAxis type="number" tick={{fontSize: 9, fill: 'black'}}/><YAxis dataKey="name" type="category" width={110} tick={{fontSize: 10, fill: 'black'}}/><Bar dataKey="abs" barSize={15}>{chartsData.materiais.map((e, i) => (<Cell key={i} fill={e.value < 0 ? '#ef4444' : '#10b981'} />))}</Bar></BarChart></ResponsiveContainer></div>
+                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 p-4 shadow-sm h-[350px] flex flex-col">
+                        <h3 className="font-bold text-xs mb-4 uppercase border-b pb-2">Top Ajustes (Material)</h3>
+                        <div className="flex-1 w-full"><ResponsiveContainer><BarChart data={chartsData.materiais} layout="vertical" margin={{left: 40}}><XAxis type="number" tick={{fontSize: 9}}/><YAxis dataKey="name" type="category" width={110} tick={{fontSize: 10}}/><Bar dataKey="abs" barSize={15}>{chartsData.materiais.map((e, i) => (<Cell key={i} fill={e.value < 0 ? '#ef4444' : '#10b981'} />))}</Bar></BarChart></ResponsiveContainer></div>
                     </div>
                 </div>
             </div>
 
-            {/* Tabela Analítica Restaurada [cite: 146, 171] */}
-            <div className="print-page-break print-force-visible mt-8">
+            {/* Tabela Analítica Restaurada [cite: 147] */}
+            <div className="mt-8 print-page-break">
                 <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
                     <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
                         <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
                             <tr>
-                                <th className="px-3 py-2 min-w-[150px] print:border print:border-black">Material</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black">Est. Ini</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black">Entradas</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black">Saídas</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black">Final (T)</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black">Final (R)</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black">Var (%)</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black">R$ Méd</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black">R$ Aj.</th>
+                                <th className="px-3 py-2 min-w-[150px] print:border print:border-black print:px-1">Material</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Est. Ini</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Entradas</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Saídas</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Final (T)</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Final (R)</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Var (%)</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">R$ Méd</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">R$ Aj.</th> [cite: 153]
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
                             {analiticaData.map((row, i) => (
-                                <tr key={i} className="hover:bg-purple-50 break-inside-avoid print:bg-white">
-                                    <td className="px-3 py-2 font-medium truncate max-w-[250px] print:border print:border-black" title={row.name}>
-                                        {row.name.length > 25 ? row.name.substring(0, 25) + '...' : row.name}
+                                <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
+                                    <td className="px-3 py-2 font-medium truncate max-w-[250px] text-slate-700 dark:text-white print:text-black print:border print:border-black print:px-1" title={row.name}>
+                                        {row.name.length > 25 ? row.name.substring(0, 25) + '...' : row.name} [cite: 156, 157]
                                     </td>
-                                    <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(row.est_in)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black">+{fmtNum(row.entradas)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black">-{fmtNum(row.saidas)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-slate-500 print:border print:border-black">{fmtNum(row.est_fin_sap)}</td>
-                                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print-color-force print:border print:border-black">{fmtNum(row.est_fin_real)}</td>
-                                    <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print-color-force print:border print:border-black`}>{fmtPerc(row.variacaoPct)}</td>
-                                    <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtMoney(row.unitPrice)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-purple-600 font-bold print-color-force print:border print:border-black">{fmtMoney(row.custoMedioAjustado)}</td>
+                                    <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{fmtNum(row.est_in)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black print:px-1">+{fmtNum(row.entradas)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black print:px-1">-{fmtNum(row.saidas)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-slate-500 print:text-black print:border print:border-black print:px-1">{fmtNum(row.est_fin_sap)}</td>
+                                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print-color-force print:border print:border-black print:px-1">{fmtNum(row.est_fin_real)}</td>
+                                    <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print-color-force print:border print:border-black print:px-1`}>{fmtPerc(row.variacaoPct)}</td>
+                                    <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{fmtMoney(row.unitPrice)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-purple-600 font-bold print-color-force print:border print:border-black print:px-1">{fmtMoney(row.custoMedioAjustado)}</td> [cite: 162]
                                 </tr>
                             ))}
                         </tbody>
-                        <tfoot className="bg-slate-100 font-bold text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
+                        <tfoot className="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
                             <tr>
-                                <td className="px-3 py-2 uppercase print:border print:border-black">Total</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(analiticaTotals.est_in)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(analiticaTotals.entradas)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(analiticaTotals.saidas)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(analiticaTotals.est_fin_sap)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(analiticaTotals.est_fin_real)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtPerc(adjustedVariation)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">-</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">-</td>
+                                <td className="px-3 py-2 uppercase text-xs print:border print:border-black print:px-1">Total</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_in)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.entradas)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.saidas)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_fin_sap)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_fin_real)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtPerc(adjustedVariation)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">-</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">-</td>
                             </tr>
                         </tfoot>
                     </table>
                 </StandardTable>
             </div>
 
-            {/* DrillDowns Originais Restaurados  */}
+            {/* As 5 Tabelas de Drill Down Restauradas  */}
             <div className="space-y-8">
-                <div className="print-page-break print-force-visible">
+                <div className="print-page-break">
                     <DrillDownTable rawData={lista} title="Classificação por Região" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
-                <div className="print-page-break print-force-visible">
+                <div className="print-page-break">
                     <DrillDownTable rawData={lista} title="Classificação por Material" iconName="Box" hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
-                <div className="print-page-break print-force-visible">
+                <div className="print-page-break">
                     <DrillDownTable rawData={lista} title="Classificação por Categoria" iconName="ListFilter" hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
                 </div>
-                <div className="print-page-break print-force-visible">
+                <div className="print-page-break">
                     <DrillDownTable rawData={lista} title="Regional + Usina" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
                 </div>
-                <div className="print-page-break print-force-visible">
+                <div className="print-page-break">
                     <DrillDownTable rawData={lista} title="Usina + Material" iconName="Briefcase" hierarchy={[{ key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
                 </div>
             </div>
@@ -6934,6 +6929,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
