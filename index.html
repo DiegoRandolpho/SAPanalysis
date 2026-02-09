@@ -1592,14 +1592,14 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         </div>
     );
 };
-      const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
+     const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
             
             const SafeIcon = ({ name, className, width, height }) => {
                 const IconComponent = Icons[name] || Icons.Activity;
                 return <IconComponent className={className} width={width || 16} height={height || 16} />;
             };
 
-            // --- PROCESSAMENTO DE DADOS ---
+            // --- PROCESSAMENTO DE DADOS (Inalterado) ---
             const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, analiticaTotals, lista, adjustedVariation } = useMemo(() => {
                 const rawList = data?.lista || [];
                 const groups = {}; 
@@ -1892,8 +1892,22 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                             
                             tr:nth-child(even) { background-color: #fcfcfc !important; }
 
-                            .print-page-1-container { display: block; margin-bottom: 20px; }
-                            .print-page-break { page-break-before: always; margin-top: 20px; display: block !important; }
+                            .print-page-1-container { display: block; margin-bottom: 10px; }
+                            
+                            /* CORREÇÃO DO PULO DE PÁGINA EM BRANCO */
+                            .print-page-break { 
+                                page-break-before: always; 
+                                break-before: page;
+                                display: block !important;
+                                margin-top: 0px !important; /* Remove margem que causa o pulo extra */
+                            }
+                            
+                            /* REMOVE O GAP E DISPLAY BLOCK NO CONTAINER */
+                            .print-block-no-gap {
+                                display: block !important;
+                                gap: 0 !important;
+                            }
+
                             .print-force-visible { display: block !important; }
                             .hide-on-screen { display: none; }
                             .no-print { display: none !important; }
@@ -2009,7 +2023,8 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-12 mt-8"> {/* Container sequencial */}
+                    {/* CORREÇÃO AQUI: CLASSE print-block-no-gap PARA REMOVER O GAP NA IMPRESSÃO */}
+                    <div className="flex flex-col gap-12 mt-8 print-block-no-gap">
 
                         <div className="print-force-visible print-page-break">
                             <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
@@ -7028,6 +7043,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
