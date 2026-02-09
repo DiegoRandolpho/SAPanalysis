@@ -1693,7 +1693,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             out_qty: Object.values(groups).reduce((acc, curr) => acc + curr.saidas, 0),
             out_val: total_val_sai,
             fin_qty: total_qty_fin_real,
-            fin_val: total_val_fin_sap + total_custo_dif // O Final Real financeiro é o SAP + Ajuste
+            fin_val: total_val_fin_sap,
         };
 
         return { 
@@ -6919,6 +6919,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
