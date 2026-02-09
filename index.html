@@ -1606,7 +1606,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         const regionaisMap = {};
         const materiaisMap = {};
 
-        // Acumuladores globais (Financeiros e Quantidades)
         let total_val_in = 0, total_val_ent = 0, total_val_sai = 0, total_val_fin_sap = 0;
         let total_dif_qty = 0, total_custo_dif = 0, total_caminhoes = 0, total_ibcs = 0;
         let total_qty_fin_real = 0;
@@ -1623,7 +1622,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 };
             }
 
-            // Soma das Quantidades (para exibição)
             const qty_in = Number(item.est_inicial_sap) || 0;
             const qty_ent = Number(item.entradas_sap) || 0;
             const qty_sai = Number(item.saidas_sap) || 0;
@@ -1638,7 +1636,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             groups[matKey].est_fin_real += qty_fin_real;
             groups[matKey].dif_qty += qty_dif;
 
-            // Soma dos Valores Financeiros (para cálculos de R$)
             const val_in = Number(item.est_inicial_val) || 0;
             const val_ent = Number(item.entradas_val) || 0;
             const val_sai = Number(item.saidas_val) || 0;
@@ -1651,13 +1648,11 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             groups[matKey].val_fin_sap += val_fin_sap;
             groups[matKey].custo_dif += custo_dif;
 
-            // Globais
             total_val_in += val_in;
             total_val_ent += val_ent;
             total_val_sai += val_sai;
             total_val_fin_sap += val_fin_sap;
             total_custo_dif += custo_dif;
-            
             total_dif_qty += qty_dif;
             total_qty_fin_real += qty_fin_real;
             total_caminhoes += Number(item.num_caminhoes) || 0;
@@ -1671,13 +1666,9 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         const processedAnalitica = Object.values(groups)
             .filter(g => !(Math.abs(g.est_in) < 0.01 && Math.abs(g.est_fin_real) < 0.01))
             .map(g => {
-                // Variação baseada no valor financeiro conforme a regra: Diferença / (Inicial + Entradas)
                 const denominadorVar = g.val_in + g.val_ent;
                 const variacaoPct = denominadorVar !== 0 ? (g.custo_dif / denominadorVar) : 0;
-                
-                // Preço médio para exibição na tabela
                 const unitPrice = g.est_in !== 0 ? (g.val_in / g.est_in) : 0;
-
                 return { ...g, unitPrice, variacaoPct };
             })
             .sort((a, b) => a.custo_dif - b.custo_dif);
@@ -1724,43 +1715,43 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
 
     // --- Sub-componentes Internos ---
     const FlowCard = ({ title, qty, val, iconName, color }) => (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm print-card">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
             <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{title}</span>
-                <div className={`p-1.5 rounded-md bg-opacity-10 ${color.replace('text-', 'bg-')}`}>
-                    <SafeIcon name={iconName} width={14} className={color} />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span>
+                <div className={`p-1.5 rounded-md bg-opacity-10 ${color.replace('text-', 'bg-')} print-color-force`}>
+                    <SafeIcon name={iconName} width={14} className={`${color} print-color-force`} />
                 </div>
             </div>
             <div>
-                <div className="text-lg font-bold text-slate-800 dark:text-white">{fmtMoney(val)}</div>
-                <div className="text-xs font-medium text-slate-500 mt-1">{fmtNum(qty)} <span className="opacity-70 font-normal">un</span></div>
+                <div className="text-lg font-bold text-slate-800 dark:text-white force-black-print">{fmtMoney(val)}</div>
+                <div className="text-xs font-medium text-slate-500 mt-1 force-black-print">{fmtNum(qty)} <span className="opacity-70 font-normal">un</span></div>
             </div>
         </div>
     );
 
     const VariationCard = ({ qty, title, subtitle }) => (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm print-card">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
             <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{title}</span>
-                <div className="p-1.5 rounded-md bg-purple-50">
-                    <SafeIcon name="Activity" width={14} className="text-purple-600" />
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span>
+                <div className="p-1.5 rounded-md bg-purple-50 print-color-force">
+                    <SafeIcon name="Activity" width={14} className="text-purple-600 print-color-force" />
                 </div>
             </div>
             <div className="flex flex-col">
-                <span className={`text-2xl font-black ${qty < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{fmtPerc(qty)}</span>
-                <span className="text-[10px] text-slate-400">{subtitle}</span>
+                <span className={`text-2xl font-black ${qty < 0 ? 'text-red-500' : 'text-emerald-500'} print-color-force`}>{fmtPerc(qty)}</span>
+                <span className="text-[10px] text-slate-400 print:text-black">{subtitle}</span>
             </div>
         </div>
     );
 
     const StandardTable = ({ children, title, iconName }) => (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden mb-6 print-table-container">
-            <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
-                <h3 className="font-black text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 uppercase tracking-wide">
-                    <SafeIcon name={iconName} width={16} className="text-purple-600" /> {title}
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-table-container overflow-hidden break-inside-avoid w-full mb-6">
+            <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print-header">
+                <h3 className="font-black text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 uppercase tracking-wide print:text-black">
+                    <SafeIcon name={iconName} width={16} className="text-purple-600 print:text-black" /> {title}
                 </h3>
             </div>
-            <div className="overflow-x-auto w-full">
+            <div className="overflow-x-auto print:overflow-visible w-full">
                 {children}
             </div>
         </div>
@@ -1810,36 +1801,36 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                         <button onClick={() => setPath(path.slice(0, -1))} className="hover:underline flex items-center gap-1"><SafeIcon name="ArrowLeft" width={10}/> Voltar</button>
                     </div>
                 )}
-                <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300">
-                    <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500">
+                <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
+                    <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
                         <tr>
-                            <th className="px-4 py-2">{hierarchy[currentLevelIndex].label}</th>
-                            <th className="px-4 py-2 text-right">Caminhões</th>
-                            <th className="px-4 py-2 text-right">IBC's</th>
-                            <th className="px-4 py-2 text-right">Var (%)</th>
-                            <th className="px-4 py-2 text-right">Custo Total</th>
+                            <th className="px-4 py-2 print:border print:border-black print:text-black print:px-1">{hierarchy[currentLevelIndex].label}</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Caminhões</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">IBC's</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Var (%)</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Custo Total</th>
                             <th className="px-4 py-2 text-center no-print">Ação</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
                         {groupedData.map((row, i) => (
-                            <tr key={i} onClick={() => setPath([...path, row.name])} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer">
-                                <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200">{row.name}</td>
-                                <td className="px-4 py-2 text-right font-mono">{Utils.math.roundVolume(row.caminhoes)}</td>
-                                <td className="px-4 py-2 text-right font-mono">{Utils.math.roundVolume(row.ibcs)}</td>
-                                <td className={`px-4 py-2 text-right font-mono font-bold ${Math.abs(row.variacao) > 0.05 ? 'text-red-600' : 'text-slate-600'}`}>{fmtPerc(row.variacao)}</td>
-                                <td className={`px-4 py-2 text-right font-mono font-bold ${row.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(row.custo)}</td>
+                            <tr key={i} onClick={() => setPath([...path, row.name])} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-slate-50">
+                                <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print:text-black print:border print:border-black print:px-1">{row.name}</td>
+                                <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{Utils.math.roundVolume(row.caminhoes)}</td>
+                                <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{Utils.math.roundVolume(row.ibcs)}</td>
+                                <td className={`px-4 py-2 text-right font-mono font-bold ${Math.abs(row.variacao) > 0.05 ? 'text-red-600' : 'text-slate-600'} print-color-force print:border print:border-black print:px-1`}>{fmtPerc(row.variacao)}</td>
+                                <td className={`px-4 py-2 text-right font-mono font-bold ${row.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force print:border print:border-black print:px-1`}>{fmtMoney(row.custo)}</td>
                                 <td className="px-4 py-2 text-center no-print text-slate-400"><SafeIcon name="ChevronRight" width={14} /></td>
                             </tr>
                         ))}
                     </tbody>
-                    <tfoot className="bg-slate-100 font-bold text-slate-800">
+                    <tfoot className="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
                         <tr>
-                            <td className="px-4 py-2">Total</td>
-                            <td className="px-4 py-2 text-right">{Utils.math.roundVolume(totals.caminhoes)}</td>
-                            <td className="px-4 py-2 text-right">{Utils.math.roundVolume(totals.ibcs)}</td>
-                            <td className="px-4 py-2 text-right">{fmtPerc(totals.val_base !== 0 ? totals.custo / totals.val_base : 0)}</td>
-                            <td className={`px-4 py-2 text-right ${totals.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{fmtMoney(totals.custo)}</td>
+                            <td className="px-4 py-2 uppercase text-xs">Total</td>
+                            <td className="px-4 py-2 text-right font-mono">{Utils.math.roundVolume(totals.caminhoes)}</td>
+                            <td className="px-4 py-2 text-right font-mono">{Utils.math.roundVolume(totals.ibcs)}</td>
+                            <td className="px-4 py-2 text-right font-mono">{fmtPerc(totals.val_base !== 0 ? totals.custo / totals.val_base : 0)}</td>
+                            <td className={`px-4 py-2 text-right font-mono ${totals.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force`}>{fmtMoney(totals.custo)}</td>
                             <td className="no-print"></td>
                         </tr>
                     </tfoot>
@@ -1853,14 +1844,32 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             <style>{`
                 @media print {
                     @page { margin: 0.5cm; size: A4; }
+                    .force-black-print { color: #000000 !important; -webkit-text-fill-color: #000000 !important; print-color-adjust: exact !important; }
+                    body, .report-container { background-color: white !important; color: black !important; -webkit-print-color-adjust: exact !important; }
+                    .print-card, .print-table-container { border: 1px solid #000 !important; box-shadow: none !important; }
                     .no-print { display: none !important; }
-                    .print-card { border: 1px solid black !important; }
                     .print-grid-cols-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; }
-                    .print-page-break { page-break-before: always; break-before: page; }
+                    .print-page-break { page-break-before: always; break-before: page; display: block !important; }
+                    .print-color-force { -webkit-print-color-adjust: exact; print-color-adjust: exact !important; }
+                    .text-red-500, .text-red-600 { color: #dc2626 !important; }
+                    .text-emerald-500, .text-emerald-600 { color: #059669 !important; }
                 }
             `}</style>
 
-            {/* Cabeçalho */}
+            {/* Cabeçalho de Impressão (Visível apenas no PDF) */}
+            <div className="hidden print:flex justify-between items-center border-b-2 border-black pb-4 mb-6">
+                <div className="flex items-center gap-4">
+                     <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-10 object-contain" />
+                     <div className="h-8 w-px bg-black"></div>
+                     <h1 className="text-xl font-black uppercase text-black tracking-wider">Inventário de Insumos</h1>
+                </div>
+                <div className="text-right">
+                    <p className="text-sm font-bold uppercase text-black">Mês de Referência</p>
+                    <p className="text-lg font-black text-black print-color-force">{Utils.date.formatNice(filters.periodo)}</p>
+                </div>
+            </div>
+
+            {/* Cabeçalho de Tela */}
             <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     <SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos
@@ -1870,7 +1879,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                         <span className="text-xs font-bold text-slate-500 uppercase">Período:</span>
                         <input type="month" className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} />
                     </div>
-                    <button onClick={() => window.print()} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg hover:bg-slate-700">
+                    <button onClick={() => window.print()} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg hover:bg-slate-700 transition-all">
                         <SafeIcon name="Download" width={16} /> PDF
                     </button>
                 </div>
@@ -1887,94 +1896,100 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             </div>
 
             {/* Diferença e Gráficos */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-1">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:grid print:grid-cols-1">
+                <div className="lg:col-span-1 print:mb-6">
                     <div className="bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/50 p-6 shadow-sm h-full flex flex-col justify-center print-card">
-                        <h3 className="text-sm font-bold uppercase text-purple-900 dark:text-purple-300 mb-4">Diferença de Estoque</h3>
+                        <h3 className="text-sm font-bold uppercase text-purple-900 dark:text-purple-300 mb-4 print:text-black">Diferença de Estoque</h3>
                         <div className="mb-6">
-                            <span className={`text-4xl font-black ${consolidatedDiff.custo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                            <span className={`text-4xl font-black ${consolidatedDiff.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force`}>
                                 {consolidatedDiff.custo > 0 ? '+' : ''}{fmtMoney(consolidatedDiff.custo)}
                             </span>
-                            <span className="text-lg font-medium text-slate-600 dark:text-slate-400 block mt-1">
+                            <span className="text-lg font-medium text-slate-600 dark:text-slate-400 block mt-1 print:text-black">
                                 {fmtNum(consolidatedDiff.qty)} <span className="text-sm">unidades</span>
                             </span>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 border-t border-purple-100 pt-4">
+                        <div className="grid grid-cols-2 gap-4 border-t border-purple-100 pt-4 print:border-black">
                             <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase">Caminhões</p>
-                                <div className="flex items-center gap-2 font-bold text-lg"><SafeIcon name="Truck" /> {Utils.math.roundVolume(consolidatedDiff.caminhoes)}</div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase print:text-black">Caminhões</p>
+                                <div className="flex items-center gap-2 font-bold text-lg print:text-black"><SafeIcon name="Truck" /> {Utils.math.roundVolume(consolidatedDiff.caminhoes)}</div>
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase">IBC's</p>
-                                <div className="flex items-center gap-2 font-bold text-lg"><SafeIcon name="Box" /> {Utils.math.roundVolume(consolidatedDiff.ibcs)}</div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase print:text-black">IBC's</p>
+                                <div className="flex items-center gap-2 font-bold text-lg print:text-black"><SafeIcon name="Box" /> {Utils.math.roundVolume(consolidatedDiff.ibcs)}</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 p-4 shadow-sm h-[350px] flex flex-col print-card">
+                <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 p-4 shadow-sm h-[350px] flex flex-col">
                         <h3 className="font-bold text-xs mb-4 uppercase border-b pb-2">Top Ajustes (Região)</h3>
                         <div className="flex-1 w-full"><ResponsiveContainer><BarChart data={chartsData.regionais} layout="vertical" margin={{left: 40}}><XAxis type="number" tick={{fontSize: 9}}/><YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10}}/><Bar dataKey="abs" barSize={15}>{chartsData.regionais.map((e, i) => (<Cell key={i} fill={e.value < 0 ? '#ef4444' : '#10b981'} />))}</Bar></BarChart></ResponsiveContainer></div>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 p-4 shadow-sm h-[350px] flex flex-col print-card">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 p-4 shadow-sm h-[350px] flex flex-col">
                         <h3 className="font-bold text-xs mb-4 uppercase border-b pb-2">Top Ajustes (Material)</h3>
                         <div className="flex-1 w-full"><ResponsiveContainer><BarChart data={chartsData.materiais} layout="vertical" margin={{left: 40}}><XAxis type="number" tick={{fontSize: 9}}/><YAxis dataKey="name" type="category" width={110} tick={{fontSize: 10}}/><Bar dataKey="abs" barSize={15}>{chartsData.materiais.map((e, i) => (<Cell key={i} fill={e.value < 0 ? '#ef4444' : '#10b981'} />))}</Bar></BarChart></ResponsiveContainer></div>
                     </div>
                 </div>
             </div>
 
-            {/* Tabela Analítica */}
-            <div className="mt-8">
+            {/* Tabela Analítica - Agora com quebra de página para o PDF */}
+            <div className="mt-8 print-page-break">
                 <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
-                    <table className="w-full text-xs text-left">
-                        <thead className="uppercase bg-slate-50 border-b font-bold text-slate-500">
+                    <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
+                        <thead className="uppercase bg-slate-50 border-b font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
                             <tr>
-                                <th className="px-3 py-2">Material</th>
-                                <th className="px-2 py-2 text-right">Est. Ini</th>
-                                <th className="px-2 py-2 text-right">Entradas</th>
-                                <th className="px-2 py-2 text-right">Saídas</th>
-                                <th className="px-2 py-2 text-right">Final (T)</th>
-                                <th className="px-2 py-2 text-right">Final (R)</th>
-                                <th className="px-2 py-2 text-right">Var (%)</th>
-                                <th className="px-2 py-2 text-right">R$ Méd</th>
+                                <th className="px-3 py-2 print:border print:border-black print:px-1">Material</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Est. Ini</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Entradas</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Saídas</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Final (T)</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Final (R)</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Var (%)</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">R$ Méd</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y">
+                        <tbody className="divide-y divide-slate-100 print:divide-black">
                             {analiticaData.map((row, i) => (
-                                <tr key={i} className="hover:bg-slate-50">
-                                    <td className="px-3 py-2 font-medium truncate max-w-[250px]">{row.name}</td>
-                                    <td className="px-2 py-2 text-right font-mono">{fmtNum(row.est_in)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-emerald-600">+{fmtNum(row.entradas)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-red-500">-{fmtNum(row.saidas)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-slate-500">{fmtNum(row.est_fin_sap)}</td>
-                                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-600">{fmtNum(row.est_fin_real)}</td>
-                                    <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'}`}>{fmtPerc(row.variacaoPct)}</td>
-                                    <td className="px-2 py-2 text-right font-mono">{fmtMoney(row.unitPrice)}</td>
+                                <tr key={i} className="hover:bg-slate-50 break-inside-avoid">
+                                    <td className="px-3 py-2 font-medium truncate max-w-[250px] print:text-black print:border print:border-black print:px-1">{row.name}</td>
+                                    <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{fmtNum(row.est_in)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black print:px-1">+{fmtNum(row.entradas)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black print:px-1">-{fmtNum(row.saidas)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-slate-500 print:text-black print:border print:border-black print:px-1">{fmtNum(row.est_fin_sap)}</td>
+                                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print-color-force print:border print:border-black print:px-1">{fmtNum(row.est_fin_real)}</td>
+                                    <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print-color-force print:border print:border-black print:px-1`}>{fmtPerc(row.variacaoPct)}</td>
+                                    <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{fmtMoney(row.unitPrice)}</td>
                                 </tr>
                             ))}
                         </tbody>
-                        <tfoot className="bg-slate-100 font-bold">
+                        <tfoot className="bg-slate-100 font-bold text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
                             <tr>
-                                <td className="px-3 py-2 uppercase">Total</td>
-                                <td className="px-2 py-2 text-right">{fmtNum(analiticaTotals.est_in)}</td>
-                                <td className="px-2 py-2 text-right">{fmtNum(analiticaTotals.entradas)}</td>
-                                <td className="px-2 py-2 text-right">{fmtNum(analiticaTotals.saidas)}</td>
-                                <td className="px-2 py-2 text-right">{fmtNum(analiticaTotals.est_fin_sap)}</td>
-                                <td className="px-2 py-2 text-right">{fmtNum(analiticaTotals.est_fin_real)}</td>
-                                <td className="px-2 py-2 text-right">{fmtPerc(adjustedVariation)}</td>
-                                <td className="px-2 py-2 text-right">-</td>
+                                <td className="px-3 py-2 uppercase print:border print:border-black print:px-1">Total</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_in)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.entradas)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.saidas)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_fin_sap)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_fin_real)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtPerc(adjustedVariation)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">-</td>
                             </tr>
                         </tfoot>
                     </table>
                 </StandardTable>
             </div>
 
-            {/* Tabelas de Drill Down */}
+            {/* Tabelas de Drill Down com quebras de página */}
             <div className="space-y-8">
-                <DrillDownTable rawData={lista} title="Classificação por Região" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
-                <DrillDownTable rawData={lista} title="Classificação por Material" iconName="Box" hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
-                <DrillDownTable rawData={lista} title="Classificação por Categoria" iconName="ListFilter" hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
+                <div className="print-page-break">
+                    <DrillDownTable rawData={lista} title="Classificação por Região" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
+                </div>
+                <div className="print-page-break">
+                    <DrillDownTable rawData={lista} title="Classificação por Material" iconName="Box" hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
+                </div>
+                <div className="print-page-break">
+                    <DrillDownTable rawData={lista} title="Classificação por Categoria" iconName="ListFilter" hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
+                </div>
             </div>
         </div>
     );
@@ -6919,6 +6934,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
