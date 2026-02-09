@@ -1593,20 +1593,18 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
     );
 };
       const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
-            // Removido: const [activeTab, setActiveTab] = useState('analitica');
-
+            
             const SafeIcon = ({ name, className, width, height }) => {
                 const IconComponent = Icons[name] || Icons.Activity;
                 return <IconComponent className={className} width={width || 16} height={height || 16} />;
             };
 
             // --- PROCESSAMENTO DE DADOS ---
-            const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, analiticaTotals, lista, adjustedVariation, fornecedoresData } = useMemo(() => {
+            const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, analiticaTotals, lista, adjustedVariation } = useMemo(() => {
                 const rawList = data?.lista || [];
                 const groups = {}; 
                 const regionaisMap = {};
                 const materiaisMap = {};
-                const fornecedoresMap = {};
 
                 let total_est_in = 0, total_entradas = 0, total_saidas = 0, total_est_fin_sap = 0, total_est_fin_real = 0;
                 let total_dif_qty = 0, total_custo_dif = 0, total_caminhoes = 0, total_ibcs = 0;
@@ -1621,7 +1619,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                     const custo = Number(item.custo_dif) || 0;
                     const caminhoes = Number(item.num_caminhoes) || 0;
                     const ibcs = Number(item.num_ibcs) || 0;
-                    const fornecedor = item.fornecedor || 'N/D';
 
                     const matKey = item.grupo_material || item.cod_material || 'Outros';
 
@@ -1635,14 +1632,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                     groups[matKey].est_fin_real += est_fin_real;
                     groups[matKey].dif_qty += dif_qty;
                     groups[matKey].custo_dif += custo;
-
-                    if (!fornecedoresMap[fornecedor]) {
-                        fornecedoresMap[fornecedor] = { name: fornecedor, num_caminhoes: 0, dif_real_sap: 0, custo_dif: 0, entradas_sap: 0 };
-                    }
-                    fornecedoresMap[fornecedor].num_caminhoes += caminhoes;
-                    fornecedoresMap[fornecedor].dif_real_sap += dif_qty;
-                    fornecedoresMap[fornecedor].custo_dif += custo;
-                    fornecedoresMap[fornecedor].entradas_sap += entradas;
 
                     total_dif_qty += dif_qty;
                     total_custo_dif += custo;
@@ -1684,13 +1673,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                     est_fin_real: acc.est_fin_real + curr.est_fin_real
                 }), { est_in: 0, entradas: 0, saidas: 0, est_fin_sap: 0, est_fin_real: 0 });
 
-                const fornecedoresArray = Object.values(fornecedoresMap)
-                    .sort((a, b) => a.custo_dif - b.custo_dif)
-                    .map(f => ({
-                        ...f,
-                        perc_dif_entrada: f.entradas_sap !== 0 ? (f.custo_dif / f.entradas_sap) : 0
-                    }));
-
                 const adjDenom = analiticaTotals.est_in + analiticaTotals.entradas;
                 const adjDiff = analiticaTotals.est_fin_real - analiticaTotals.est_fin_sap;
                 const adjustedVariation = adjDenom !== 0 ? (adjDiff / adjDenom) : 0;
@@ -1716,7 +1698,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                     analiticaData: processedAnalitica,
                     analiticaTotals,
                     adjustedVariation, 
-                    fornecedoresData: fornecedoresArray,
                     lista: rawList
                 };
             }, [data]);
@@ -1769,60 +1750,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                         {children}
                     </div>
                 </div>
-            );
-
-            const FornecedoresTable1 = () => (
-                <StandardTable title="Fornecedores - Indicadores de Perda" iconName="Truck">
-                    <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
-                        <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
-                            <tr>
-                                <th className="px-4 py-2 print:border print:border-black print:px-1">Fornecedor</th>
-                                <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Total Caminhões</th>
-                                <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Soma Dif. Real x SAP</th>
-                                <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Soma Custo x Dif.</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
-                            {fornecedoresData.map((row, i) => (
-                                <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
-                                    <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print:text-black print:border print:border-black print:px-1">{row.name}</td>
-                                    <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{fmtNum(row.num_caminhoes)}</td>
-                                    <td className={`px-4 py-2 text-right font-mono font-bold ${row.dif_real_sap < 0 ? 'text-red-500' : 'text-emerald-500'} print-color-force print:border print:border-black print:px-1`}>{fmtNum(row.dif_real_sap)}</td>
-                                    <td className={`px-4 py-2 text-right font-mono font-bold ${row.custo_dif < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force print:border print:border-black print:px-1`}>{fmtMoney(row.custo_dif)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </StandardTable>
-            );
-
-            const FornecedoresTable2 = () => (
-                <StandardTable title="Fornecedores - Análise Relativa (Impacto sobre Entradas)" iconName="Activity">
-                    <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
-                        <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
-                            <tr>
-                                <th className="px-4 py-2 print:border print:border-black print:px-1">Fornecedor</th>
-                                <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Total Caminhões</th>
-                                <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Soma Dif. Real x SAP</th>
-                                <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Soma Custo x Dif.</th>
-                                <th className="px-4 py-2 text-right bg-purple-50 dark:bg-purple-900/10 print:bg-white print:border print:border-black print:px-1">Dif. / Entrada %</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
-                            {fornecedoresData.map((row, i) => (
-                                <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
-                                    <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print:text-black print:border print:border-black print:px-1">{row.name}</td>
-                                    <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{fmtNum(row.num_caminhoes)}</td>
-                                    <td className={`px-4 py-2 text-right font-mono font-bold ${row.dif_real_sap < 0 ? 'text-red-500' : 'text-emerald-500'} print-color-force print:border print:border-black print:px-1`}>{fmtNum(row.dif_real_sap)}</td>
-                                    <td className={`px-4 py-2 text-right font-mono font-bold ${row.custo_dif < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force print:border print:border-black print:px-1`}>{fmtMoney(row.custo_dif)}</td>
-                                    <td className="px-4 py-2 text-right font-mono font-bold text-slate-800 dark:text-white bg-purple-50/50 dark:bg-purple-900/5 print:bg-white print:border print:border-black print:px-1">
-                                        {fmtPerc(row.perc_dif_entrada)}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </StandardTable>
             );
 
             const DrillDownTable = ({ rawData, hierarchy, title, iconName }) => {
@@ -2134,13 +2061,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                                     </tfoot>
                                 </table>
                             </StandardTable>
-                            
-                            {/* NOVAS TABELAS DE FORNECEDORES */}
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 print:block mt-6">
-                                <FornecedoresTable1 />
-                                <FornecedoresTable2 />
-                            </div>
-
                         </div>
 
                         <div className="print-force-visible print-page-break">
@@ -7108,6 +7028,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
