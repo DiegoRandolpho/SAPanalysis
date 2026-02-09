@@ -6448,21 +6448,21 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                     
                     // QUANTIDADES (QTDD)
                     est_inicial_sap: Utils.formatters.parseBrl(get("EST. IN. SAP")),
-                    entradas_sap: Utils.formatters.parseBrl(get("+ ( Só ENT 101)")),
-                    saidas_sap: Utils.formatters.parseBrl(get("- (Só SAI 201)")),
+                    entradas_sap: Utils.formatters.parseBrl(get("+ (SÓ ENT 101)")),
+                    saidas_sap: Utils.formatters.parseBrl(get("- (SÓ SAÍ 201)")),
                     est_final_sap: Utils.formatters.parseBrl(get("EST. FIN. SAP")),
                     est_final_real: Utils.formatters.parseBrl(get("EST. FIN. REAL")),
-                    dif_real_sap: Utils.formatters.parseBrl(get("DIF real x sap")),
+                    dif_real_sap: Utils.formatters.parseBrl(get("DIF REAL X SAP")),
                     
                     // FINANCEIRO (R$)
                     custo_dif: Utils.formatters.parseBrl(get("DIF CUSTO")),
-                    est_inicial_val: Utils.formatters.parseBrl(get("Est In. Sap ($)")),
-                    entradas_val: Utils.formatters.parseBrl(get("SÓ ENT 101) $")),
+                    est_inicial_val: Utils.formatters.parseBrl(get("EST. IN.SAP ($)")),
+                    entradas_val: Utils.formatters.parseBrl(get("+ (SÓ ENT 101) $")),
                     saidas_val: Utils.formatters.parseBrl(get("- (SÓ SAÍ 201) $")),
                     est_final_val_sap: Utils.formatters.parseBrl(get("EST.FIN.SAP ($)")),
                     
                     // LOGÍSTICA
-                    num_caminhoes: Utils.formatters.parseBrl(get("Nº Caminhões")),
+                    num_caminhoes: Utils.formatters.parseBrl(get("Nº CAMINHÕES")),
                     num_ibcs: Utils.formatters.parseBrl(get("Nº IBC'S"))
                 };
             }).filter(i => i !== null);
@@ -6919,6 +6919,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
