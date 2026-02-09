@@ -1592,14 +1592,14 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         </div>
     );
 };
-    const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
+   const InsumosDashboard = ({ data, loading, filters, setFilters, onExport }) => {
     
     const SafeIcon = ({ name, className, width, height }) => {
         const IconComponent = Icons[name] || Icons.Activity;
         return <IconComponent className={className} width={width || 16} height={height || 16} />;
     };
 
-    // --- PROCESSAMENTO DE DADOS ---
+    // --- PROCESSAMENTO DE DADOS (Mantido conforme sua lógica atualizada) ---
     const { chartsData, inventoryFlow, consolidatedDiff, analiticaData, analiticaTotals, lista, adjustedVariation } = useMemo(() => {
         const rawList = data?.lista || [];
         const groups = {}; 
@@ -1612,52 +1612,39 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
 
         rawList.forEach(item => {
             const matKey = item.grupo_material || item.cod_material || 'Outros';
-
             if (!groups[matKey]) {
                 groups[matKey] = { 
-                    name: matKey, 
-                    est_in: 0, entradas: 0, saidas: 0, est_fin_sap: 0, est_fin_real: 0, 
-                    dif_qty: 0, custo_dif: 0,
-                    val_in: 0, val_ent: 0, val_sai: 0, val_fin_sap: 0
+                    name: matKey, est_in: 0, entradas: 0, saidas: 0, est_fin_sap: 0, est_fin_real: 0, 
+                    dif_qty: 0, custo_dif: 0, val_in: 0, val_ent: 0, val_sai: 0, val_fin_sap: 0
                 };
             }
-
             const qty_in = Number(item.est_inicial_sap) || 0;
             const qty_ent = Number(item.entradas_sap) || 0;
             const qty_sai = Number(item.saidas_sap) || 0;
             const qty_fin_sap = Number(item.est_final_sap) || 0;
             const qty_fin_real = Number(item.est_final_real) || 0;
             const qty_dif = Number(item.dif_real_sap) || 0;
-
             groups[matKey].est_in += qty_in;
             groups[matKey].entradas += qty_ent;
             groups[matKey].saidas += qty_sai;
             groups[matKey].est_fin_sap += qty_fin_sap;
             groups[matKey].est_fin_real += qty_fin_real;
             groups[matKey].dif_qty += qty_dif;
-
             const val_in = Number(item.est_inicial_val) || 0;
             const val_ent = Number(item.entradas_val) || 0;
             const val_sai = Number(item.saidas_val) || 0;
             const val_fin_sap = Number(item.est_final_val_sap) || 0;
             const custo_dif = Number(item.custo_dif) || 0;
-
             groups[matKey].val_in += val_in;
             groups[matKey].val_ent += val_ent;
             groups[matKey].val_sai += val_sai;
             groups[matKey].val_fin_sap += val_fin_sap;
             groups[matKey].custo_dif += custo_dif;
-
-            total_val_in += val_in;
-            total_val_ent += val_ent;
-            total_val_sai += val_sai;
-            total_val_fin_sap += val_fin_sap;
-            total_custo_dif += custo_dif;
-            total_dif_qty += qty_dif;
-            total_qty_fin_real += qty_fin_real;
+            total_val_in += val_in; total_val_ent += val_ent; total_val_sai += val_sai;
+            total_val_fin_sap += val_fin_sap; total_custo_dif += custo_dif;
+            total_dif_qty += qty_dif; total_qty_fin_real += qty_fin_real;
             total_caminhoes += Number(item.num_caminhoes) || 0;
             total_ibcs += Number(item.num_ibcs) || 0;
-
             const rKey = item.regional || 'N/D';
             regionaisMap[rKey] = (regionaisMap[rKey] || 0) + custo_dif;
             materiaisMap[matKey] = (materiaisMap[matKey] || 0) + custo_dif;
@@ -1670,21 +1657,15 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 const variacaoPct = denominadorVar !== 0 ? (g.custo_dif / denominadorVar) : 0;
                 const unitPrice = g.est_in !== 0 ? (g.val_in / g.est_in) : 0;
                 return { ...g, unitPrice, variacaoPct };
-            })
-            .sort((a, b) => a.custo_dif - b.custo_dif);
+            }).sort((a, b) => a.custo_dif - b.custo_dif);
 
         const adjDenom = total_val_in + total_val_ent;
         const adjustedVariation = adjDenom !== 0 ? (total_custo_dif / adjDenom) : 0;
-
         const flow = {
             ini_qty: Object.values(groups).reduce((acc, curr) => acc + curr.est_in, 0),
-            ini_val: total_val_in,
-            in_qty: Object.values(groups).reduce((acc, curr) => acc + curr.entradas, 0),
-            in_val: total_val_ent,
-            out_qty: Object.values(groups).reduce((acc, curr) => acc + curr.saidas, 0),
-            out_val: total_val_sai,
-            fin_qty: total_qty_fin_real,
-            fin_val: total_val_fin_sap,
+            ini_val: total_val_in, in_qty: Object.values(groups).reduce((acc, curr) => acc + curr.entradas, 0),
+            in_val: total_val_ent, out_qty: Object.values(groups).reduce((acc, curr) => acc + curr.saidas, 0),
+            out_val: total_val_sai, fin_qty: total_qty_fin_real, fin_val: total_val_fin_sap,
         };
 
         return { 
@@ -1692,8 +1673,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 regionais: Object.entries(regionaisMap).map(([name, value]) => ({ name, value, abs: Math.abs(value) })).sort((a, b) => b.abs - a.abs).slice(0, 10),
                 materiais: Object.entries(materiaisMap).map(([name, value]) => ({ name, value, abs: Math.abs(value) })).sort((a, b) => b.abs - a.abs).slice(0, 10)
             },
-            inventoryFlow: flow,
-            consolidatedDiff: { qty: total_dif_qty, custo: total_custo_dif, caminhoes: total_caminhoes, ibcs: total_ibcs },
+            inventoryFlow: flow, consolidatedDiff: { qty: total_dif_qty, custo: total_custo_dif, caminhoes: total_caminhoes, ibcs: total_ibcs },
             analiticaData: processedAnalitica,
             analiticaTotals: {
                 est_in: Object.values(groups).reduce((acc, curr) => acc + curr.est_in, 0),
@@ -1702,8 +1682,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 est_fin_sap: Object.values(groups).reduce((acc, curr) => acc + curr.est_fin_sap, 0),
                 est_fin_real: Object.values(groups).reduce((acc, curr) => acc + curr.est_fin_real, 0),
             },
-            adjustedVariation, 
-            lista: rawList
+            adjustedVariation, lista: rawList
         };
     }, [data]);
 
@@ -1713,28 +1692,28 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
     const fmtNum = (v) => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtPerc = (v) => (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 
-    // --- Sub-componentes Internos ---
+    // --- Sub-componentes Internos com classes de impressão ---
     const FlowCard = ({ title, qty, val, iconName, color }) => (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm print-card break-inside-avoid">
             <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span>
-                <div className={`p-1.5 rounded-md bg-opacity-10 ${color.replace('text-', 'bg-')} print-color-force`}>
-                    <SafeIcon name={iconName} width={14} className={`${color} print-color-force`} />
+                <div className={`p-1.5 rounded-md bg-opacity-10 ${color.replace('text-', 'bg-')} print:bg-transparent`}>
+                    <SafeIcon name={iconName} width={14} className={`${color} print:text-black`} />
                 </div>
             </div>
             <div>
-                <div className="text-lg font-bold text-slate-800 dark:text-white force-black-print">{fmtMoney(val)}</div>
-                <div className="text-xs font-medium text-slate-500 mt-1 force-black-print">{fmtNum(qty)} <span className="opacity-70 font-normal">un</span></div>
+                <div className="text-lg font-bold text-slate-800 dark:text-white print:text-black">{fmtMoney(val)}</div>
+                <div className="text-xs font-medium text-slate-500 mt-1 print:text-black">{fmtNum(qty)} <span className="opacity-70 font-normal">un</span></div>
             </div>
         </div>
     );
 
     const VariationCard = ({ qty, title, subtitle }) => (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden print-card break-inside-avoid">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex flex-col justify-between shadow-sm print-card break-inside-avoid">
             <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 print:text-black">{title}</span>
-                <div className="p-1.5 rounded-md bg-purple-50 print-color-force">
-                    <SafeIcon name="Activity" width={14} className="text-purple-600 print-color-force" />
+                <div className="p-1.5 rounded-md bg-purple-50 print:bg-transparent">
+                    <SafeIcon name="Activity" width={14} className="text-purple-600 print:text-black" />
                 </div>
             </div>
             <div className="flex flex-col">
@@ -1746,7 +1725,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
 
     const StandardTable = ({ children, title, iconName }) => (
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm print-table-container overflow-hidden break-inside-avoid w-full mb-6">
-            <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print-header">
+            <div className="px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center print:bg-white print:border-black">
                 <h3 className="font-black text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2 uppercase tracking-wide print:text-black">
                     <SafeIcon name={iconName} width={16} className="text-purple-600 print:text-black" /> {title}
                 </h3>
@@ -1762,12 +1741,10 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
         const filteredData = useMemo(() => rawData.filter(item => path.every((val, index) => item[hierarchy[index].key] === val)), [rawData, path, hierarchy]);
         const currentLevelIndex = path.length;
         const isLastLevel = currentLevelIndex >= hierarchy.length;
-
         const groupedData = useMemo(() => {
             if (isLastLevel) return [];
             const currentKey = hierarchy[currentLevelIndex].key;
             const groups = {};
-            
             filteredData.forEach(item => {
                 const keyVal = item[currentKey] || 'N/D';
                 if (!groups[keyVal]) groups[keyVal] = { name: keyVal, caminhoes: 0, ibcs: 0, custo: 0, dif_qty: 0, val_base: 0 };
@@ -1777,60 +1754,47 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 groups[keyVal].dif_qty += (Number(item.dif_real_sap) || 0);
                 groups[keyVal].val_base += (Number(item.est_inicial_val) || 0) + (Number(item.entradas_val) || 0);
             });
-
-            return Object.values(groups).map(g => ({ 
-                ...g, 
-                variacao: g.val_base === 0 ? 0 : g.custo / g.val_base 
-            })).sort((a, b) => a.custo - b.custo);
+            return Object.values(groups).map(g => ({ ...g, variacao: g.val_base === 0 ? 0 : g.custo / g.val_base })).sort((a, b) => a.custo - b.custo);
         }, [filteredData, currentLevelIndex, hierarchy, isLastLevel]);
 
         const totals = useMemo(() => groupedData.reduce((acc, curr) => ({
-            caminhoes: acc.caminhoes + curr.caminhoes, 
-            ibcs: acc.ibcs + curr.ibcs, 
-            custo: acc.custo + curr.custo,
-            val_base: acc.val_base + curr.val_base
+            caminhoes: acc.caminhoes + curr.caminhoes, ibcs: acc.ibcs + curr.ibcs, custo: acc.custo + curr.custo, val_base: acc.val_base + curr.val_base
         }), { caminhoes: 0, ibcs: 0, custo: 0, val_base: 0 }), [groupedData]);
 
         if (isLastLevel) return <div className="p-6 text-center text-slate-400 no-print">Fim do nível. <button onClick={() => setPath(path.slice(0, -1))} className="text-purple-600 underline">Voltar</button></div>;
 
         return (
             <StandardTable title={path.length === 0 ? title : `${title}: ${path.join(' > ')}`} iconName={iconName}>
-                {path.length > 0 && (
-                    <div className="bg-purple-50 px-4 py-1 text-xs text-purple-700 font-bold border-b border-purple-100 flex justify-between items-center no-print">
-                        <span>Filtrando por: {hierarchy[currentLevelIndex].label}</span>
-                        <button onClick={() => setPath(path.slice(0, -1))} className="hover:underline flex items-center gap-1"><SafeIcon name="ArrowLeft" width={10}/> Voltar</button>
-                    </div>
-                )}
                 <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
-                    <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
+                    <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black">
                         <tr>
-                            <th className="px-4 py-2 print:border print:border-black print:text-black print:px-1">{hierarchy[currentLevelIndex].label}</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Caminhões</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">IBC's</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Var (%)</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Custo Total</th>
+                            <th className="px-4 py-2 print:border print:border-black print:text-black">{hierarchy[currentLevelIndex].label}</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black">Caminhões</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black">IBC's</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black">Var (%)</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black">Custo Total</th>
                             <th className="px-4 py-2 text-center no-print">Ação</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
                         {groupedData.map((row, i) => (
-                            <tr key={i} onClick={() => setPath([...path, row.name])} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-slate-50">
-                                <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print:text-black print:border print:border-black print:px-1">{row.name}</td>
-                                <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{Utils.math.roundVolume(row.caminhoes)}</td>
-                                <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{Utils.math.roundVolume(row.ibcs)}</td>
-                                <td className={`px-4 py-2 text-right font-mono font-bold ${Math.abs(row.variacao) > 0.05 ? 'text-red-600' : 'text-slate-600'} print-color-force print:border print:border-black print:px-1`}>{fmtPerc(row.variacao)}</td>
-                                <td className={`px-4 py-2 text-right font-mono font-bold ${row.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force print:border print:border-black print:px-1`}>{fmtMoney(row.custo)}</td>
-                                <td className="px-4 py-2 text-center no-print text-slate-400"><SafeIcon name="ChevronRight" width={14} /></td>
+                            <tr key={i} onClick={() => setPath([...path, row.name])} className="hover:bg-purple-50 cursor-pointer break-inside-avoid print:bg-white">
+                                <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print:text-black print:border print:border-black">{row.name}</td>
+                                <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black">{Utils.math.roundVolume(row.caminhoes)}</td>
+                                <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black">{Utils.math.roundVolume(row.ibcs)}</td>
+                                <td className={`px-4 py-2 text-right font-mono font-bold ${Math.abs(row.variacao) > 0.05 ? 'text-red-600' : 'text-slate-600'} print-color-force print:border print:border-black`}>{fmtPerc(row.variacao)}</td>
+                                <td className={`px-4 py-2 text-right font-mono font-bold ${row.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force print:border print:border-black`}>{fmtMoney(row.custo)}</td>
+                                <td className="px-4 py-2 text-center no-print"><SafeIcon name="ChevronRight" width={14} /></td>
                             </tr>
                         ))}
                     </tbody>
-                    <tfoot className="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
+                    <tfoot className="bg-slate-100 font-bold text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
                         <tr>
-                            <td className="px-4 py-2 uppercase text-xs">Total</td>
-                            <td className="px-4 py-2 text-right font-mono">{Utils.math.roundVolume(totals.caminhoes)}</td>
-                            <td className="px-4 py-2 text-right font-mono">{Utils.math.roundVolume(totals.ibcs)}</td>
-                            <td className="px-4 py-2 text-right font-mono">{fmtPerc(totals.val_base !== 0 ? totals.custo / totals.val_base : 0)}</td>
-                            <td className={`px-4 py-2 text-right font-mono ${totals.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force`}>{fmtMoney(totals.custo)}</td>
+                            <td className="px-4 py-2 uppercase text-xs print:border print:border-black">Total</td>
+                            <td className="px-4 py-2 text-right print:border print:border-black">{Utils.math.roundVolume(totals.caminhoes)}</td>
+                            <td className="px-4 py-2 text-right print:border print:border-black">{Utils.math.roundVolume(totals.ibcs)}</td>
+                            <td className="px-4 py-2 text-right print:border print:border-black">{fmtPerc(totals.val_base !== 0 ? totals.custo / totals.val_base : 0)}</td>
+                            <td className={`px-4 py-2 text-right ${totals.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force print:border print:border-black`}>{fmtMoney(totals.custo)}</td>
                             <td className="no-print"></td>
                         </tr>
                     </tfoot>
@@ -1844,48 +1808,62 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
             <style>{`
                 @media print {
                     @page { margin: 0.5cm; size: A4; }
-                    .force-black-print { color: #000000 !important; -webkit-text-fill-color: #000000 !important; print-color-adjust: exact !important; }
-                    body, .report-container { background-color: white !important; color: black !important; -webkit-print-color-adjust: exact !important; }
-                    .print-card, .print-table-container { border: 1px solid #000 !important; box-shadow: none !important; }
+                    
+                    /* RESET GERAL DE CORES DARK MODE */
+                    * { 
+                        background-color: transparent !important; 
+                        color: black !important; 
+                        box-shadow: none !important; 
+                        text-shadow: none !important;
+                    }
+
+                    body, .report-container, .bg-white, .dark\\:bg-slate-800, .bg-slate-50, .dark\\:bg-slate-900, .glass-card { 
+                        background-color: white !important; 
+                        background-image: none !important;
+                    }
+
                     .no-print { display: none !important; }
-                    .print-grid-cols-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; }
-                    .print-page-break { page-break-before: always; break-before: page; display: block !important; }
-                    .print-color-force { -webkit-print-color-adjust: exact; print-color-adjust: exact !important; }
+                    .print-card { border: 1px solid black !important; border-radius: 4px !important; margin-bottom: 5px; }
+                    .print-table-container { border: 1px solid black !important; }
+                    .print-grid-cols-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; }
+                    .print-page-break { page-break-before: always; break-before: page; display: block !important; margin-top: 20px; }
+                    
+                    /* FORÇAR CORES DE STATUS */
+                    .print-color-force { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                     .text-red-500, .text-red-600 { color: #dc2626 !important; }
                     .text-emerald-500, .text-emerald-600 { color: #059669 !important; }
+                    .text-blue-600 { color: #2563eb !important; }
+                    
+                    th { border: 1px solid black !important; background-color: #f3f4f6 !important; }
+                    td { border: 1px solid black !important; }
                 }
             `}</style>
 
-            {/* Cabeçalho de Impressão (Visível apenas no PDF) */}
-            <div className="hidden print:flex justify-between items-center border-b-2 border-black pb-4 mb-6">
-                <div className="flex items-center gap-4">
-                     <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-10 object-contain" />
-                     <div className="h-8 w-px bg-black"></div>
-                     <h1 className="text-xl font-black uppercase text-black tracking-wider">Inventário de Insumos</h1>
+            {/* Cabeçalho Impressão */}
+            <div className="hidden print:flex justify-between items-center border-b-2 border-black pb-2 mb-4">
+                <div className="flex items-center gap-2">
+                     <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-8 object-contain" />
+                     <h1 className="text-lg font-black uppercase tracking-tight">Inventário de Insumos</h1>
                 </div>
                 <div className="text-right">
-                    <p className="text-sm font-bold uppercase text-black">Mês de Referência</p>
-                    <p className="text-lg font-black text-black print-color-force">{Utils.date.formatNice(filters.periodo)}</p>
+                    <p className="text-xs font-bold uppercase">Referência: <span className="font-black">{Utils.date.formatNice(filters.periodo)}</span></p>
                 </div>
             </div>
 
-            {/* Cabeçalho de Tela */}
+            {/* Cabeçalho Tela */}
             <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     <SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos
                 </h2>
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm">
-                        <span className="text-xs font-bold text-slate-500 uppercase">Período:</span>
-                        <input type="month" className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} />
-                    </div>
-                    <button onClick={() => window.print()} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg hover:bg-slate-700 transition-all">
+                    <input type="month" className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm outline-none" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} />
+                    <button onClick={() => window.print()} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg hover:bg-slate-700">
                         <SafeIcon name="Download" width={16} /> PDF
                     </button>
                 </div>
             </div>
 
-            {/* Cards de Fluxo */}
+            {/* Grid de Cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print-grid-cols-3 mb-6">
                 <FlowCard title="Estoque Inicial" qty={inventoryFlow.ini_qty} val={inventoryFlow.ini_val} iconName="Database" color="text-slate-500" />
                 <FlowCard title="Entradas" qty={inventoryFlow.in_qty} val={inventoryFlow.in_val} iconName="ArrowDownCircle" color="text-emerald-600" />
@@ -1895,32 +1873,33 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 <VariationCard title="Variação Ajustada" qty={adjustedVariation} subtitle="Real vs Teórico / Mov"/>
             </div>
 
-            {/* Diferença e Gráficos */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:grid print:grid-cols-1">
-                <div className="lg:col-span-1 print:mb-6">
-                    <div className="bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/50 p-6 shadow-sm h-full flex flex-col justify-center print-card">
-                        <h3 className="text-sm font-bold uppercase text-purple-900 dark:text-purple-300 mb-4 print:text-black">Diferença de Estoque</h3>
+            {/* Diferença e Tabelas */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm h-full print-card">
+                        <h3 className="text-sm font-bold uppercase mb-4 print:text-black">Diferença de Estoque</h3>
                         <div className="mb-6">
                             <span className={`text-4xl font-black ${consolidatedDiff.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force`}>
                                 {consolidatedDiff.custo > 0 ? '+' : ''}{fmtMoney(consolidatedDiff.custo)}
                             </span>
-                            <span className="text-lg font-medium text-slate-600 dark:text-slate-400 block mt-1 print:text-black">
+                            <span className="text-lg font-medium block mt-1 print:text-black">
                                 {fmtNum(consolidatedDiff.qty)} <span className="text-sm">unidades</span>
                             </span>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 border-t border-purple-100 pt-4 print:border-black">
+                        <div className="grid grid-cols-2 gap-4 border-t pt-4 print:border-black">
                             <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase print:text-black">Caminhões</p>
-                                <div className="flex items-center gap-2 font-bold text-lg print:text-black"><SafeIcon name="Truck" /> {Utils.math.roundVolume(consolidatedDiff.caminhoes)}</div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">Caminhões</p>
+                                <div className="font-bold text-lg print:text-black">{Utils.math.roundVolume(consolidatedDiff.caminhoes)}</div>
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase print:text-black">IBC's</p>
-                                <div className="flex items-center gap-2 font-bold text-lg print:text-black"><SafeIcon name="Box" /> {Utils.math.roundVolume(consolidatedDiff.ibcs)}</div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">IBC's</p>
+                                <div className="font-bold text-lg print:text-black">{Utils.math.roundVolume(consolidatedDiff.ibcs)}</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                {/* Gráficos ocultos na impressão para evitar poluição de fundos escuros */}
                 <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
                     <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 p-4 shadow-sm h-[350px] flex flex-col">
                         <h3 className="font-bold text-xs mb-4 uppercase border-b pb-2">Top Ajustes (Região)</h3>
@@ -1933,62 +1912,57 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 </div>
             </div>
 
-            {/* Tabela Analítica - Agora com quebra de página para o PDF */}
             <div className="mt-8 print-page-break">
                 <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
-                    <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
-                        <thead className="uppercase bg-slate-50 border-b font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
+                    <table className="w-full text-xs text-left print-table-content">
+                        <thead className="uppercase font-bold text-slate-500 print:text-black">
                             <tr>
-                                <th className="px-3 py-2 print:border print:border-black print:px-1">Material</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Est. Ini</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Entradas</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Saídas</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Final (T)</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Final (R)</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Var (%)</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">R$ Méd</th>
+                                <th className="px-3 py-2 print:border print:border-black">Material</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black">Est. Ini</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black">Entradas</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black">Saídas</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black">Final (T)</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black">Final (R)</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black">Var (%)</th>
+                                <th className="px-2 py-2 text-right print:border print:border-black">R$ Méd</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 print:divide-black">
+                        <tbody className="divide-y print:divide-black">
                             {analiticaData.map((row, i) => (
-                                <tr key={i} className="hover:bg-slate-50 break-inside-avoid">
-                                    <td className="px-3 py-2 font-medium truncate max-w-[250px] print:text-black print:border print:border-black print:px-1">{row.name}</td>
-                                    <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{fmtNum(row.est_in)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black print:px-1">+{fmtNum(row.entradas)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black print:px-1">-{fmtNum(row.saidas)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-slate-500 print:text-black print:border print:border-black print:px-1">{fmtNum(row.est_fin_sap)}</td>
-                                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print-color-force print:border print:border-black print:px-1">{fmtNum(row.est_fin_real)}</td>
-                                    <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print-color-force print:border print:border-black print:px-1`}>{fmtPerc(row.variacaoPct)}</td>
-                                    <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{fmtMoney(row.unitPrice)}</td>
+                                <tr key={i} className="break-inside-avoid print:bg-white">
+                                    <td className="px-3 py-2 font-medium truncate max-w-[250px] print:border print:border-black">{row.name}</td>
+                                    <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(row.est_in)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black">+{fmtNum(row.entradas)}</td>
+                                    <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black">-{fmtNum(row.saidas)}</td>
+                                    <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(row.est_fin_sap)}</td>
+                                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print-color-force print:border print:border-black">{fmtNum(row.est_fin_real)}</td>
+                                    <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print-color-force print:border print:border-black`}>{fmtPerc(row.variacaoPct)}</td>
+                                    <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtMoney(row.unitPrice)}</td>
                                 </tr>
                             ))}
                         </tbody>
-                        <tfoot className="bg-slate-100 font-bold text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
+                        <tfoot className="bg-slate-100 font-bold print:bg-white print:text-black print:border-black print:border-t-2">
                             <tr>
-                                <td className="px-3 py-2 uppercase print:border print:border-black print:px-1">Total</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_in)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.entradas)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.saidas)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_fin_sap)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_fin_real)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtPerc(adjustedVariation)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">-</td>
+                                <td className="px-3 py-2 uppercase print:border print:border-black">Total</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(analiticaTotals.est_in)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(analiticaTotals.entradas)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(analiticaTotals.saidas)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(analiticaTotals.est_fin_sap)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtNum(analiticaTotals.est_fin_real)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">{fmtPerc(adjustedVariation)}</td>
+                                <td className="px-2 py-2 text-right font-mono print:border print:border-black">-</td>
                             </tr>
                         </tfoot>
                     </table>
                 </StandardTable>
             </div>
 
-            {/* Tabelas de Drill Down com quebras de página */}
-            <div className="space-y-8">
+            <div className="space-y-8 no-print-shadow">
                 <div className="print-page-break">
                     <DrillDownTable rawData={lista} title="Classificação por Região" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
                 </div>
                 <div className="print-page-break">
                     <DrillDownTable rawData={lista} title="Classificação por Material" iconName="Box" hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
-                </div>
-                <div className="print-page-break">
-                    <DrillDownTable rawData={lista} title="Classificação por Categoria" iconName="ListFilter" hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
                 </div>
             </div>
         </div>
@@ -6934,6 +6908,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
