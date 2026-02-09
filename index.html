@@ -1663,7 +1663,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 const denominadorVar = g.val_in + g.val_ent;
                 const variacaoPct = denominadorVar !== 0 ? (g.custo_dif / denominadorVar) : 0;
                 const unitPrice = g.est_in !== 0 ? (g.val_in / g.est_in) : 0;
-                
                 const denominadorCustoAj = g.dif_qty + g.est_fin_sap; 
                 const custoMedioAjustado = denominadorCustoAj !== 0 ? (g.custo_dif / denominadorCustoAj) : 0;
 
@@ -1784,17 +1783,17 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
                     <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
                         <tr>
-                            <th className="px-4 py-2 print:border print:border-black print:px-1">{hierarchy[currentLevelIndex].label}</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Caminhões</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:px-1">IBC's</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Var (%)</th>
-                            <th className="px-4 py-2 text-right print:border print:border-black print:px-1">Custo Total</th>
+                            <th className="px-4 py-2 print:border print:border-black print:text-black print:px-1">{hierarchy[currentLevelIndex].label}</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Caminhões</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">IBC's</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Var (%)</th>
+                            <th className="px-4 py-2 text-right print:border print:border-black print:text-black print:px-1">Custo Total</th>
                             <th className="px-4 py-2 text-center no-print">Ação</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
                         {groupedData.map((row, i) => (
-                            <tr key={i} onClick={() => setPath([...path, row.name])} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 cursor-pointer break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-slate-50">
+                            <tr key={i} onClick={() => setPath([...path, row.name])} className="hover:bg-purple-50 cursor-pointer break-inside-avoid print:bg-white">
                                 <td className="px-4 py-2 font-bold text-slate-700 dark:text-slate-200 print:text-black print:border print:border-black print:px-1">{row.name}</td>
                                 <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{Utils.math.roundVolume(row.caminhoes)}</td>
                                 <td className="px-4 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{Utils.math.roundVolume(row.ibcs)}</td>
@@ -1959,172 +1958,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                 </StandardTable>
             </div>
 
-            <div className="space-y-8">
-                <div className="print-page-break">
-                    <DrillDownTable rawData={lista} title="Classificação por Região" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
-                </div>
-                <div className="print-page-break">
-                    <DrillDownTable rawData={lista} title="Classificação por Material" iconName="Box" hierarchy={[{ key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }]} />
-                </div>
-                <div className="print-page-break">
-                    <DrillDownTable rawData={lista} title="Classificação por Categoria" iconName="ListFilter" hierarchy={[{ key: 'categoria', label: 'Categoria' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'regional', label: 'Encarregado / Regional' }]} />
-                </div>
-                <div className="print-page-break">
-                    <DrillDownTable rawData={lista} title="Regional + Usina" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
-                </div>
-                <div className="print-page-break">
-                    <DrillDownTable rawData={lista} title="Usina + Material" iconName="Briefcase" hierarchy={[{ key: 'filial', label: 'Usina / Filial' }, { key: 'grupo_material', label: 'Grupo de Material' }]} />
-                </div>
-            </div>
-        </div>
-    );
-};
-    return (
-        <div className="space-y-6 pb-10 report-container">
-            <style>{`
-                @media print {
-                    @page { margin: 0.5cm; size: A4; }
-                    .force-black-print { color: #000000 !important; -webkit-text-fill-color: #000000 !important; print-color-adjust: exact !important; }
-                    body, .report-container, .bg-white, .dark\\:bg-slate-800, .bg-slate-50, .dark\\:bg-slate-900 { background: white !important; background-color: white !important; background-image: none !important; color: black !important; }
-                    .print-card, .print-table-container { border: 1px solid #000 !important; box-shadow: none !important; }
-                    .no-print { display: none !important; }
-                    .print-grid-cols-3 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; }
-                    .print-page-break { page-break-before: always; break-before: page; display: block !important; }
-                    .print-color-force { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-                    .text-red-500, .text-red-600 { color: #dc2626 !important; }
-                    .text-emerald-500, .text-emerald-600 { color: #059669 !important; }
-                }
-            `}</style>
-
-            {/* Cabeçalho PDF [cite: 104, 105] */}
-            <div className="hidden print:flex justify-between items-center border-b-2 border-black pb-4 mb-6">
-                <div className="flex items-center gap-4">
-                     <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" alt="Logo" className="h-10 object-contain" />
-                     <div className="h-8 w-px bg-black"></div>
-                     <h1 className="text-xl font-black uppercase text-black tracking-wider">Inventário de Insumos</h1>
-                </div>
-                <div className="text-right">
-                    <p className="text-sm font-bold uppercase text-black">Mês de Referência</p>
-                    <p className="text-lg font-black text-black print-color-force">{Utils.date.formatNice(filters.periodo)}</p>
-                </div>
-            </div>
-
-            {/* Cabeçalho Tela */}
-            <div className="flex flex-col md:flex-row justify-between items-end mb-4 no-print gap-4">
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <SafeIcon name="LayoutDashboard" className="text-purple-500" /> Visão Geral: Insumos
-                </h2>
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm">
-                        <span className="text-xs font-bold text-slate-500 uppercase">Período:</span>
-                        <input type="month" className="bg-transparent text-sm text-slate-700 dark:text-slate-200 outline-none" value={filters.periodo} onChange={(e) => setFilters(prev => ({...prev, periodo: e.target.value}))} />
-                    </div>
-                    <button onClick={() => window.print()} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg hover:bg-slate-700 transition-all">
-                        <SafeIcon name="Download" width={16} /> PDF
-                    </button>
-                </div>
-            </div>
-
-            {/* Cards [cite: 112, 113] */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 print-grid-cols-3 mb-6">
-                <FlowCard title="Estoque Inicial" qty={inventoryFlow.ini_qty} val={inventoryFlow.ini_val} iconName="Database" color="text-slate-500" />
-                <FlowCard title="Entradas" qty={inventoryFlow.in_qty} val={inventoryFlow.in_val} iconName="ArrowDownCircle" color="text-emerald-600" />
-                <FlowCard title="Saídas" qty={inventoryFlow.out_qty} val={inventoryFlow.out_val} iconName="ArrowUpCircle" color="text-red-500" />
-                <FlowCard title="Estoque Final" qty={inventoryFlow.fin_qty} val={inventoryFlow.fin_val} iconName="CheckCircle" color="text-blue-600" />
-                <VariationCard title="Evolução Estoque" qty={(inventoryFlow.ini_qty > 0 ? (inventoryFlow.fin_qty - inventoryFlow.ini_qty)/inventoryFlow.ini_qty : 0)} subtitle="Var. Inicial vs Final"/>
-                <VariationCard title="Variação Ajustada" qty={adjustedVariation} subtitle="Real vs Teórico / Mov"/>
-            </div>
-
-            {/* Diferença e Gráficos */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:grid print:grid-cols-1">
-                <div className="lg:col-span-1 print:mb-6">
-                    <div className="bg-gradient-to-br from-white to-purple-50 dark:from-slate-800 dark:to-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-900/50 p-6 shadow-sm h-full flex flex-col justify-center print-card">
-                        <h3 className="text-sm font-bold uppercase text-purple-900 dark:text-purple-300 mb-4 print:text-black">Diferença de Estoque</h3>
-                        <div className="mb-6">
-                            <span className={`text-4xl font-black ${consolidatedDiff.custo < 0 ? 'text-red-600' : 'text-emerald-600'} print-color-force`}>
-                                {consolidatedDiff.custo > 0 ? '+' : ''}{fmtMoney(consolidatedDiff.custo)}
-                            </span>
-                            <span className="text-lg font-medium text-slate-600 dark:text-slate-400 block mt-1 print:text-black">
-                                {fmtNum(consolidatedDiff.qty)} <span className="text-sm">unidades</span>
-                            </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 border-t border-purple-100 pt-4 print:border-black">
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1 print:text-black">Caminhões</p>
-                                <div className="flex items-center gap-2 print:text-black font-bold text-lg"><SafeIcon name="Truck" /> {Utils.math.roundVolume(consolidatedDiff.caminhoes)}</div>
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1 print:text-black">IBC's</p>
-                                <div className="flex items-center gap-2 print:text-black font-bold text-lg"><SafeIcon name="Box" /> {Utils.math.roundVolume(consolidatedDiff.ibcs)}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
-                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 p-4 shadow-sm h-[350px] flex flex-col">
-                        <h3 className="font-bold text-xs mb-4 uppercase border-b pb-2">Top Ajustes (Região)</h3>
-                        <div className="flex-1 w-full"><ResponsiveContainer><BarChart data={chartsData.regionais} layout="vertical" margin={{left: 40}}><XAxis type="number" tick={{fontSize: 9}}/><YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10}}/><Bar dataKey="abs" barSize={15}>{chartsData.regionais.map((e, i) => (<Cell key={i} fill={e.value < 0 ? '#ef4444' : '#10b981'} />))}</Bar></BarChart></ResponsiveContainer></div>
-                    </div>
-                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 p-4 shadow-sm h-[350px] flex flex-col">
-                        <h3 className="font-bold text-xs mb-4 uppercase border-b pb-2">Top Ajustes (Material)</h3>
-                        <div className="flex-1 w-full"><ResponsiveContainer><BarChart data={chartsData.materiais} layout="vertical" margin={{left: 40}}><XAxis type="number" tick={{fontSize: 9}}/><YAxis dataKey="name" type="category" width={110} tick={{fontSize: 10}}/><Bar dataKey="abs" barSize={15}>{chartsData.materiais.map((e, i) => (<Cell key={i} fill={e.value < 0 ? '#ef4444' : '#10b981'} />))}</Bar></BarChart></ResponsiveContainer></div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Tabela Analítica Restaurada [cite: 147] */}
-            <div className="mt-8 print-page-break">
-                <StandardTable title="Detalhamento Analítico por Material" iconName="Table">
-                    <table className="w-full text-xs text-left text-slate-600 dark:text-slate-300 print-table-content">
-                        <thead className="uppercase bg-white dark:bg-slate-900 border-b border-slate-200 font-bold text-slate-500 print:bg-white print:text-black print:border-black print:border-b-2">
-                            <tr>
-                                <th className="px-3 py-2 min-w-[150px] print:border print:border-black print:px-1">Material</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Est. Ini</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Entradas</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Saídas</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Final (T)</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Final (R)</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">Var (%)</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">R$ Méd</th>
-                                <th className="px-2 py-2 text-right print:border print:border-black print:px-1">R$ Aj.</th> [cite: 153]
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-black">
-                            {analiticaData.map((row, i) => (
-                                <tr key={i} className="hover:bg-purple-50 dark:hover:bg-slate-800/80 break-inside-avoid even:bg-slate-50 dark:even:bg-slate-800/30 print:even:bg-white">
-                                    <td className="px-3 py-2 font-medium truncate max-w-[250px] text-slate-700 dark:text-white print:text-black print:border print:border-black print:px-1" title={row.name}>
-                                        {row.name.length > 25 ? row.name.substring(0, 25) + '...' : row.name} [cite: 156, 157]
-                                    </td>
-                                    <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{fmtNum(row.est_in)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-emerald-600 print-color-force print:border print:border-black print:px-1">+{fmtNum(row.entradas)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-red-500 print-color-force print:border print:border-black print:px-1">-{fmtNum(row.saidas)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-slate-500 print:text-black print:border print:border-black print:px-1">{fmtNum(row.est_fin_sap)}</td>
-                                    <td className="px-2 py-2 text-right font-mono font-bold text-blue-600 print-color-force print:border print:border-black print:px-1">{fmtNum(row.est_fin_real)}</td>
-                                    <td className={`px-2 py-2 text-right font-bold ${Math.abs(row.variacaoPct) > 0.05 ? 'text-red-600' : 'text-slate-400'} print-color-force print:border print:border-black print:px-1`}>{fmtPerc(row.variacaoPct)}</td>
-                                    <td className="px-2 py-2 text-right font-mono print:text-black print:border print:border-black print:px-1">{fmtMoney(row.unitPrice)}</td>
-                                    <td className="px-2 py-2 text-right font-mono text-purple-600 font-bold print-color-force print:border print:border-black print:px-1">{fmtMoney(row.custoMedioAjustado)}</td> [cite: 162]
-                                </tr>
-                            ))}
-                        </tbody>
-                        <tfoot className="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-800 print:bg-white print:text-black print:border-black print:border-t-2">
-                            <tr>
-                                <td className="px-3 py-2 uppercase text-xs print:border print:border-black print:px-1">Total</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_in)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.entradas)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.saidas)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_fin_sap)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtNum(analiticaTotals.est_fin_real)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">{fmtPerc(adjustedVariation)}</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">-</td>
-                                <td className="px-2 py-2 text-right font-mono print:border print:border-black print:px-1">-</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </StandardTable>
-            </div>
-
-            {/* As 5 Tabelas de Drill Down Restauradas  */}
             <div className="space-y-8">
                 <div className="print-page-break">
                     <DrillDownTable rawData={lista} title="Classificação por Região" iconName="Target" hierarchy={[{ key: 'regional', label: 'Encarregado / Regional' }, { key: 'grupo_material', label: 'Grupo de Material' }, { key: 'filial', label: 'Usina / Filial' }]} />
@@ -7085,6 +6918,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
