@@ -6568,8 +6568,8 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                     
                     // Quantidades (QTDD)
                     est_inicial_sap: Utils.formatters.parseBrl(get("EST. IN. SAP")),
-                    entradas_sap: Utils.formatters.parseBrl(get("+ SAP")),
-                    saidas_sap: Utils.formatters.parseBrl(get("- SAP")),
+                    entradas_sap: Utils.formatters.parseBrl(get("+ (SÓ ENT 101)")),
+                    saidas_sap: Utils.formatters.parseBrl(get("- (SÓ SAÍ 201)")),
                     est_final_sap: Utils.formatters.parseBrl(get("EST. FIN. SAP")),
                     est_final_real: Utils.formatters.parseBrl(get("EST. FIN. REAL")),
                     dif_real_sap: Utils.formatters.parseBrl(get("DIF REAL X SAP")),
@@ -7043,6 +7043,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
