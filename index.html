@@ -6457,39 +6457,51 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             };
 
             const confirmImportTerceirizacao = async () => {
-    if (!confirmData) return;
+    if (!confirmData || !confirmData.rows || confirmData.rows.length === 0) {
+        addLog("Nenhum dado para importar.", "error");
+        return;
+    }
+    
     setLoading(true);
     try {
         let error;
         
-        // Lógica de UPSERT específica para a tabela de concessão
+        // CORREÇÃO: Define o nome da tabela com base no tipo ou no objeto confirmData
+        // Garantimos que 'tableName' nunca seja uma string vazia
+        const tableName = confirmData.type === 'concessao' ? 'concessao' : confirmData.table;
+
+        if (!tableName) {
+            throw new Error(`Nome da tabela não definido para o tipo: ${confirmData.type}`);
+        }
+
         if (confirmData.type === 'concessao') {
-            const { error: upsertError } = await supabaseClient
-                .from('concessao')
+            // Lógica de UPSERT para evitar duplicados na tabela de concessão
+            const result = await supabaseClient
+                .from(tableName)
                 .upsert(confirmData.rows, { 
-                    onConflict: 'equipamento, data_inicial', // Colunas que você indicou
+                    onConflict: 'equipamento, data_inicial', 
                     ignoreDuplicates: false 
                 });
-            error = upsertError;
+            error = result.error;
         } else {
-            // Mantém o insert original para outros tipos de arquivo
-            const { error: insertError } = await supabaseClient
-                .from(confirmData.table)
+            // Lógica de INSERT padrão para apuração e pagamentos
+            const result = await supabaseClient
+                .from(tableName)
                 .insert(confirmData.rows);
-            error = insertError;
+            error = result.error;
         }
 
         if (error) throw error;
 
-        addLog(`Importação de ${confirmData.count} registros concluída com sucesso!`, "success");
+        addLog(`Importação de ${confirmData.count} registros em "${tableName}" concluída!`, "success");
         setConfirmData(null);
         
-        // Atualiza os dados da tela
+        // Atualiza os dados se a função existir
         if (typeof fetchData === 'function') fetchData();
         
     } catch (err) {
         addLog("Erro na importação: " + err.message, "error");
-        console.error("Detalhes do erro:", err);
+        console.error("Erro detalhado:", err);
     } finally {
         setLoading(false);
     }
@@ -6820,6 +6832,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
