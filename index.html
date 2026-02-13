@@ -4033,18 +4033,27 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, onNotify }) => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const { data: res, error } = await supabaseClient.rpc('get_relatorio_ativos', {
-                p_filiais: selectedFiliais
-            });
+            const { data: res, error } = await supabaseClient.rpc('get_terceirizacao_ativos', {
+            p_data_ini: filters.dateIni,
+            p_data_fim: filters.dateFim,
+            p_filial: filters.filial || 'Todas' // Adicionado para corrigir o filtro de filial
+        });
 
-            if (error) throw error;
-            setData(res);
-        } catch (e) {
-            onNotify("Erro ao carregar ativos: " + e.message, "error");
-        } finally {
-            setLoading(false);
-        }
-    };
+        if (error) throw error;
+
+        // FILTRO SOLICITADO: Analisar apenas terceiros com concessão ativa (data_fim = null)
+        const ativosSomente = (res.concessao || []).filter(item => !item.data_fim);
+
+        setData({
+            ...res,
+            concessao: ativosSomente
+        });
+    } catch (e) {
+        onNotify("Erro ao carregar ativos: " + e.message, "error");
+    } finally {
+        setLoading(false);
+    }
+};
 
     // Inicialização
     useEffect(() => {
@@ -6918,6 +6927,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
