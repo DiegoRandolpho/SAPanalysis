@@ -6455,24 +6455,30 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             return;
         }
 
-        // Mapeamento específico para o tipo 'concessao' baseado na sua planilha
+        // Função interna para converter o número do Excel em String de Data (AAAA-MM-DD)
+        const excelDateToJS = (serial) => {
+            if (!serial || isNaN(serial)) return serial; // Se já for string ou vazio, retorna o valor
+            const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
+            return date.toISOString().split('T')[0];
+        };
+
         let rows = [];
         if (type === 'concessao') {
             rows = json.map(item => ({
                 equipamento: item['Equipamento']?.toString().trim(),
                 fornecedor: item['Fornecedor']?.toString().trim(),
-                data_inicial: item['Data Inicial'],
-                data_final: item['Data Final'] || null,
+                // Converte as datas aqui:
+                data_inicial: excelDateToJS(item['Data Inicial']),
+                data_final: item['Data Final'] ? excelDateToJS(item['Data Final']) : null,
                 centro: item['Centro']?.toString().trim(),
                 valor_base: item['Valor Base'] || 0
-            })).filter(r => r.equipamento && r.data_inicial); // Remove linhas inválidas
+            })).filter(r => r.equipamento && r.data_inicial);
         } else {
-            // ... lógica para os outros tipos (apuracao, pagamentos)
-            rows = json; 
+            rows = json;
         }
 
         if (rows.length === 0) {
-            addLog("Nenhum dado válido encontrado. Verifique os nomes das colunas na planilha.", "error");
+            addLog("Nenhum dado válido encontrado. Verifique as colunas.", "error");
             return;
         }
 
@@ -6837,6 +6843,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
