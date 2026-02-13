@@ -6512,12 +6512,12 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
     try {
         const targetTable = confirmData.type === 'concessao' ? 'concessao' : confirmData.table;
 
+        // O segredo está no onConflict com as 3 colunas exatas do banco
         const { error } = await supabaseClient
             .from(targetTable)
             .upsert(confirmData.rows, { 
-                // ATUALIZADO: Os 3 campos que definem o conflito
                 onConflict: 'equipamento, material, data_inicial',
-                ignoreDuplicates: false 
+                ignoreDuplicates: false // 'false' faz com que ele ATUALIZE os dados se houver conflito
             });
 
         if (error) throw error;
@@ -6526,7 +6526,8 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         setConfirmData(null);
         if (typeof fetchData === 'function') fetchData();
     } catch (err) {
-        addLog("Erro: " + err.message, "error");
+        // Se o erro de "duplicate key" persistir, o nome da constraint no erro te dirá qual remover
+        addLog("Erro na importação: " + err.message, "error");
     } finally {
         setLoading(false);
     }
@@ -6857,6 +6858,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
