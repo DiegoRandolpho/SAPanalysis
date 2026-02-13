@@ -6442,66 +6442,71 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                 reader.readAsArrayBuffer(file);
             };
 
-            const handleUploadTerceirizacao = (file, type) => {
-                const XLSX = window.XLSX;
-                if (!XLSX) { addLog("XLSX lib not loaded", "error"); return; }
-                setLoading(true);
-                const r = new FileReader();
-                r.onload = (e) => {
-                    const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
-                    const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:""});
-                    setConfirmData({type, count: json.length, data: json});
-                    setLoading(false);
-                };
-                r.readAsArrayBuffer(file);
-            };
+            const handleUploadTerceirizacao = async (file, type) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet);
+
+        if (json.length === 0) {
+            addLog("O arquivo está vazio.", "error");
+            return;
+        }
+
+        // Mapeamento específico para o tipo 'concessao' baseado na sua planilha
+        let rows = [];
+        if (type === 'concessao') {
+            rows = json.map(item => ({
+                equipamento: item['Equipamento']?.toString().trim(),
+                fornecedor: item['Fornecedor']?.toString().trim(),
+                data_inicial: item['Data Inicial'],
+                data_final: item['Data Final'] || null,
+                centro: item['Centro']?.toString().trim(),
+                valor_base: item['Valor Base'] || 0
+            })).filter(r => r.equipamento && r.data_inicial); // Remove linhas inválidas
+        } else {
+            // ... lógica para os outros tipos (apuracao, pagamentos)
+            rows = json; 
+        }
+
+        if (rows.length === 0) {
+            addLog("Nenhum dado válido encontrado. Verifique os nomes das colunas na planilha.", "error");
+            return;
+        }
+
+        setConfirmData({
+            type: type,
+            count: rows.length,
+            table: 'concessao',
+            rows: rows
+        });
+    };
+    reader.readAsArrayBuffer(file);
+};
 
             const confirmImportTerceirizacao = async () => {
-    if (!confirmData || !confirmData.rows || confirmData.rows.length === 0) {
-        addLog("Nenhum dado para importar.", "error");
-        return;
-    }
-    
+    if (!confirmData || !confirmData.rows) return;
     setLoading(true);
     try {
-        let error;
-        
-        // CORREÇÃO: Define o nome da tabela com base no tipo ou no objeto confirmData
-        // Garantimos que 'tableName' nunca seja uma string vazia
-        const tableName = confirmData.type === 'concessao' ? 'concessao' : confirmData.table;
+        // Forçamos o nome da tabela caso seja concessão
+        const targetTable = confirmData.type === 'concessao' ? 'concessao' : confirmData.table;
 
-        if (!tableName) {
-            throw new Error(`Nome da tabela não definido para o tipo: ${confirmData.type}`);
-        }
-
-        if (confirmData.type === 'concessao') {
-            // Lógica de UPSERT para evitar duplicados na tabela de concessão
-            const result = await supabaseClient
-                .from(tableName)
-                .upsert(confirmData.rows, { 
-                    onConflict: 'equipamento, data_inicial', 
-                    ignoreDuplicates: false 
-                });
-            error = result.error;
-        } else {
-            // Lógica de INSERT padrão para apuração e pagamentos
-            const result = await supabaseClient
-                .from(tableName)
-                .insert(confirmData.rows);
-            error = result.error;
-        }
+        const { error } = await supabaseClient
+            .from(targetTable)
+            .upsert(confirmData.rows, { 
+                onConflict: 'equipamento, data_inicial',
+                ignoreDuplicates: false 
+            });
 
         if (error) throw error;
 
-        addLog(`Importação de ${confirmData.count} registros em "${tableName}" concluída!`, "success");
+        addLog(`Sucesso! ${confirmData.count} registros importados em ${targetTable}.`, "success");
         setConfirmData(null);
-        
-        // Atualiza os dados se a função existir
         if (typeof fetchData === 'function') fetchData();
-        
     } catch (err) {
-        addLog("Erro na importação: " + err.message, "error");
-        console.error("Erro detalhado:", err);
+        addLog("Erro: " + err.message, "error");
     } finally {
         setLoading(false);
     }
@@ -6832,6 +6837,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
