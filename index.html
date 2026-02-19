@@ -2455,6 +2455,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
                                         <SubMenuItem label="Ativos/Frota" active={view === 'terceirizacao_ativos'} onClick={() => setView('terceirizacao_ativos')} />
                                         <SubMenuItem label="De/Para" active={view === 'terceirizacao_depara'} onClick={() => setView('terceirizacao_depara')} />
                                         <SubMenuItem label="Importar Arquivos" active={view === 'terceirizacao_import'} onClick={() => setView('terceirizacao_import')} />
+                                        <SubMenuItem label="Consulta de Placa" active={view === 'consulta_publica'} onClick={() => setView('consulta_publica')} />
                                     </div>
                                 </div>
                             )}
@@ -6015,7 +6016,7 @@ const ConsultaPlacaPublica = ({ supabaseClient }) => {
             const [loading, setLoading] = useState(false);
             const [logs, setLogs] = useState([]);
             const authInitialized = useRef(false);
-            const isPublicRoute = window.location.pathname.toLowerCase().includes('buscaplaca');
+            const isPublicUrl = window.location.pathname.toLowerCase().includes('buscaplaca');
             // Configuração de Tema
             const [isDark, setIsDark] = useState(() => {
                 if (typeof window !== 'undefined') {
@@ -6609,7 +6610,8 @@ const ConsultaPlacaPublica = ({ supabaseClient }) => {
 
             // --- RENDER ---
             if (!supabaseClient) return <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-900"><div className="text-center"><div className="loader h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent mx-auto mb-4"></div><p className="text-sm text-slate-500 dark:text-slate-400">Inicializando...</p></div></div>;
-            if (isPublicRoute) {return <ConsultaPlacaPublica supabaseClient={supabaseClient} />;}
+            if (isPublicUrl) {return <ConsultaPlacaPublica supabaseClient={supabaseClient} isPublic={true} />;}
+            if (!session) {return <Login supabaseClient={supabaseClient} onLogin={(s) => setSession(s)} />;}
             if (!session) return <LoginScreen onLogin={(e,p) => supabaseClient.auth.signInWithPassword({email:e, password:p})} loading={loading} />;
 
             return (
@@ -6801,9 +6803,14 @@ const ConsultaPlacaPublica = ({ supabaseClient }) => {
                                         </div>
                                     </div>
                                 )}
+                                {view === 'consulta_publica' && (
+                                <div className="p-8 animate-enter">
+                                    <ConsultaPlacaPublica supabaseClient={supabaseClient} isPublic={false} />
+                                </div>
+                                )}
                                 {view === 'documentacao' && (
                                 <DocumentacaoDashboard supabaseClient={supabaseClient} />
-            )}
+                                )}
                                 {/* DIESEL & FROTA */}
                                 {view === 'diesel_frota' && <DieselFrota supabaseClient={supabaseClient} onNotify={addLog} />}
                                 {view === 'diesel_extratos' && <DieselExtratos supabaseClient={supabaseClient} />}
@@ -6926,6 +6933,7 @@ const ConsultaPlacaPublica = ({ supabaseClient }) => {
 
 
     
+
 
 
 
