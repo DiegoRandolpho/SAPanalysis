@@ -5962,26 +5962,26 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             .from('concessao')
             .select('*')
             .eq('equipamento', placa.trim().toUpperCase())
-            .order('data_inicio', { ascending: false });
+            .order('data_inicial', { ascending: false });
 
         if (concessaoError) throw concessaoError;
 
         if (concessaoData && concessaoData.length > 0) {
             // 2. Busca os dados dos terceiros para cruzar informações
             // Pegamos todos os códigos únicos para fazer uma busca só (mais rápido)
-            const codigos = [...new Set(concessaoData.map(c => c.codigo_fornecedor))];
+            const codigos = [...new Set(concessaoData.map(c => c.cod_sap))];
             
             const { data: terceirosData, error: terceirosError } = await client
                 .from('terceiros')
-                .select('codigo_fornecedor, razao_social, cnpj')
-                .in('codigo_fornecedor', codigos);
+                .select('cod_sap, razao_social, cnpj')
+                .in('cod_sap', codigos);
 
             // 3. Une os dados das duas tabelas
             const historicoCompleto = concessaoData.map(item => {
-                const infoTerceiro = terceirosData?.find(t => t.codigo_fornecedor === item.codigo_fornecedor);
+                const infoTerceiro = terceirosData?.find(t => t.cod_sap === item.cod_sap);
                 return {
                     ...item,
-                    razao_social: infoTerceiro?.razao_social || item.codigo_fornecedor,
+                    razao_social: infoTerceiro?.razao_social || item.cod_sap,
                     cnpj: infoTerceiro?.cnpj || "Não cadastrado"
                 };
             });
@@ -6977,6 +6977,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
