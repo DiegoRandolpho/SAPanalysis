@@ -5937,6 +5937,77 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         </div>
     );
 };
+        // --- COLE ESTE BLOCO AQUI ---
+const ConsultaPlacaPublica = ({ supabaseClient }) => {
+    const [placa, setPlaca] = React.useState('');
+    const [historico, setHistorico] = React.useState([]);
+    const [loading, setLoading] = React.useState(false);
+
+    const buscarPlaca = async () => {
+        if (!placa) return;
+        setLoading(true);
+        try {
+            const { data, error } = await supabaseClient
+                .from('concessao')
+                .select(`
+                    *,
+                    terceiros (razao_social, cnpj)
+                `)
+                .eq('placa', placa.toUpperCase())
+                .order('data_inicio', { ascending: false });
+
+            if (error) throw error;
+
+            const processados = data.map(item => {
+                const inicio = new Date(item.data_inicio);
+                const fim = item.data_fim ? new Date(item.data_fim) : new Date();
+                const diffDias = Math.ceil(Math.abs(fim - inicio) / (1000 * 60 * 60 * 24));
+                return { ...item, dias: diffDias, ativo: !item.data_fim };
+            });
+            setHistorico(processados);
+        } catch (err) {
+            alert("Erro ao buscar placa.");
+        } finally { setLoading(false); }
+    };
+
+    return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-4">
+            <div className="max-w-4xl mx-auto">
+                <div className="flex items-center gap-4 mb-8">
+                    <img src="https://jsmnykikflkjceiqfmne.supabase.co/storage/v1/object/public/LOGOS/Logo_sm_texto-removebg-preview.png" className="h-10" />
+                    <h1 className="text-2xl font-bold dark:text-white">Consulta Pública de Placa</h1>
+                </div>
+                <div className="glass-card p-6 mb-6">
+                    <div className="flex gap-2">
+                        <input type="text" placeholder="PLACA (Ex: ABC1234)" className="flex-1 p-3 rounded border dark:bg-slate-800 dark:text-white"
+                            value={placa} onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
+                        <button onClick={buscarPlaca} className="bg-blue-600 text-white px-6 rounded">{loading ? '...' : 'Buscar'}</button>
+                    </div>
+                </div>
+                <div className="space-y-4">
+                    {historico.map((item, i) => (
+                        <div key={i} className={`glass-card p-5 border-l-4 ${item.ativo ? 'border-l-green-500' : 'border-l-slate-400'}`}>
+                            <div className="flex justify-between">
+                                <div>
+                                    <p className="text-xs font-bold text-slate-500">TERCEIRO</p>
+                                    <h3 className="font-bold dark:text-white">{item.terceiros?.razao_social || item.codigo_fornecedor}</h3>
+                                    <p className="text-sm text-slate-500">{item.terceiros?.cnpj || ''}</p>
+                                </div>
+                                {item.ativo && <span className="text-xs font-bold text-green-600">ATIVO</span>}
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
+                                <div><label className="block text-slate-400">Início</label><span className="dark:text-white">{new Date(item.data_inicio).toLocaleDateString()}</span></div>
+                                <div><label className="block text-slate-400">Fim</label><span className="dark:text-white">{item.data_fim ? new Date(item.data_fim).toLocaleDateString() : '-'}</span></div>
+                                <div><label className="block text-slate-400">Dias</label><span className="dark:text-white">{item.dias} dias</span></div>
+                                <div><label className="block text-slate-400">KM Inicial</label><span className="dark:text-white font-mono bg-slate-100 dark:bg-slate-800 px-1">{item.km_inicial || 0}</span></div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
         const App = () => {
             const [supabaseClient, setSupabaseClient] = useState(null);
             const [session, setSession] = useState(null);
@@ -5944,7 +6015,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             const [loading, setLoading] = useState(false);
             const [logs, setLogs] = useState([]);
             const authInitialized = useRef(false);
-            
+            const isPublicRoute = window.location.pathname.toLowerCase().includes('buscaplaca');
             // Configuração de Tema
             const [isDark, setIsDark] = useState(() => {
                 if (typeof window !== 'undefined') {
@@ -6538,6 +6609,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
             // --- RENDER ---
             if (!supabaseClient) return <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-900"><div className="text-center"><div className="loader h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent mx-auto mb-4"></div><p className="text-sm text-slate-500 dark:text-slate-400">Inicializando...</p></div></div>;
+            if (isPublicRoute) {return <ConsultaPlacaPublica supabaseClient={supabaseClient} />;}
             if (!session) return <LoginScreen onLogin={(e,p) => supabaseClient.auth.signInWithPassword({email:e, password:p})} loading={loading} />;
 
             return (
@@ -6854,6 +6926,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
