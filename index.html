@@ -6159,19 +6159,15 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             const fetchAtivos = async () => {
     setLoading(true);
     try {
-        // Chamada usando a RPC que suporta os novos validadores e filtro de filial string
         const { data, error } = await supabaseClient.rpc('get_terceirizacao_ativos', { 
-            p_data_ini: filters.dateIni, 
-            p_data_fim: filters.dateFim,
-            p_filial: filters.filial // Passando a string direto (Ex: 'BJE1' ou 'Todas')
+            p_data_ref: filters.dateFim, // A data que o usuário escolheu no calendário
+            p_filial: filters.filial 
         });
 
         if (error) throw error;
-        
-        // Se a RPC retornar os dados, o setAtivosData(data) já deve funcionar
-        setAtivosData(data); 
+        setAtivosData(data);
     } catch (error) { 
-        addLog("Erro Ativos: " + error.message, 'error'); 
+        addLog("Erro ao carregar indicadores: " + error.message, 'error'); 
     } finally { 
         setLoading(false); 
     }
@@ -6663,15 +6659,47 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                                         <TerceirizacaoTurnover supabaseClient={supabaseClient} filters={filters} onNotify={addLog} />
                                     </div>
                                 )}
-                                {view === 'terceirizacao_ativos' && (
+                                {{view === 'terceirizacao_ativos' && (
     <div className="space-y-6 animate-enter pb-10">
-        {/* Removido o <div className="glass-card p-4..."> que estava aqui antes */}
-        <ActiveAssets 
-            data={ativosData} 
-            loading={loading} 
-            filters={filters} 
-            setFilters={setFilters} 
-        />
+        {/* BARRA DE FILTROS E INDICADORES */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Filtros */}
+            <div className="md:col-span-3 glass-card p-4 flex gap-4 items-center">
+                <div className="flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-400">
+                    <Icons.Calendar className="w-4 h-4" /> Data de Referência:
+                </div>
+                <input 
+                    type="date" 
+                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm font-bold" 
+                    value={filters.dateFim} 
+                    onChange={e => setFilters({...filters, dateFim: e.target.value})} 
+                />
+                
+                <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
+                
+                <select 
+                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-3 py-1.5 text-sm font-bold min-w-[180px]"
+                    value={filters.filial}
+                    onChange={e => setFilters({...filters, filial: e.target.value})}
+                >
+                    <option value="Todas">🏭 Todas as Usinas</option>
+                    {(dashboardData.lista_filiais || []).map(f => (
+                        <option key={f.name} value={f.name}>{f.name}</option>
+                    ))}
+                </select>
+            </div>
+
+            {/* CARD DE INDICADOR */}
+            <div className="glass-card p-4 bg-blue-600 text-white flex flex-col justify-center items-center">
+                <span className="text-[10px] uppercase font-black opacity-80">Veículos Ativos no Período</span>
+                <span className="text-3xl font-black">
+                    {ativosData?.kpis?.total_ativos || 0}
+                </span>
+            </div>
+        </div>
+
+        {/* TABELA DE ATIVOS */}
+        <ActiveAssets data={ativosData} loading={loading} />
     </div>
 )}
                                 {view === 'terceirizacao_depara' && <TerceirizacaoDePara supabaseClient={supabaseClient} onNotify={addLog} />}
@@ -6812,6 +6840,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
