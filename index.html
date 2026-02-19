@@ -6168,15 +6168,20 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             const fetchAtivos = async () => {
     setLoading(true);
     try {
+        // Log para depuração no console do navegador (F12)
+        console.log("Filtrando ativos na data:", filters.dateFim);
+
         const { data, error } = await supabaseClient.rpc('get_terceirizacao_ativos', { 
-            p_data_ref: filters.dateFim, // A data que o usuário escolheu no calendário
-            p_filial: filters.filial 
+            p_data_ref: filters.dateFim, // A data do input "Data de Referência"
+            p_filial: filters.filial || 'Todas'
         });
 
         if (error) throw error;
+        
+        // Atualiza o estado com os KPIs e a listagem novos
         setAtivosData(data);
     } catch (error) { 
-        addLog("Erro ao carregar indicadores: " + error.message, 'error'); 
+        addLog("Erro ao atualizar contador: " + error.message, 'error'); 
     } finally { 
         setLoading(false); 
     }
@@ -6849,6 +6854,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
