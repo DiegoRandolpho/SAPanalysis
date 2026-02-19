@@ -5969,7 +5969,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         if (concessaoData && concessaoData.length > 0) {
             // 2. Busca os dados dos terceiros para cruzar informações
             // Pegamos todos os códigos únicos para fazer uma busca só (mais rápido)
-            const codigos = [...new Set(concessaoData.map(c => c.cod_sap))];
+            const codigos = [...new Set(concessaoData.map(c => c.fornecedor))];
             
             const { data: terceirosData, error: terceirosError } = await client
                 .from('terceiros')
@@ -5978,7 +5978,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
             // 3. Une os dados das duas tabelas
             const historicoCompleto = concessaoData.map(item => {
-                const infoTerceiro = terceirosData?.find(t => t.cod_sap === item.cod_sap);
+                const infoTerceiro = terceirosData?.find(t => t.cod_sap === item.fornecedor);
                 return {
                     ...item,
                     razao_social: infoTerceiro?.razao_social || item.cod_sap,
@@ -6977,6 +6977,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
