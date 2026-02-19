@@ -4126,56 +4126,65 @@ const TerceirizacaoRelatorioAtivos = ({ supabaseClient, filters, onNotify, isDar
         };
         // --- Componente ActiveAssets (Atualizado com Filtro de Data e KPI de Empresas) ---
 const ActiveAssets = ({ data, loading }) => {
-    // Usamos o retorno da RPC que vem em data.concessao
     const listaAtivos = data?.concessao || [];
 
     return (
         <div className="glass-card overflow-hidden border border-slate-200 dark:border-slate-700">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 flex justify-between items-center">
-                <h3 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 text-sm uppercase">
-                    <Icons.Truck className="text-blue-500" /> Terceiros Ativos
-                </h3>
-                <span className="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded font-bold">
-                    {listaAtivos.length} REGISTROS
-                </span>
-            </div>
             <div className="overflow-x-auto custom-scrollbar">
-                <table className="w-full text-xs text-left">
+                <table className="w-full text-[11px] text-left">
                     <thead className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 font-bold uppercase border-b dark:border-slate-700">
                         <tr>
-                            <th className="px-6 py-3">Fornecedor</th>
-                            <th className="px-6 py-3">Equipamento</th>
-                            <th className="px-6 py-3">Material</th>
-                            <th className="px-6 py-3">Centro</th>
-                            <th className="px-6 py-3">Data Início</th>
-                            <th className="px-6 py-3 text-center">Status</th>
+                            <th className="px-4 py-3">Fornecedor / Razão Social</th>
+                            <th className="px-4 py-3">Contato (Nome/E-mail)</th>
+                            <th className="px-4 py-3">Equipamento</th>
+                            <th className="px-4 py-3">Material</th>
+                            <th className="px-4 py-3 text-center">Status</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {loading ? (
-                            <tr><td colSpan="6" className="p-10 text-center animate-pulse text-slate-400">Buscando ativos...</td></tr>
-                        ) : listaAtivos.length > 0 ? (
-                            listaAtivos.map((item, i) => (
-                                <tr key={i} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors">
-                                    <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-100">
-                                        {item.nome_terceiro || item.fornecedor}
+                        {listaAtivos.map((item, i) => {
+                            const semCadastro = !item.razao_social;
+
+                            return (
+                                <tr key={i} className={`${semCadastro ? 'bg-red-50/40 dark:bg-red-900/10' : ''} hover:bg-slate-50 transition-colors`}>
+                                    <td className="px-4 py-3">
+                                        {semCadastro ? (
+                                            <div className="flex flex-col">
+                                                <span className="text-red-600 font-black animate-pulse">⚠️ SEM CADASTRO (CÓD: {item.codigo_fornecedor})</span>
+                                                <span className="text-slate-400 text-[10px]">Importado via Planilha</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-slate-800 dark:text-slate-100">{item.razao_social}</span>
+                                                <div className="flex gap-2 text-[10px] text-slate-500">
+                                                    <span>{item.cnpj}</span>
+                                                    {item.apelido && <span>• {item.apelido}</span>}
+                                                </div>
+                                            </div>
+                                        )}
                                     </td>
-                                    <td className="px-6 py-4 font-mono text-blue-600 dark:text-blue-400 font-bold">
+                                    <td className="px-4 py-3 text-slate-600">
+                                        {!semCadastro ? (
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-slate-700">{item.nome_completo || '---'}</span>
+                                                <span className="text-[10px] lowercase text-blue-500">{item.email || ''}</span>
+                                            </div>
+                                        ) : '---'}
+                                    </td>
+                                    <td className="px-4 py-3 font-mono font-bold text-blue-600">
                                         {item.equipamento}
                                     </td>
-                                    <td className="px-6 py-4">{item.material || '---'}</td>
-                                    <td className="px-6 py-4">{item.filial || item.centro}</td>
-                                    <td className="px-6 py-4">
-                                        {item.data_inicial ? new Date(item.data_inicial).toLocaleDateString('pt-BR') : '-'}
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <span className="px-2 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full text-[10px] font-bold">ATIVO</span>
+                                    <td className="px-4 py-3">{item.material || '---'}</td>
+                                    <td className="px-4 py-3 text-center">
+                                        {semCadastro ? (
+                                            <span className="px-2 py-1 bg-red-600 text-white rounded text-[9px] font-black">PENDENTE</span>
+                                        ) : (
+                                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-bold">ATIVO</span>
+                                        )}
                                     </td>
                                 </tr>
-                            ))
-                        ) : (
-                            <tr><td colSpan="6" className="p-10 text-center text-slate-400 italic">Nenhum ativo encontrado.</td></tr>
-                        )}
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
@@ -6840,6 +6849,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 
 
     
+
 
 
 
