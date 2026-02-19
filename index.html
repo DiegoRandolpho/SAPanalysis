@@ -6010,13 +6010,15 @@ const ConsultaPlacaPublica = ({ supabaseClient }) => {
     );
 };
         const App = () => {
+            const isPublicUrl = window.location.pathname.toLowerCase().includes('buscaplaca');
+            if (isPublicUrl) {return <ConsultaPlacaPublica supabaseClient={supabaseClient} isPublic={true} />;}
             const [supabaseClient, setSupabaseClient] = useState(null);
             const [session, setSession] = useState(null);
             const [userRole, setUserRole] = useState(null);
             const [loading, setLoading] = useState(false);
             const [logs, setLogs] = useState([]);
             const authInitialized = useRef(false);
-            const isPublicUrl = window.location.pathname.toLowerCase().includes('buscaplaca');
+            
             // Configuração de Tema
             const [isDark, setIsDark] = useState(() => {
                 if (typeof window !== 'undefined') {
@@ -6933,6 +6935,7 @@ const ConsultaPlacaPublica = ({ supabaseClient }) => {
 
 
     
+
 
 
 
