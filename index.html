@@ -5943,47 +5943,60 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
     const [loading, setLoading] = React.useState(false);
 
     const buscarPlaca = async () => {
-        if (!placa) return;
-        setLoading(true);
-        try {
-            // Busca o histórico na tabela concessao
-            const { data, error } = await supabaseClient
-                .from('concessao')
-                .select(`
-                    *,
-                    terceiros!inner(razao_social, cnpj) 
-                `) // Assumindo que a FK no Supabase está configurada. 
-                   // Se não estiver, faremos a busca manual abaixo:
-                .eq('placa', placa.toUpperCase())
-                .order('data_inicio', { ascending: false });
+    if (!placa) return;
+    setLoading(true);
+    setHistorico([]); // Limpa a busca anterior
 
-            if (error) {
-                // Caso o join falhe por falta de FK, buscamos o básico
-                const { data: basicData } = await supabaseClient
-                    .from('concessao')
-                    .select('*')
-                    .eq('placa', placa.toUpperCase())
-                    .order('data_inicio', { ascending: false });
-                
-                // Enriquecer com dados de terceiros manualmente se necessário
-                const enriched = await Promise.all((basicData || []).map(async (item) => {
-                    const { data: terc } = await supabaseClient
-                        .from('terceiros')
-                        .select('razao_social, cnpj')
-                        .eq('codigo_fornecedor', item.codigo_fornecedor)
-                        .single();
-                    return { ...item, terceiro_info: terc };
-                }));
-                setHistorico(enriched);
-            } else {
-                setHistorico(data);
-            }
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
+    // GARANTIA: Usa o cliente passado via props ou busca o global do seu index.html
+    const client = supabaseClient || window.supabaseClient;
+
+    if (!client) {
+        console.error("Erro: Cliente Supabase não encontrado.");
+        setLoading(false);
+        return;
+    }
+
+    try {
+        // 1. Busca o histórico na tabela 'concessao'
+        const { data: concessaoData, error: concessaoError } = await client
+            .from('concessao')
+            .select('*')
+            .eq('placa', placa.trim().toUpperCase())
+            .order('data_inicio', { ascending: false });
+
+        if (concessaoError) throw concessaoError;
+
+        if (concessaoData && concessaoData.length > 0) {
+            // 2. Busca os dados dos terceiros para cruzar informações
+            // Pegamos todos os códigos únicos para fazer uma busca só (mais rápido)
+            const codigos = [...new Set(concessaoData.map(c => c.codigo_fornecedor))];
+            
+            const { data: terceirosData, error: terceirosError } = await client
+                .from('terceiros')
+                .select('codigo_fornecedor, razao_social, cnpj')
+                .in('codigo_fornecedor', codigos);
+
+            // 3. Une os dados das duas tabelas
+            const historicoCompleto = concessaoData.map(item => {
+                const infoTerceiro = terceirosData?.find(t => t.codigo_fornecedor === item.codigo_fornecedor);
+                return {
+                    ...item,
+                    razao_social: infoTerceiro?.razao_social || item.codigo_fornecedor,
+                    cnpj: infoTerceiro?.cnpj || "Não cadastrado"
+                };
+            });
+
+            setHistorico(historicoCompleto);
+        } else {
+            setHistorico([]);
         }
-    };
+    } catch (err) {
+        console.error("Erro na consulta:", err.message);
+        alert("Erro ao consultar placa. Verifique a conexão.");
+    } finally {
+        setLoading(false);
+    }
+};
 
     const calcularDias = (inicio, fim) => {
         const d1 = new Date(inicio);
@@ -6964,6 +6977,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
