@@ -6088,11 +6088,12 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             const [isSidebarOpen, setIsSidebarOpen] = useState(true);
             const [expandedModules, setExpandedModules] = useState({ terceirizacao: false, controladoria: false, diesel: false, insumos: false, admin: false, documentacao: false });
             const isPublicRoute = window.location.pathname.includes('/buscaplaca');
-    
-    // Se for rota pública, inicia nela. Caso contrário, segue o fluxo normal.
+
             const [view, setView] = React.useState(isPublicRoute ? 'buscaplaca' : 'dashboard');
-            const [user, setUser] = React.useState(null); // Mantém null se for público
-            const [subView, setSubView] = useState('dash');
+            const [subView, setSubView] = React.useState('home');
+            const [user, setUser] = React.useState(null);
+
+            if (view === 'buscaplaca') {return <ConsultaPublicaPlaca supabaseClient={supabaseClient} />;}
             
             // --- STATES DE DADOS ---
             const [dashboardData, setDashboardData] = useState({ kpis: { total_vol: 0, total_val: 0, vol_bomba: 0, vol_transp: 0 }, chart_class: [], chart_plate: [], chart_evo: [], chart_branch: [] });
@@ -6963,5 +6964,6 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
