@@ -5961,7 +5961,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const { data: concessaoData, error: concessaoError } = await client
             .from('concessao')
             .select('*')
-            .eq('placa', placa.trim().toUpperCase())
+            .eq('equipamento', placa.trim().toUpperCase())
             .order('data_inicio', { ascending: false });
 
         if (concessaoError) throw concessaoError;
@@ -6977,6 +6977,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
