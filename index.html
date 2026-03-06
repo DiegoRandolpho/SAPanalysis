@@ -6422,23 +6422,23 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                     regional: get("REGIONAL"),
                     filial: get("FILIAL"),
                     cod_material: String(get("CÓD") || ""),
-                    grupo_material: get("GRUPO MATERIAL"),
+                    grupo_material: get("MATERIAL"),
                     categoria: get("CATEGORIA"),
                     
                     // QUANTIDADES (QTDD)
-                    est_inicial_sap: Utils.formatters.parseBrl(get("EST. IN. SAP")),
-                    entradas_sap: Utils.formatters.parseBrl(get("+ (SÓ ENT 101)")),
+                    est_inicial_sap: Utils.formatters.parseBrl(get("EST. INI. SAP")),
+                    entradas_sap: Utils.formatters.parseBrl(get("+ (SÓ ENT 101/801)")),
                     saidas_sap: Utils.formatters.parseBrl(get("- (SÓ SAÍ 201)")),
                     est_final_sap: Utils.formatters.parseBrl(get("EST. FIN. SAP")),
                     est_final_real: Utils.formatters.parseBrl(get("EST. FIN. REAL")),
                     dif_real_sap: Utils.formatters.parseBrl(get("DIF REAL X SAP")),
                     
                     // FINANCEIRO (R$)
-                    custo_dif: Utils.formatters.parseBrl(get("DIF CUSTO")),
+                    custo_dif: Utils.formatters.parseBrl(get("CUSTO")),
                     est_inicial_val: Utils.formatters.parseBrl(get("EST. IN.SAP ($)")),
-                    entradas_val: Utils.formatters.parseBrl(get("+ (SÓ ENT 101) $")),
+                    entradas_val: Utils.formatters.parseBrl(get("+ (SÓ ENT 101/801) $")),
                     saidas_val: Utils.formatters.parseBrl(get("- (SÓ SAÍ 201) $")),
-                    est_final_val_sap: Utils.formatters.parseBrl(get("EST.FIN.SAP ($)")),
+                    est_final_val_sap: Utils.formatters.parseBrl(get(EST.FIN.REAL ($)")),
                     
                     // LOGÍSTICA
                     num_caminhoes: Utils.formatters.parseBrl(get("Nº CAMINHÕES")),
@@ -6977,6 +6977,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
