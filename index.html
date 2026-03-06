@@ -6438,7 +6438,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                     est_inicial_val: Utils.formatters.parseBrl(get("EST. IN.SAP ($)")),
                     entradas_val: Utils.formatters.parseBrl(get("+ (SÓ ENT 101/801) $")),
                     saidas_val: Utils.formatters.parseBrl(get("- (SÓ SAÍ 201) $")),
-                    est_final_val_sap: Utils.formatters.parseBrl(get(EST.FIN.REAL ($)")),
+                    est_final_val_sap: Utils.formatters.parseBrl(get("EST.FIN.REAL ($)")),
                     
                     // LOGÍSTICA
                     num_caminhoes: Utils.formatters.parseBrl(get("Nº CAMINHÕES")),
@@ -6977,6 +6977,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
+
 
 
 
