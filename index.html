@@ -6967,6 +6967,37 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                                         <TerceirizacaoPagamentos supabaseClient={supabaseClient} filters={filters} onNotify={addLog} />
                                     </div>
                                 )}
+                                {/* NOVA VIEW: DASHBOARD ANALÍTICO DE EQUIPAMENTOS */}
+{view === 'terceirizacao_analitico' && (
+    <div className="space-y-6 animate-enter">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 no-print">
+            <div>
+                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">
+                    Indicadores Analíticos por Equipamento
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">Análise de performance: BT, Bomba e Lança</p>
+            </div>
+            
+            {/* Seletor de Período para o Dashboard */}
+            <div className="bg-white dark:bg-slate-800 p-2 px-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-3">
+                <span className="text-[10px] font-black text-slate-400 uppercase">Mês de Ref:</span>
+                <div className="w-40">
+                    <MonthPicker 
+                        value={filters.terceirizacaoPeriodo} 
+                        onChange={(e) => setFilters({...filters, terceirizacaoPeriodo: e})} 
+                    />
+                </div>
+            </div>
+        </div>
+
+        {/* Chamada do Componente que criamos anteriormente */}
+        <TerceirizacaoAnaliticoDashboard 
+            data={indicadoresAnaliticosRaw} // Estado que criaremos no passo 2
+            periodo={filters.terceirizacaoPeriodo}
+            isDark={isDark}
+        />
+    </div>
+)}
                                 {view === 'terceirizacao_turnover' && (
                                     <div className="space-y-6 animate-enter pb-10">
                                         <div className="glass-card p-4 flex gap-4 items-center no-print">
