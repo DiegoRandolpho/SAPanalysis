@@ -1184,6 +1184,7 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
 
             const fetchMappings = async () => { try { const { data } = await supabaseClient.from('controladoria_de_para').select('*').order('friendly_name'); setMappings(data || []); } catch (e) { onNotify(e.message, "error"); } };
             const fetchAvailableAccounts = async () => { try { const { data, error } = await supabaseClient.rpc('get_controladoria_contas'); if (error) throw error; setAvailableAccounts(data.map(d => d.conta)); } catch (e) { onNotify("Erro contas: " + e.message, "error"); } };
+            
             useEffect(() => { fetchMappings(); fetchAvailableAccounts(); }, []);
 
             const handleEdit = (item) => {
@@ -2724,129 +2725,6 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
                     </div>
                 </div>
             )}
-        </div>
-    );
-};
-        const TerceirizacaoAnaliticoDashboard = ({ data, periodo, isDark }) => {
-    const [equipamentoAtivo, setEquipamentoAtivo] = useState('BT');
-    const [filialFiltro, setFilialFiltro] = useState('Todas');
-
-    // Opções de filiais para o Dropdown
-    const listaFiliais = useMemo(() => {
-        return ['Todas', ...new Set(data.map(item => item.filial))].sort();
-    }, [data]);
-
-    // Filtragem dos dados conforme seleção
-    const dadosFiltrados = useMemo(() => {
-        return data.filter(item => 
-            item.equipamento === equipamentoAtivo && 
-            (filialFiltro === 'Todas' || item.filial === filialFiltro)
-        );
-    }, [data, equipamentoAtivo, filialFiltro]);
-
-    // Função de Exportação PDF (Seguindo o padrão do sistema)
-    const handleExportPDF = () => {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('l', 'mm', 'a4'); // Paisagem para caber todas as colunas
-        const cores = equipamentoAtivo === 'BT' ? [59, 130, 246] : [139, 92, 246];
-
-        doc.setFillColor(cores[0], cores[1], cores[2]);
-        doc.rect(0, 0, 297, 15, 'F');
-        doc.setFontSize(14); doc.setTextColor(255);
-        doc.text(`RELATÓRIO ANALÍTICO - ${equipamentoAtivo} - PERÍODO: ${periodo}`, 15, 10);
-        
-        const headers = [['Filial', 'Volume', 'Líquido/M³', 'Diesel/M³', 'Desloc./M³', 'Adicional']];
-        const body = dadosFiltrados.map(d => [
-            d.filial,
-            Utils.formatters.number(d.volume),
-            Utils.formatters.currency(d.liquido_m3),
-            Utils.formatters.currency(d.diesel_m3),
-            Utils.formatters.currency(d.deslocamento_m3),
-            Utils.formatters.currency(d.adicional_cidades_m3)
-        ]);
-
-        doc.autoTable({
-            startY: 25,
-            head: headers,
-            body: body,
-            theme: 'grid',
-            headStyles: { fillColor: cores }
-        });
-        doc.save(`Analitico_${equipamentoAtivo}_${periodo}.pdf`);
-    };
-
-    return (
-        <div className="space-y-6 animate-enter">
-            {/* BARRA DE FILTROS DO DASHBOARD */}
-            <div className="glass-card p-4 flex justify-between items-center no-print">
-                <div className="flex gap-4 items-center">
-                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                        {['BT', 'BOMBA', 'LANÇA'].map(tipo => (
-                            <button 
-                                key={tipo}
-                                onClick={() => setEquipamentoAtivo(tipo)}
-                                className={`px-6 py-2 rounded-lg text-xs font-bold transition-all ${equipamentoAtivo === tipo ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600 dark:text-white' : 'text-slate-500'}`}
-                            >
-                                {tipo}
-                            </button>
-                        ))}
-                    </div>
-
-                    <select 
-                        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500/20"
-                        value={filialFiltro}
-                        onChange={(e) => setFilialFiltro(e.target.value)}
-                    >
-                        {listaFiliais.map(f => <option key={f} value={f}>{f === 'Todas' ? '🏭 Todas as Filiais' : f}</option>)}
-                    </select>
-                </div>
-
-                <button 
-                    onClick={handleExportPDF}
-                    className="bg-slate-800 dark:bg-white dark:text-slate-900 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:opacity-90"
-                >
-                    <Icons.Download className="w-4 h-4" /> EXPORTAR PDF
-                </button>
-            </div>
-
-            {/* CARDS DE RESUMO */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card 
-                    title="Volume Total" 
-                    value={Utils.formatters.number(dadosFiltrados.reduce((acc, i) => acc + i.volume, 0))} 
-                    iconName="database" color="blue" 
-                />
-                <Card 
-                    title="Média Líquido/M³" 
-                    value={Utils.formatters.currency(dadosFiltrados.length ? dadosFiltrados.reduce((acc, i) => acc + i.liquido_m3, 0) / dadosFiltrados.length : 0)} 
-                    iconName="trendingUp" color="emerald" 
-                />
-                <Card 
-                    title="Média Diesel/M³" 
-                    value={Utils.formatters.currency(dadosFiltrados.length ? dadosFiltrados.reduce((acc, i) => acc + i.diesel_m3, 0) / dadosFiltrados.length : 0)} 
-                    iconName="fuel" color="orange" 
-                />
-                <Card 
-                    title="Deslocamento Médio" 
-                    value={Utils.formatters.currency(dadosFiltrados.length ? dadosFiltrados.reduce((acc, i) => acc + i.deslocamento_m3, 0) / dadosFiltrados.length : 0)} 
-                    iconName="mapPin" color="purple" 
-                />
-            </div>
-
-            {/* TABELA DETALHADA */}
-            <div className="glass-card overflow-hidden">
-                <DataTable 
-                    title={`Detalhamento por Filial - ${equipamentoAtivo}`}
-                    data={dadosFiltrados.map(item => ({
-                        'Filial': item.filial,
-                        'Volume': item.volume,
-                        'Líquido/M³': item.liquido_m3,
-                        'Diesel/M³': item.diesel_m3,
-                        'Deslocamento/M³': item.deslocamento_m3,
-                        'Adicional Cidades': item.adicional_cidades_m3
-                    }))}
-                />
-            </div>
         </div>
     );
 };
@@ -6339,7 +6217,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             // 5. Roteamento de Dados (Fetch Data baseado na View)
             useEffect(() => {
                 if(!session) return;
-                if(view === 'terceirizacao_analitico') fetchIndicadoresAnaliticos();
+                
                 if(view === 'dashboard') fetchDashboard();
                 if(view === 'terceirizacao_ativos') { fetchDashboard(); fetchAtivos(); }
                 if(view === 'reports') fetchReport();
@@ -6356,7 +6234,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                 // NOVO: Fetch Insumos
                 if(view === 'insumos' && subView === 'dash') fetchInsumosData();
 
-            }, [view, subView, filters, session, drePeriodoIni, drePeriodoFim, insumosFilters.periodo, filters.terceirizacaoPeriodo]);
+            }, [view, subView, filters, session, drePeriodoIni, drePeriodoFim, insumosFilters.periodo]);
 
             // --- HELPER FUNCTIONS ---
             const addLog = (msg, type='info') => setLogs(p => [{msg, type}, ...p]);
@@ -6424,23 +6302,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                     setDieselData(data || { macro: {}, lista: [] });
                 } catch(e) { addLog("Erro Diesel: " + e.message, 'error'); setDieselData({ macro: {}, lista: [] }); } finally { setLoading(false); }
             };
-            const fetchIndicadoresAnaliticos = async () => {
-    if (!filters.terceirizacaoPeriodo) return;
-    setLoading(true);
-    try {
-        const { data, error } = await supabaseClient
-            .from('indicadores_analiticos')
-            .select('*')
-            .eq('periodo', filters.terceirizacaoPeriodo);
 
-        if (error) throw error;
-        setIndicadoresAnaliticosRaw(data || []);
-    } catch (err) {
-        addLog("Erro ao carregar indicadores: " + err.message, "error");
-    } finally {
-        setLoading(false);
-    }
-};
             const fetchAtivos = async () => {
     setLoading(true);
     try {
@@ -6529,55 +6391,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             };
 
             // --- FILE PROCESSING ---
-            const processTerceirizacaoAnalitico = async (file, period) => {
-    if (!period) {
-        addLog("Selecione o período antes de importar indicadores.", "error");
-        return;
-    }
 
-    setLoading(true);
-    try {
-        const rawData = await Utils.excel.read(file);
-        const rowsToInsert = [];
-
-        rawData.forEach(row => {
-            // Mapeamos os 3 tipos de equipamentos para cada linha da planilha
-            const tipos = [
-                { id: 'BT', pfx: 'bt' },
-                { id: 'BOMBA', pfx: 'bomba' },
-                { id: 'LANÇA', pfx: 'lança' }
-            ];
-
-            tipos.forEach(t => {
-                // Só adiciona se houver volume ou dados para aquele equipamento na linha
-                if (row[`Volume_${t.pfx}`] || row[`Volume_${t.pfx.toUpperCase()}`]) {
-                    rowsToInsert.push({
-                        periodo: period,
-                        filial: row['Filial'],
-                        equipamento: t.id,
-                        volume: parseFloat(row[`Volume_${t.pfx}`] || row[`Volume_${t.pfx.toUpperCase()}`] || 0),
-                        liquido_m3: parseFloat(row[`Líquido/M³_${t.pfx}`] || row[`Líquido/M³_${t.pfx.toUpperCase()}`] || 0),
-                        diesel_m3: parseFloat(row[`Diesel/M³_${t.pfx}`] || row[`Diesel/M³_${t.pfx.toUpperCase()}`] || 0),
-                        deslocamento_m3: parseFloat(row[`Deslocamento/M³_${t.pfx}`] || row[`Deslocamento/M³_${t.pfx.toUpperCase()}`] || 0),
-                        adicional_cidades_m3: parseFloat(row[`Adicional Cidades/M³_${t.pfx}`] || row[`Adicional Cidades/M³_${t.pfx.toUpperCase()}`] || 0)
-                    });
-                }
-            });
-        });
-
-        const { error } = await supabaseClient
-            .from('indicadores_analiticos')
-            .upsert(rowsToInsert);
-
-        if (error) throw error;
-        addLog(`${rowsToInsert.length} registros analíticos processados!`, "success");
-
-    } catch (err) {
-        addLog("Erro no processamento: " + err.message, "error");
-    } finally {
-        setLoading(false);
-    }
-};
             // NOVO: PROCESSAR ARQUIVO DE INSUMOS
             // Processar Insumos
            const processInsumosFile = (file, periodDate) => {
@@ -6829,15 +6643,14 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             // --- IMPORT HANDLER PRINCIPAL ---
             const handleImport = async (file, type, period) => {
                 if (type === 'insumos') processInsumosFile(file, period);
-    else if (type === 'controladoria') processControladoriaFile(file, period);
-    else if (type === 'diesel_estoque') processDieselFile(file, period);
-    else if (type === 'terceirizacao_analitico') processTerceirizacaoAnalitico(file, period); // <-- NOVA OPÇÃO
-    else if (type === 'shell') processShellFile(file);
-    else if (type === 'ticket') processTicketFile(file);
-    else if (type === 'cta') processCtaFile(file);
-    else if (type === 'equipamentos') processEquipamentosFile(file);
-    else handleUploadTerceirizacao(file, type);
-};
+                else if (type === 'controladoria') processControladoriaFile(file, period);
+                else if (type === 'diesel_estoque') processDieselFile(file, period);
+                else if (type === 'shell') processShellFile(file);
+                else if (type === 'ticket') processTicketFile(file);
+                else if (type === 'cta') processCtaFile(file);
+                else if (type === 'equipamentos') processEquipamentosFile(file);
+                else handleUploadTerceirizacao(file, type);
+            };
 
             const batchExport = async (tableName, fileName) => { addLog("Exportação iniciada...", "info"); };
 
@@ -6982,37 +6795,6 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                                         <TerceirizacaoPagamentos supabaseClient={supabaseClient} filters={filters} onNotify={addLog} />
                                     </div>
                                 )}
-                                {/* NOVA VIEW: DASHBOARD ANALÍTICO DE EQUIPAMENTOS */}
-{view === 'terceirizacao_analitico' && (
-    <div className="space-y-6 animate-enter">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 no-print">
-            <div>
-                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">
-                    Indicadores Analíticos por Equipamento
-                </h3>
-                <p className="text-xs text-slate-500 font-medium">Análise de performance: BT, Bomba e Lança</p>
-            </div>
-            
-            {/* Seletor de Período para o Dashboard */}
-            <div className="bg-white dark:bg-slate-800 p-2 px-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-3">
-                <span className="text-[10px] font-black text-slate-400 uppercase">Mês de Ref:</span>
-                <div className="w-40">
-                    <MonthPicker 
-                        value={filters.terceirizacaoPeriodo} 
-                        onChange={(e) => setFilters({...filters, terceirizacaoPeriodo: e})} 
-                    />
-                </div>
-            </div>
-        </div>
-
-        {/* Chamada do Componente que criamos anteriormente */}
-        <TerceirizacaoAnaliticoDashboard 
-            data={indicadoresAnaliticosRaw} // Estado que criaremos no passo 2
-            periodo={filters.terceirizacaoPeriodo}
-            isDark={isDark}
-        />
-    </div>
-)}
                                 {view === 'terceirizacao_turnover' && (
                                     <div className="space-y-6 animate-enter pb-10">
                                         <div className="glass-card p-4 flex gap-4 items-center no-print">
@@ -7074,38 +6856,17 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 )}
                                 {view === 'terceirizacao_depara' && <TerceirizacaoDePara supabaseClient={supabaseClient} onNotify={addLog} />}
                                 {view === 'terceirizacao_import' && (
-    <div className="space-y-6 animate-enter pb-10">
-        <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-4">
-            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                <Icons.Upload className="text-blue-500" /> Importar Dados Operacionais
-            </h3>
-            {/* Adicionando seletor de período para o analítico */}
-            <div className="bg-white dark:bg-slate-800 p-2 px-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-3">
-                <span className="text-xs font-bold text-slate-500">Mês de Ref:</span>
-                <div className="w-40">
-                    <MonthPicker 
-                        value={filters.terceirizacaoPeriodo} 
-                        onChange={(e) => setFilters({...filters, terceirizacaoPeriodo: e})} 
-                    />
-                </div>
-            </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <UploadCard type="apuracao" iconName="fileText" onAnalyze={(f)=>handleImport(f,'apuracao')} isAnalyzing={loading} />
-            <UploadCard type="pagamentos" iconName="dollar" onAnalyze={(f)=>handleImport(f,'pagamentos')} isAnalyzing={loading} />
-            <UploadCard type="concessao" iconName="checkCircle" onAnalyze={(f)=>handleImport(f,'concessao')} isAnalyzing={loading} />
-            
-            {/* 4ª OPÇÃO: Indicadores Analíticos */}
-            <UploadCard 
-                type="terceirizacao_analitico" 
-                iconName="barChart" 
-                onAnalyze={(f) => handleImport(f, 'terceirizacao_analitico', filters.terceirizacaoPeriodo)} 
-                isAnalyzing={loading} 
-            />
-        </div>
-    </div>
-)}
+                                    <div className="space-y-6 animate-enter pb-10">
+                                        <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 mb-4">
+                                            <Icons.Upload className="text-blue-500" /> Importar Dados Operacionais
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <UploadCard type="apuracao" iconName="fileText" onAnalyze={(f)=>handleImport(f,'apuracao')} isAnalyzing={loading} />
+                                            <UploadCard type="pagamentos" iconName="dollar" onAnalyze={(f)=>handleImport(f,'pagamentos')} isAnalyzing={loading} />
+                                            <UploadCard type="concessao" iconName="checkCircle" onAnalyze={(f)=>handleImport(f,'concessao')} isAnalyzing={loading} />
+                                        </div>
+                                    </div>
+                                )}
                                 {view === 'documentacao' && (
                                 <DocumentacaoDashboard supabaseClient={supabaseClient} />
             )}
@@ -7216,7 +6977,6 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
         const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
-
 
 
 
