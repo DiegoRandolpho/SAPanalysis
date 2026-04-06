@@ -1184,7 +1184,6 @@ const LoginScreen = ({ onLogin }) => { // <--- RENOMEADO PARA LoginScreen
 
             const fetchMappings = async () => { try { const { data } = await supabaseClient.from('controladoria_de_para').select('*').order('friendly_name'); setMappings(data || []); } catch (e) { onNotify(e.message, "error"); } };
             const fetchAvailableAccounts = async () => { try { const { data, error } = await supabaseClient.rpc('get_controladoria_contas'); if (error) throw error; setAvailableAccounts(data.map(d => d.conta)); } catch (e) { onNotify("Erro contas: " + e.message, "error"); } };
-            
             useEffect(() => { fetchMappings(); fetchAvailableAccounts(); }, []);
 
             const handleEdit = (item) => {
@@ -6340,7 +6339,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             // 5. Roteamento de Dados (Fetch Data baseado na View)
             useEffect(() => {
                 if(!session) return;
-                
+                if(view === 'terceirizacao_analitico') fetchIndicadoresAnaliticos();
                 if(view === 'dashboard') fetchDashboard();
                 if(view === 'terceirizacao_ativos') { fetchDashboard(); fetchAtivos(); }
                 if(view === 'reports') fetchReport();
@@ -6357,7 +6356,7 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                 // NOVO: Fetch Insumos
                 if(view === 'insumos' && subView === 'dash') fetchInsumosData();
 
-            }, [view, subView, filters, session, drePeriodoIni, drePeriodoFim, insumosFilters.periodo]);
+            }, [view, subView, filters, session, drePeriodoIni, drePeriodoFim, insumosFilters.periodo, filters.terceirizacaoPeriodo]);
 
             // --- HELPER FUNCTIONS ---
             const addLog = (msg, type='info') => setLogs(p => [{msg, type}, ...p]);
@@ -6425,7 +6424,23 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                     setDieselData(data || { macro: {}, lista: [] });
                 } catch(e) { addLog("Erro Diesel: " + e.message, 'error'); setDieselData({ macro: {}, lista: [] }); } finally { setLoading(false); }
             };
+            const fetchIndicadoresAnaliticos = async () => {
+    if (!filters.terceirizacaoPeriodo) return;
+    setLoading(true);
+    try {
+        const { data, error } = await supabaseClient
+            .from('indicadores_analiticos')
+            .select('*')
+            .eq('periodo', filters.terceirizacaoPeriodo);
 
+        if (error) throw error;
+        setIndicadoresAnaliticosRaw(data || []);
+    } catch (err) {
+        addLog("Erro ao carregar indicadores: " + err.message, "error");
+    } finally {
+        setLoading(false);
+    }
+};
             const fetchAtivos = async () => {
     setLoading(true);
     try {
