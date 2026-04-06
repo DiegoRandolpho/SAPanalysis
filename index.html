@@ -6955,9 +6955,6 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                                 )}
 
                                 {/* TERCEIRIZAÇÃO */}
-                                {view === 'terceirizacao_analitico' && (<TerceirizacaoAnaliticoDashboard data={indicadoresData} // Estado onde você armazena os dados vindos do Supabase
-                                periodo={filters.terceirizacaoPeriodo} isDark={isDark}/>
-                                )}
                                 {view === 'terceirizacao_cadastros' && <TerceirizacaoCadastros supabaseClient={supabaseClient} onNotify={addLog} />}
                                 {view === 'terceirizacao_pagamentos' && (
                                     <div className="space-y-8">
