@@ -2728,6 +2728,129 @@ const TerceirizacaoDePara = ({ supabaseClient, onNotify }) => {
         </div>
     );
 };
+        const TerceirizacaoAnaliticoDashboard = ({ data, periodo, isDark }) => {
+    const [equipamentoAtivo, setEquipamentoAtivo] = useState('BT');
+    const [filialFiltro, setFilialFiltro] = useState('Todas');
+
+    // Opções de filiais para o Dropdown
+    const listaFiliais = useMemo(() => {
+        return ['Todas', ...new Set(data.map(item => item.filial))].sort();
+    }, [data]);
+
+    // Filtragem dos dados conforme seleção
+    const dadosFiltrados = useMemo(() => {
+        return data.filter(item => 
+            item.equipamento === equipamentoAtivo && 
+            (filialFiltro === 'Todas' || item.filial === filialFiltro)
+        );
+    }, [data, equipamentoAtivo, filialFiltro]);
+
+    // Função de Exportação PDF (Seguindo o padrão do sistema)
+    const handleExportPDF = () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('l', 'mm', 'a4'); // Paisagem para caber todas as colunas
+        const cores = equipamentoAtivo === 'BT' ? [59, 130, 246] : [139, 92, 246];
+
+        doc.setFillColor(cores[0], cores[1], cores[2]);
+        doc.rect(0, 0, 297, 15, 'F');
+        doc.setFontSize(14); doc.setTextColor(255);
+        doc.text(`RELATÓRIO ANALÍTICO - ${equipamentoAtivo} - PERÍODO: ${periodo}`, 15, 10);
+        
+        const headers = [['Filial', 'Volume', 'Líquido/M³', 'Diesel/M³', 'Desloc./M³', 'Adicional']];
+        const body = dadosFiltrados.map(d => [
+            d.filial,
+            Utils.formatters.number(d.volume),
+            Utils.formatters.currency(d.liquido_m3),
+            Utils.formatters.currency(d.diesel_m3),
+            Utils.formatters.currency(d.deslocamento_m3),
+            Utils.formatters.currency(d.adicional_cidades_m3)
+        ]);
+
+        doc.autoTable({
+            startY: 25,
+            head: headers,
+            body: body,
+            theme: 'grid',
+            headStyles: { fillColor: cores }
+        });
+        doc.save(`Analitico_${equipamentoAtivo}_${periodo}.pdf`);
+    };
+
+    return (
+        <div className="space-y-6 animate-enter">
+            {/* BARRA DE FILTROS DO DASHBOARD */}
+            <div className="glass-card p-4 flex justify-between items-center no-print">
+                <div className="flex gap-4 items-center">
+                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                        {['BT', 'BOMBA', 'LANÇA'].map(tipo => (
+                            <button 
+                                key={tipo}
+                                onClick={() => setEquipamentoAtivo(tipo)}
+                                className={`px-6 py-2 rounded-lg text-xs font-bold transition-all ${equipamentoAtivo === tipo ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600 dark:text-white' : 'text-slate-500'}`}
+                            >
+                                {tipo}
+                            </button>
+                        ))}
+                    </div>
+
+                    <select 
+                        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500/20"
+                        value={filialFiltro}
+                        onChange={(e) => setFilialFiltro(e.target.value)}
+                    >
+                        {listaFiliais.map(f => <option key={f} value={f}>{f === 'Todas' ? '🏭 Todas as Filiais' : f}</option>)}
+                    </select>
+                </div>
+
+                <button 
+                    onClick={handleExportPDF}
+                    className="bg-slate-800 dark:bg-white dark:text-slate-900 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:opacity-90"
+                >
+                    <Icons.Download className="w-4 h-4" /> EXPORTAR PDF
+                </button>
+            </div>
+
+            {/* CARDS DE RESUMO */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card 
+                    title="Volume Total" 
+                    value={Utils.formatters.number(dadosFiltrados.reduce((acc, i) => acc + i.volume, 0))} 
+                    iconName="database" color="blue" 
+                />
+                <Card 
+                    title="Média Líquido/M³" 
+                    value={Utils.formatters.currency(dadosFiltrados.length ? dadosFiltrados.reduce((acc, i) => acc + i.liquido_m3, 0) / dadosFiltrados.length : 0)} 
+                    iconName="trendingUp" color="emerald" 
+                />
+                <Card 
+                    title="Média Diesel/M³" 
+                    value={Utils.formatters.currency(dadosFiltrados.length ? dadosFiltrados.reduce((acc, i) => acc + i.diesel_m3, 0) / dadosFiltrados.length : 0)} 
+                    iconName="fuel" color="orange" 
+                />
+                <Card 
+                    title="Deslocamento Médio" 
+                    value={Utils.formatters.currency(dadosFiltrados.length ? dadosFiltrados.reduce((acc, i) => acc + i.deslocamento_m3, 0) / dadosFiltrados.length : 0)} 
+                    iconName="mapPin" color="purple" 
+                />
+            </div>
+
+            {/* TABELA DETALHADA */}
+            <div className="glass-card overflow-hidden">
+                <DataTable 
+                    title={`Detalhamento por Filial - ${equipamentoAtivo}`}
+                    data={dadosFiltrados.map(item => ({
+                        'Filial': item.filial,
+                        'Volume': item.volume,
+                        'Líquido/M³': item.liquido_m3,
+                        'Diesel/M³': item.diesel_m3,
+                        'Deslocamento/M³': item.deslocamento_m3,
+                        'Adicional Cidades': item.adicional_cidades_m3
+                    }))}
+                />
+            </div>
+        </div>
+    );
+};
         const TerceirizacaoDashboard = ({ data, loading, isDark, filters, supabaseClient }) => {
     const chartColors = getChartColors(isDark);
     
@@ -6832,6 +6955,9 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
                                 )}
 
                                 {/* TERCEIRIZAÇÃO */}
+                                {view === 'terceirizacao_analitico' && (<TerceirizacaoAnaliticoDashboard data={indicadoresData} // Estado onde você armazena os dados vindos do Supabase
+                                periodo={filters.terceirizacaoPeriodo} isDark={isDark}/>
+                                )}
                                 {view === 'terceirizacao_cadastros' && <TerceirizacaoCadastros supabaseClient={supabaseClient} onNotify={addLog} />}
                                 {view === 'terceirizacao_pagamentos' && (
                                     <div className="space-y-8">
