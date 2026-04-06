@@ -6391,7 +6391,55 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             };
 
             // --- FILE PROCESSING ---
+            const processTerceirizacaoAnalitico = async (file, period) => {
+    if (!period) {
+        addLog("Selecione o período antes de importar indicadores.", "error");
+        return;
+    }
 
+    setLoading(true);
+    try {
+        const rawData = await Utils.excel.read(file);
+        const rowsToInsert = [];
+
+        rawData.forEach(row => {
+            // Mapeamos os 3 tipos de equipamentos para cada linha da planilha
+            const tipos = [
+                { id: 'BT', pfx: 'bt' },
+                { id: 'BOMBA', pfx: 'bomba' },
+                { id: 'LANÇA', pfx: 'lança' }
+            ];
+
+            tipos.forEach(t => {
+                // Só adiciona se houver volume ou dados para aquele equipamento na linha
+                if (row[`Volume_${t.pfx}`] || row[`Volume_${t.pfx.toUpperCase()}`]) {
+                    rowsToInsert.push({
+                        periodo: period,
+                        filial: row['Filial'],
+                        equipamento: t.id,
+                        volume: parseFloat(row[`Volume_${t.pfx}`] || row[`Volume_${t.pfx.toUpperCase()}`] || 0),
+                        liquido_m3: parseFloat(row[`Líquido/M³_${t.pfx}`] || row[`Líquido/M³_${t.pfx.toUpperCase()}`] || 0),
+                        diesel_m3: parseFloat(row[`Diesel/M³_${t.pfx}`] || row[`Diesel/M³_${t.pfx.toUpperCase()}`] || 0),
+                        deslocamento_m3: parseFloat(row[`Deslocamento/M³_${t.pfx}`] || row[`Deslocamento/M³_${t.pfx.toUpperCase()}`] || 0),
+                        adicional_cidades_m3: parseFloat(row[`Adicional Cidades/M³_${t.pfx}`] || row[`Adicional Cidades/M³_${t.pfx.toUpperCase()}`] || 0)
+                    });
+                }
+            });
+        });
+
+        const { error } = await supabaseClient
+            .from('indicadores_analiticos')
+            .upsert(rowsToInsert);
+
+        if (error) throw error;
+        addLog(`${rowsToInsert.length} registros analíticos processados!`, "success");
+
+    } catch (err) {
+        addLog("Erro no processamento: " + err.message, "error");
+    } finally {
+        setLoading(false);
+    }
+};
             // NOVO: PROCESSAR ARQUIVO DE INSUMOS
             // Processar Insumos
            const processInsumosFile = (file, periodDate) => {
@@ -6643,14 +6691,15 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
             // --- IMPORT HANDLER PRINCIPAL ---
             const handleImport = async (file, type, period) => {
                 if (type === 'insumos') processInsumosFile(file, period);
-                else if (type === 'controladoria') processControladoriaFile(file, period);
-                else if (type === 'diesel_estoque') processDieselFile(file, period);
-                else if (type === 'shell') processShellFile(file);
-                else if (type === 'ticket') processTicketFile(file);
-                else if (type === 'cta') processCtaFile(file);
-                else if (type === 'equipamentos') processEquipamentosFile(file);
-                else handleUploadTerceirizacao(file, type);
-            };
+    else if (type === 'controladoria') processControladoriaFile(file, period);
+    else if (type === 'diesel_estoque') processDieselFile(file, period);
+    else if (type === 'terceirizacao_analitico') processTerceirizacaoAnalitico(file, period); // <-- NOVA OPÇÃO
+    else if (type === 'shell') processShellFile(file);
+    else if (type === 'ticket') processTicketFile(file);
+    else if (type === 'cta') processCtaFile(file);
+    else if (type === 'equipamentos') processEquipamentosFile(file);
+    else handleUploadTerceirizacao(file, type);
+};
 
             const batchExport = async (tableName, fileName) => { addLog("Exportação iniciada...", "info"); };
 
@@ -6856,17 +6905,38 @@ const AdminCadastroChamados = ({ supabaseClient, onNotify }) => {
 )}
                                 {view === 'terceirizacao_depara' && <TerceirizacaoDePara supabaseClient={supabaseClient} onNotify={addLog} />}
                                 {view === 'terceirizacao_import' && (
-                                    <div className="space-y-6 animate-enter pb-10">
-                                        <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2 mb-4">
-                                            <Icons.Upload className="text-blue-500" /> Importar Dados Operacionais
-                                        </h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                            <UploadCard type="apuracao" iconName="fileText" onAnalyze={(f)=>handleImport(f,'apuracao')} isAnalyzing={loading} />
-                                            <UploadCard type="pagamentos" iconName="dollar" onAnalyze={(f)=>handleImport(f,'pagamentos')} isAnalyzing={loading} />
-                                            <UploadCard type="concessao" iconName="checkCircle" onAnalyze={(f)=>handleImport(f,'concessao')} isAnalyzing={loading} />
-                                        </div>
-                                    </div>
-                                )}
+    <div className="space-y-6 animate-enter pb-10">
+        <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-4">
+            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                <Icons.Upload className="text-blue-500" /> Importar Dados Operacionais
+            </h3>
+            {/* Adicionando seletor de período para o analítico */}
+            <div className="bg-white dark:bg-slate-800 p-2 px-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-3">
+                <span className="text-xs font-bold text-slate-500">Mês de Ref:</span>
+                <div className="w-40">
+                    <MonthPicker 
+                        value={filters.terceirizacaoPeriodo} 
+                        onChange={(e) => setFilters({...filters, terceirizacaoPeriodo: e})} 
+                    />
+                </div>
+            </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <UploadCard type="apuracao" iconName="fileText" onAnalyze={(f)=>handleImport(f,'apuracao')} isAnalyzing={loading} />
+            <UploadCard type="pagamentos" iconName="dollar" onAnalyze={(f)=>handleImport(f,'pagamentos')} isAnalyzing={loading} />
+            <UploadCard type="concessao" iconName="checkCircle" onAnalyze={(f)=>handleImport(f,'concessao')} isAnalyzing={loading} />
+            
+            {/* 4ª OPÇÃO: Indicadores Analíticos */}
+            <UploadCard 
+                type="terceirizacao_analitico" 
+                iconName="barChart" 
+                onAnalyze={(f) => handleImport(f, 'terceirizacao_analitico', filters.terceirizacaoPeriodo)} 
+                isAnalyzing={loading} 
+            />
+        </div>
+    </div>
+)}
                                 {view === 'documentacao' && (
                                 <DocumentacaoDashboard supabaseClient={supabaseClient} />
             )}
